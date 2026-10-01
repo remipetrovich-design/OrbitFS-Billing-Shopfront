@@ -1,0 +1,18 @@
+-- OrbitFS V2 Billing Store database bootstrap
+--
+-- This repository no longer stores a live full-database dump because that can
+-- contain customer/runtime records. Rebuilds must use the ordered migration
+-- set in ../database/migrations and then restore reusable configuration only.
+--
+-- Source of truth:
+--   1. database/migrations/*.sql
+--   2. supabase/functions/*
+--   3. supabase/OrbitFS-Billing-License-Actual-Export.sh (schema/config export)
+--      or the PowerShell equivalent for a controlled source database.
+--
+-- Customer accounts, orders, invoices, payments, tickets, credentials,
+-- sessions, audit history and runtime licence/deployment records must never be
+-- committed to this file.
+--
+-- Apply migrations in filename order to a dedicated Billing Store Supabase
+-- project. Do not apply them to the License Manager project.
