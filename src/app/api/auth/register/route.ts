@@ -1,0 +1,75 @@
+import {issueEmailVerification} from "@/lib/email-verification-server";
+import {createClient} from "@supabase/supabase-js";
+import {setOrbitPassword} from "@/lib/orbitfs-auth-server";
+
+const url=process.env.NEXT_PUBLIC_SUPABASE_URL||"";
+const serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const db=()=>createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
+const validUsername=(value:string)=>/^[A-Za-z0-9._-]{3,32}$/.test(value);
+
+export async function POST(req:Request){
+ if(!url||!serviceKey)return Response.json({error:"Billing Store database is not configured."},{status:503});
+ const body=await req.json().catch(()=>({}));
+ const email=String(body.email||"").trim().toLowerCase(),password=String(body.password||""),username=String(body.username||"").trim();
+ const firstName=String(body.first_name||"").trim(),lastName=String(body.last_name||"").trim();
+ if(!firstName||!lastName||firstName.length>100||lastName.length>100)return Response.json({error:"First and last name are required (up to 100 characters each)."},{status:400});
+ const fullName=`${firstName} ${lastName}`;
+ if(!validUsername(username))return Response.json({error:"Username must be 3–32 characters using letters, numbers, dots, underscores or hyphens."},{status:400});
+ if(!email||!email.includes("@")||password.length<8)return Response.json({error:"Enter a valid email and a password with at least 8 characters."},{status:400});
+ const client=db(),now=new Date().toISOString();
+ const {data:settingsRows}=await client.from("app_settings").select("key,value").in("key",["general.registration_enabled","general.require_email_verification"]);
+ const settings=Object.fromEntries((settingsRows||[]).map((x:any)=>[x.key,x.value]));
+ if(settings["general.registration_enabled"]===false)return Response.json({error:"New account registration is currently disabled."},{status:403});
+ const requireVerification=settings["general.require_email_verification"]!==false;
+ const {data:existing}=await client.from("users").select("id,email,username,display_name,first_name,status,email_verified_at").ilike("email",email).maybeSingle();
+ if(existing){
+  const {data:customer}=await client.from("customers").select("id").eq("user_id",existing.id).maybeSingle();
+  if(customer)return Response.json({error:"An OrbitFS account already exists for that email address."},{status:409});
+  const {data:credential}=await client.from("customer_credentials").select("user_id").eq("user_id",existing.id).maybeSingle();
+  if(!credential)return Response.json({error:"This email already belongs to an OrbitFS staff account. Sign in with the existing account or have a staff administrator enable its customer profile."},{status:409});
+  const {data:createdCustomer,error}=await client.from("customers").insert({
+   user_id:existing.id,auth_user_id:existing.id,email,name:fullName,
+   first_name:firstName,last_name:lastName,username:existing.username||username,display_name:existing.display_name||fullName,status:"active",
+   email_verified_at:existing.email_verified_at,metadata:{registration_source:"public_existing_user"},updated_at:now
+  }).select("id").single();
+  if(error||!createdCustomer)return Response.json({error:error?.message||"Could not attach the customer profile."},{status:500});
+  return Response.json({ok:true,user_id:existing.id,customer_id:createdCustomer.id,message:"Your existing OrbitFS account is now enabled as a customer account."});
+ }
+
+ // Supabase Auth is the JWT transport used by the customer portal. Create
+ // its user first so the authoritative public.users identity shares that UUID.
+ const {data:browserIdentity,error:browserError}=await client.auth.admin.createUser({
+  email,password,email_confirm:!requireVerification,user_metadata:{username,first_name:firstName,last_name:lastName,display_name:fullName}
+ });
+ if(browserError||!browserIdentity.user)return Response.json({error:browserError?.message||"Could not create your login identity."},{status:500});
+ const {data:user,error:userError}=await client.from("users").insert({
+  id:browserIdentity.user.id,email,username,display_name:fullName,first_name:firstName,last_name:lastName,status:"pending",updated_at:now
+ }).select("id").single();
+ if(userError||!user){
+  await client.auth.admin.deleteUser(browserIdentity.user.id);
+  return Response.json({error:userError?.message||"Could not create account."},{status:500});
+ }
+ try{
+  await setOrbitPassword(user.id,password);
+  const {error:customerError}=await client.from("customers").insert({
+   user_id:user.id,auth_user_id:user.id,email,name:fullName,username,display_name:fullName,first_name:firstName,last_name:lastName,status:"active",
+   email_verified_at:requireVerification?null:now,metadata:{registration_source:"public"},updated_at:now
+  });
+  if(customerError)throw customerError;
+  await client.from("users").update({status:"active",email_verified_at:requireVerification?null:now,updated_at:now}).eq("id",user.id);
+  if(requireVerification){
+    const ip=(req.headers.get("x-forwarded-for")||"").split(",")[0].trim()||null;
+    await issueEmailVerification({id:user.id,email,name:fullName},new URL(req.url).origin,ip);
+  }
+  try{await client.from("admin_audit_log").insert({actor_id:null,action:"customer.registered",target_type:"customer",target_id:user.id,detail:{email,username,verification:requireVerification?"orbitfs":"disabled_by_setting"}})}catch{}
+  return Response.json({ok:true,user_id:user.id,message:requireVerification?"Account created. Check your email for the OrbitFS verification link before signing in.":"Account created. You can sign in now."});
+ }catch(e:any){
+  await client.from("customer_sessions").delete().eq("user_id",user.id);
+  await client.from("customer_credentials").delete().eq("user_id",user.id);
+  await client.from("customers").delete().eq("user_id",user.id);
+  await client.from("users").delete().eq("id",user.id);
+  await client.auth.admin.deleteUser(browserIdentity.user.id);
+  console.error("OrbitFS registration failed",e);
+  return Response.json({error:e?.message||"Could not create OrbitFS account."},{status:500});
+ }
+}
