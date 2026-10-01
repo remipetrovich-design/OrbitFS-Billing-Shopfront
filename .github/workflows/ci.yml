@@ -1,0 +1,99 @@
+name: Store Full Scan
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  push:
+    branches:
+      - control/full-scan
+
+permissions:
+  contents: read
+
+concurrency:
+  group: store-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  production-gate:
+    name: Full Production Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || 'https://ci-placeholder.supabase.co' }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_ci_placeholder' }}
+    steps:
+      - name: Checkout complete repository history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify complete repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse --is-shallow-repository)" = "false"
+          test -f package-lock.json
+          test -f vercel.json
+
+      - name: Verify controlled Full Scan trigger
+        if: ${{ github.event_name == 'push' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF}" = "refs/heads/control/full-scan"
+          test "${GITHUB_ACTOR}" = "lucaskerim123"
+          git fetch origin main --prune
+          main_sha="$(git rev-parse origin/main)"
+          if [ "${GITHUB_SHA}" != "$main_sha" ]; then
+            echo "::error::Control Full Scan must point at the exact current main commit. Requested ${GITHUB_SHA}; main is $main_sha."
+            exit 1
+          fi
+          echo "Controlled Full Scan authorized for main @ ${GITHUB_SHA}"
+
+      - name: Use Node 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Verify immutable database migration baseline
+        run: node scripts/prepare-supabase-migrations.mjs .orbitfs-supabase/supabase/migrations
+
+      - name: Initialize CodeQL full security scan
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+
+      - name: Run CodeQL full security scan
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:javascript-typescript-full-scan"
+          upload: never
+          output: codeql-results
+
+      - name: Archive CodeQL full-scan results
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-full-scan-${{ github.sha }}
+          path: codeql-results
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Run complete production preflight
+        run: npm run preflight
+
+      - name: Upload temporary validation failure report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-failure-${{ github.sha }}
+          path: .orbitfs-validation/validation-error.txt
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Full scan passed
+        run: 'echo "Full production scan passed: install, integrity, lint, typecheck, audit, CodeQL, and production build are green."'
