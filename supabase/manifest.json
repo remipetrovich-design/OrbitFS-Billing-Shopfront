@@ -1,0 +1,30 @@
+{
+  "type": "actual-export-generator",
+  "source_project": "OrbitFS V2 Billing Store",
+  "project_ref": "runtime-configured",
+  "purpose": "Standalone Billing Store commerce/customer database export; License Manager is separate technical authority",
+  "schema": "live public schema dump at execution time",
+  "data_policy": "configuration/default data only; runtime/customer data excluded",
+  "tables_with_data": [
+    "app_settings",
+    "system_settings",
+    "staff_groups",
+    "support_departments",
+    "support_department_staff",
+    "support_kb_categories",
+    "support_message_templates",
+    "support_premade_messages",
+    "mail_templates",
+    "mail_automations",
+    "mail_settings",
+    "payment_gateways",
+    "payment_gateway_setups",
+    "enforcement_settings",
+    "license_api_settings",
+    "orbitfs_release_system_settings",
+    "orbitfs_themes",
+    "role_definitions",
+    "role_permissions",
+    "option_sets"
+  ]
+}
