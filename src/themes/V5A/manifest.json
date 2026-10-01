@@ -1,0 +1,10 @@
+{
+  "id": "V5A",
+  "name": "OrbitFS V5 Admin",
+  "version": "5.0.0",
+  "surface": "admin",
+  "entry": "theme.css",
+  "family": "V5",
+  "extends": "V3A",
+  "description": "Current OrbitFS admin design, layered over the stable V3A admin baseline."
+}
