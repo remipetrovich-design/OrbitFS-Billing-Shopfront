@@ -1,0 +1,663 @@
+.portalOverviewV2,.accountSettingsV2{display:grid;gap:18px;min-width:0}.portalOverviewHero,.accountSettingsHero{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;padding:8px 0}.portalOverviewHero h1,.accountSettingsHero h1{margin:5px 0 6px;font-size:clamp(30px,3vw,42px);letter-spacing:-.03em}.portalOverviewStats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.portalStatCard{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center;padding:18px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(145deg,#10233b,#0b1727);color:var(--text);min-width:0}.portalStatCard:hover{border-color:#406d9d;background:#122945}.portalStatIcon{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#183a67;color:#9bc5ff;font-weight:900}.portalStatCard>div{display:grid;gap:5px;min-width:0}.portalStatCard small{font-size:9px;letter-spacing:.1em;color:#91a8c1}.portalStatCard strong{font-size:21px;text-transform:capitalize}.portalStatCard span:last-child{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.portalOverviewGrid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(270px,.55fr);gap:16px;align-items:start}.portalOverviewActivity{margin:0}.portalQuickActions{margin:0;display:grid;gap:10px}.portalQuickActions h2{margin:4px 0 8px}.portalQuickActions>a{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:11px;background:#091626;color:var(--text)}.portalQuickActions>a:hover{background:#102036;border-color:#416b9e}.portalQuickActions>a>span{font-size:11px;color:var(--muted);text-align:right}.portalOverviewBottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}.portalOverviewBottom>.panel{margin:0}.accountIdentity{display:grid;gap:3px;justify-items:end;text-align:right;max-width:340px}.accountIdentity small{font-size:9px;letter-spacing:.1em;color:#8ea4bd}.accountIdentity b,.accountIdentity span{font-size:11px;color:#b8c7d8;overflow-wrap:anywhere}.accountIdentity b{font-size:13px;color:#e4edf8}.accountSettingsNav{display:flex;gap:6px;padding:6px;border:1px solid var(--line);border-radius:12px;background:#091524;overflow-x:auto}.accountSettingsNav button{appearance:none;border:0;background:transparent;flex:0 0 auto;min-height:36px;padding:9px 13px;border-radius:8px;color:#aebfd3;font-size:12px;font-weight:700;cursor:pointer}.accountSettingsNav button:hover{background:#13263e;color:#fff}.accountSettingsNav button.active{background:#183a67;color:#fff;box-shadow:inset 0 0 0 1px #315f91}.accountSettingsSections{display:grid;gap:16px}.accountSettingsCard{margin:0}.settingsSectionHead{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:16px}.settingsSectionHead h2,.settingsSectionHead h3{margin:4px 0 5px}.settingsSectionHead.compact{margin-bottom:8px}.settingsPreferenceGrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.8fr);gap:18px}.settingsToggles{display:grid;gap:8px}.settingsSaveBar{position:sticky;bottom:10px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;border:1px solid #315177;border-radius:12px;background:#0a1727e8;backdrop-filter:blur(10px)}.settingsSaveBar span{font-size:12px;color:#aebfd3}.settingsReadOnlyRow,.billingPreview{display:grid;gap:5px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#091626}.settingsReadOnlyRow{grid-template-columns:auto 1fr;align-items:center}.settingsReadOnlyRow span,.billingPreview small{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em}.settingsReadOnlyRow b{text-align:right}.billingPreview{margin-top:4px}.billingPreview span{font-size:12px;color:var(--muted)}.walletSettingsCard{border-color:#31577e;background:linear-gradient(145deg,#10223a,#0a1626)}.walletSettingsHead{align-items:center}.walletBalanceBadge{display:grid;gap:3px;min-width:150px;padding:13px 15px;border:1px solid #365f8a;border-radius:12px;background:#081727;text-align:right}.walletBalanceBadge small{font-size:9px;color:#8ea4bd}.walletBalanceBadge strong{font-size:24px}.walletSettingsActions{display:grid;grid-template-columns:1fr 1fr;gap:14px}.walletActionBox{display:grid;gap:12px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#091626}.walletActionBox h3{margin:0}.walletActionBox p{margin:0;line-height:1.5}.walletActionBox label{display:grid;gap:6px;font-size:12px;font-weight:700}.walletActionBox button:disabled,.walletActionBox input:disabled{opacity:.55;cursor:not-allowed}.walletActivity{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}.walletActivityRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.walletActivityRow:last-child{border-bottom:0}.walletActivityRow>div{display:grid;gap:3px}.walletActivityRow>div:last-child{text-align:right}.walletActivityRow span{font-size:11px;color:var(--muted)}.walletCredit{color:#a9e7c2}.walletDebit{color:#f3b6b6}.securityForm{max-width:760px}.accountSettingsCard label{font-size:12px;font-weight:700}.accountSettingsCard input:disabled{opacity:.7;cursor:not-allowed}
+@media(max-width:1000px){.portalOverviewStats{grid-template-columns:repeat(2,minmax(0,1fr))}.portalOverviewGrid,.portalOverviewBottom{grid-template-columns:1fr}.settingsPreferenceGrid{grid-template-columns:1fr}}
+@media(max-width:760px){.portalOverviewV2,.accountSettingsV2{gap:13px}.portalOverviewHero,.accountSettingsHero{align-items:flex-start;flex-direction:column}.portalOverviewHero .buttonlink{width:100%;text-align:center}.portalOverviewStats{grid-template-columns:1fr 1fr;gap:8px}.portalStatCard{padding:13px;grid-template-columns:1fr;gap:8px}.portalStatIcon{width:30px;height:30px}.portalStatCard strong{font-size:18px}.portalStatCard span:last-child{white-space:normal}.portalOverviewGrid{gap:12px}.portalQuickActions>a{align-items:flex-start;flex-direction:column}.portalQuickActions>a>span{text-align:left}.accountIdentity{justify-items:start;text-align:left;max-width:none}.accountSettingsNav{margin:0 -2px}.walletSettingsHead{align-items:flex-start;flex-direction:column}.walletBalanceBadge{width:100%;text-align:left}.walletSettingsActions{grid-template-columns:1fr}.settingsSaveBar{bottom:6px;flex-direction:column;align-items:stretch}.settingsSaveBar button{width:100%}.walletActivityRow{gap:10px}.accountSettingsCard{padding:15px}}
+@media(max-width:430px){.portalOverviewStats{grid-template-columns:1fr}.portalStatCard{grid-template-columns:auto minmax(0,1fr)}.accountSettingsNav button{padding:8px 10px}.walletActivityRow{grid-template-columns:1fr}.walletActivityRow>div:last-child{text-align:left}.accountSettingsCard .two{grid-template-columns:1fr}.settingsReadOnlyRow{grid-template-columns:1fr}.settingsReadOnlyRow b{text-align:left}}
+
+
+/* Customer portal redesign: customer-facing My OrbitFS hub */
+.portalOverviewV2{max-width:1380px;margin:0 auto}
+.portalOverviewHero{padding:16px 2px 8px}
+.portalOverviewHero>div:first-child{max-width:780px}
+.portalOverviewHero .muted{font-size:14px;line-height:1.55}
+.portalOrbitfsHub{margin:0;padding:22px;border-color:#244d59;background:linear-gradient(145deg,rgba(16,43,51,.94),rgba(9,24,38,.98));box-shadow:0 20px 54px #00000024}
+.portalOrbitfsHead{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding-bottom:18px;border-bottom:1px solid #234553}
+.portalOrbitfsHead h2{margin:5px 0 7px;font-size:25px}
+.portalOrbitfsHead p{margin:0;max-width:680px;line-height:1.55}
+.portalOrbitfsHead>a{flex:0 0 auto;padding:9px 12px;border:1px solid #2f6070;border-radius:9px;background:#0b2530;color:#c8f5ec;font-size:12px;font-weight:750}
+.portalOrbitfsHead>a:hover{background:#10313d;border-color:#4d8e87}
+.portalOrbitfsGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding-top:14px}
+.portalOrbitfsGrid>a{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;min-width:0;padding:15px;border:1px solid #244553;border-radius:12px;background:#081a28;color:var(--text);transition:.16s ease}
+.portalOrbitfsGrid>a:hover{transform:translateY(-1px);border-color:#3b776f;background:#0b2230}
+.portalOrbitfsStep{display:grid;place-items:center;width:34px;height:34px;border:1px solid #356a69;border-radius:10px;background:#0f3337;color:#8fe0cc;font-size:10px;font-weight:850;letter-spacing:.08em}
+.portalOrbitfsGrid>a>div{display:grid;gap:4px;min-width:0}
+.portalOrbitfsGrid b{font-size:14px}
+.portalOrbitfsGrid a>div>span{font-size:11px;line-height:1.45;color:#91a4bc}
+.portalOrbitfsGrid i{font-style:normal;color:#77cab8;font-size:18px}
+@media(max-width:1000px){.portalOrbitfsGrid{grid-template-columns:1fr}.portalOrbitfsHead{align-items:flex-start}}
+@media(max-width:640px){.portalOrbitfsHub{padding:16px}.portalOrbitfsHead{flex-direction:column}.portalOrbitfsHead>a{width:100%;text-align:center}.portalOrbitfsGrid>a{grid-template-columns:auto minmax(0,1fr)}.portalOrbitfsGrid i{display:none}}
+
+
+/* Customer portal shell v3 */
+.portalShellV3{min-height:100vh;display:grid;grid-template-columns:238px minmax(0,1fr);background:#08111d;color:var(--text)}
+.portalShellSidebar{position:sticky;top:0;height:100vh;z-index:40;display:grid;grid-template-rows:auto 1fr auto;min-width:0;border-right:1px solid #1c2e43;background:linear-gradient(180deg,#0b1522 0%,#09121d 100%)}
+.portalShellBrand{height:74px;display:flex;align-items:center;padding:0 17px;border-bottom:1px solid #18283a}
+.portalShellBrand>a,.portalShellBrandCompact{display:flex;align-items:center;gap:10px;color:#f4f7fb;text-decoration:none;min-width:0}
+.portalShellLogo,.portalShellBrandCompact>span{display:grid;place-items:center;width:32px;height:32px;flex:0 0 auto;border:1px solid #31516f;border-radius:9px;background:#10283f;color:#b8dcff;font-size:13px;font-weight:900}
+.portalShellBrand div{display:grid;gap:1px;min-width:0}.portalShellBrand b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.portalShellBrand small{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#7489a0}
+.portalShellNav{padding:16px 10px;overflow:auto}
+.portalShellNavGroup{display:grid;gap:4px;margin-bottom:18px}
+.portalShellNavLabel{padding:0 9px 7px;font-size:8px;font-weight:800;letter-spacing:.16em;color:#64788e}
+.portalShellNavGroup>a,.portalShellSidebarBottom>a{display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center;gap:9px;min-height:38px;padding:5px 8px;border:1px solid transparent;border-radius:8px;color:#9fb0c3;text-decoration:none;transition:.14s ease}
+.portalShellNavGroup>a:hover,.portalShellSidebarBottom>a:hover{background:#0e1d2c;color:#e8f1fa;border-color:#1f354a}
+.portalShellNavGroup>a.active,.portalShellSidebarBottom>a.active{background:#11283a;color:#f4fbff;border-color:#2b4d65;box-shadow:inset 3px 0 0 #5b9d9b}
+.portalShellNavGroup>a b,.portalShellSidebarBottom>a b{font-size:11px;font-weight:700}
+.portalShellNavIcon{display:grid;place-items:center;width:26px;height:26px;border:1px solid #263b4e;border-radius:7px;background:#0a1825;color:#7f9ab2;font-size:7px;font-weight:900;letter-spacing:.04em}
+.portalShellNavGroup>a.active .portalShellNavIcon,.portalShellSidebarBottom>a.active .portalShellNavIcon{border-color:#3b696d;background:#12343a;color:#9ee0d5}
+.portalShellSidebarBottom{display:grid;gap:4px;padding:10px;border-top:1px solid #18283a}
+.portalShellSidebarBottom>a>div{display:grid;gap:1px;min-width:0}.portalShellSidebarBottom small{font-size:8px;color:#6e8296;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.portalShellContent{min-width:0;display:grid;grid-template-rows:58px minmax(0,1fr)}
+.portalShellToolbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:0 24px;border-bottom:1px solid #1d3044;background:#0a1420e8;backdrop-filter:blur(14px)}
+.portalShellToolbar>div:first-child{display:grid;gap:2px}.portalShellBreadcrumb{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#6c8197}.portalShellToolbar>div:first-child>b{font-size:12px}
+.portalShellTools{display:flex;align-items:center;gap:8px}.portalShellUser{display:flex;align-items:center;gap:8px;min-width:0;padding-right:10px;border-right:1px solid #223447}.portalShellUser>span{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#15324b;color:#b9dcfa;font-size:10px;font-weight:800}.portalShellUser>div{display:grid;gap:1px;max-width:180px}.portalShellUser b{font-size:10px}.portalShellUser small{font-size:8px;color:#71869a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.portalShellLogout{min-height:31px!important;padding:6px 10px!important;border:1px solid #30465a!important;border-radius:7px!important;background:#0c1a28!important;color:#b9c8d6!important;font-size:9px!important}
+.portalShellLogout:hover{background:#132438!important;color:#fff!important}
+.portalShellMain{min-width:0;width:100%;max-width:1500px;margin:0 auto;padding:22px 24px 34px}
+.portalShellMobileHead,.portalShellBackdrop{display:none}
+.portalShellV3 .portalOverviewV2,.portalShellV3 .portalPage,.portalShellV3 .portalReleasePage{max-width:none;margin:0}
+.portalShellV3 .portalOverviewHero,.portalShellV3 .portalTop,.portalShellV3 .portalReleaseHeader{padding-top:3px}
+.portalShellV3 .portalOverviewHero h1,.portalShellV3 .portalTop h1,.portalShellV3 .portalReleaseHeader h1{font-size:clamp(25px,2.5vw,34px)}
+.portalShellV3 .panel,.portalShellV3 .portalCompactPanel{border-radius:10px;box-shadow:none}
+.portalShellV3 button,.portalShellV3 .buttonlink{border-radius:7px}
+.portalShellMobileActions{display:flex;align-items:center;gap:7px}
+.portalShellMenuButton{min-height:31px!important;padding:6px 10px!important;font-size:9px!important}
+@media(max-width:980px){
+ .portalShellV3{grid-template-columns:1fr;padding-top:52px}
+ .portalShellMobileHead{position:fixed;top:0;left:0;right:0;z-index:60;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid #1d3044;background:#09131fed;backdrop-filter:blur(14px)}
+ .portalShellBrandCompact>span{width:29px;height:29px}.portalShellBrandCompact b{font-size:12px}
+ .portalShellSidebar{position:fixed;top:52px;left:0;bottom:0;width:min(300px,88vw);height:auto;transform:translateX(-104%);transition:transform .18s ease;box-shadow:18px 0 42px #0008}
+ .portalShellSidebar.open{transform:translateX(0)}
+ .portalShellBrand{display:none}
+ .portalShellContent{grid-template-rows:auto minmax(0,1fr)}
+ .portalShellToolbar{position:static;min-height:48px;padding:0 14px}
+ .portalShellToolbar .portalShellTools{display:none}
+ .portalShellMain{padding:16px 14px 28px}
+ .portalShellBackdrop{display:block;position:fixed;inset:52px 0 0;z-index:35;border:0!important;border-radius:0!important;background:#0008!important}
+}
+@media(max-width:640px){
+ .portalShellToolbar{min-height:44px}.portalShellBreadcrumb{display:none}
+ .portalShellMain{padding:12px 10px 24px}
+ .portalShellV3 .portalOverviewHero h1,.portalShellV3 .portalTop h1,.portalShellV3 .portalReleaseHeader h1{font-size:24px}
+ .portalShellV3 .panel,.portalShellV3 .portalCompactPanel{border-radius:8px}
+}
+
+
+/* Billing-side page cleanup under the new shell */
+.portalShellV3 .recordsPage,.portalShellV3 .recordDetailPage,.portalShellV3 .supportPageV3,.portalShellV3 .downloadsPageV3,.portalShellV3 .accountSettingsV2,.portalShellV3 .storePage{gap:14px}
+.portalShellV3 .recordsHeader h1,.portalShellV3 .recordDetailHero h1,.portalShellV3 .accountSettingsHero h1,.portalShellV3 .storeHero h1{font-size:clamp(25px,2.5vw,34px);margin:4px 0 6px}
+.portalShellV3 .recordsSectionHead,.portalShellV3 .settingsSectionHead{padding:15px}
+.portalShellV3 .recordsSectionHead h2,.portalShellV3 .settingsSectionHead h2{font-size:18px}
+.portalShellV3 .recordsCount{height:27px;min-width:27px;font-size:10px}
+.portalShellV3 .recordCompactRow{padding:12px 14px}
+.portalShellV3 .recordCompactHead{padding:8px 14px;font-size:9px}
+.portalShellV3 .recordSummaryGrid article{padding:14px;border-radius:9px}
+.portalShellV3 .recordSummaryGrid strong{font-size:17px}
+.portalShellV3 .storeHero{padding:3px 0 0}
+.portalShellV3 .storeLead{font-size:13px;max-width:700px}
+.portalShellV3 .storeBaseFeature{padding:20px 22px;border-radius:11px;gap:20px}
+.portalShellV3 .storeBaseCopy h2{font-size:25px;margin:10px 0 7px}
+.portalShellV3 .storeBaseCopy>p{font-size:13px}
+.portalShellV3 .storeBaseAction{padding:16px;border-radius:10px}
+.portalShellV3 .storeBaseAction strong{font-size:23px}
+.portalShellV3 .storeAddonCard{padding:15px 17px;border-radius:10px}
+.portalShellV3 .storeAddonCard h3{font-size:18px;margin:8px 0 5px}
+.portalShellV3 .storeAddonMeta strong{font-size:17px}
+.portalShellV3 .storeCheckoutPanel{top:74px}
+.portalShellV3 .accountSettingsNav{padding:4px;border-radius:9px}
+.portalShellV3 .accountSettingsNav button{min-height:32px;padding:7px 10px;font-size:10px}
+.portalShellV3 .accountSettingsCard{padding:16px}
+.portalShellV3 .walletActionBox{padding:14px;border-radius:9px}
+.portalShellV3 .settingsSaveBar{border-radius:9px}
+
+/* Downloads */
+.downloadsPageV3{display:grid;gap:14px}
+.downloadsHead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px}
+.downloadsSummary{display:grid;gap:2px;min-width:120px;padding:10px 12px;border:1px solid #294258;border-radius:9px;background:#0a1825;text-align:right}
+.downloadsSummary small{font-size:8px;letter-spacing:.1em;color:#70859a}.downloadsSummary strong{font-size:20px}
+.downloadsEntitlementList{display:grid;gap:10px}
+.downloadEntitlement{padding:0!important;overflow:hidden}
+.downloadEntitlementHead{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:14px 15px;border-bottom:1px solid #203246}
+.downloadEntitlementHead h2{margin:3px 0 4px;font-size:17px}.downloadEntitlementHead span{font-size:10px;color:var(--muted)}
+.downloadFiles{display:grid}.downloadFileRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center;padding:12px 15px;border-bottom:1px solid #1b2a3b}.downloadFileRow:last-child{border-bottom:0}
+.downloadFileIdentity{display:grid;gap:3px;min-width:0}.downloadFileIdentity b{font-size:12px}.downloadFileIdentity span{font-size:10px;color:var(--muted)}.downloadFileIdentity small{font-size:8px;color:#6f8498;overflow-wrap:anywhere}
+.downloadFileAction button{min-width:88px}
+.downloadsEmpty,.downloadsEmptyRow{padding:18px}.downloadsEmpty h2{font-size:18px;margin:0 0 6px}.downloadsEmptyRow{font-size:11px;color:var(--muted)}
+
+/* Support */
+.supportPageV3{display:grid;gap:13px}
+.supportPageV3 .portalTop{display:flex;justify-content:space-between;align-items:flex-end;gap:16px}
+.supportPageV3 .portalTop h1{margin:4px 0 6px;font-size:clamp(25px,2.5vw,34px)}
+.supportPageV3 .recordTabs{margin:0;padding:4px;border:1px solid #24384c;border-radius:9px;background:#091625}
+.supportPageV3 .recordTabs button{min-height:31px;padding:7px 10px;border-radius:6px;font-size:10px}
+.supportPageV3 .supportCreate{padding:16px}
+.supportPageV3 .supportCreate textarea{min-height:170px}
+.supportPageV3 .ticketCard{padding:12px 0}
+.supportPageV3 .ticketCard b{font-size:12px}
+.supportPageV3 .ticketCard span{font-size:10px}
+
+@media(max-width:760px){
+ .downloadsHead,.supportPageV3 .portalTop{align-items:flex-start;flex-direction:column}
+ .downloadsSummary{width:100%;text-align:left}
+ .downloadFileRow{grid-template-columns:1fr}.downloadFileAction button{width:100%}
+ .portalShellV3 .storeBaseFeature{padding:16px}
+}
+
+
+/* Complete Billing Store customer-side redesign pass */
+.portalShellV3 .portalOverviewHero{align-items:flex-start}
+.portalShellV3 .portalOverviewStats{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.portalShellV3 .portalStatCard{padding:13px 14px;border-radius:9px;background:#0a1928}
+.portalShellV3 .portalStatIcon{width:29px;height:29px;border-radius:7px;font-size:10px}
+.portalShellV3 .portalStatCard strong{font-size:17px}
+.portalShellV3 .portalStatCard small{font-size:8px}
+.portalShellV3 .portalOrbitfsHub{padding:16px;border-radius:10px;box-shadow:none}
+.portalShellV3 .portalOrbitfsHead{padding-bottom:13px}
+.portalShellV3 .portalOrbitfsHead h2{font-size:20px}
+.portalShellV3 .portalOrbitfsGrid{gap:8px;padding-top:10px}
+.portalShellV3 .portalOrbitfsGrid>a{padding:11px;border-radius:9px}
+.portalShellV3 .portalOrbitfsStep{width:29px;height:29px;border-radius:7px}
+.portalShellV3 .portalOverviewGrid,.portalShellV3 .portalOverviewBottom{gap:10px}
+.portalShellV3 .portalQuickActions>a{padding:10px 11px;border-radius:8px}
+.portalShellV3 .portalActivityHeader{padding:14px 15px 9px}
+.portalShellV3 .portalActivityHeader h2{font-size:17px}
+.portalShellV3 .portalActivityBody{padding:3px 15px 8px}
+.portalShellV3 .portalActivityTabs button{padding:9px 10px;font-size:10px}
+
+/* Product detail */
+.productDetailV3{display:grid;gap:14px}
+.productDetailV3>.portalTop{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
+.productDetailV3>.portalTop h1{margin:4px 0 6px;font-size:clamp(25px,2.5vw,34px)}
+.productDetailV3 .purchaseLayout{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.6fr);gap:12px;align-items:start}
+.productDetailV3 .purchaseLayout>.panel{margin:0;padding:16px}
+.productDetailV3 .purchaseLayout h2{margin:0 0 10px;font-size:18px}
+.productDetailV3 .purchaseLayout .form{gap:11px}
+.productDetailV3 .purchaseLayout label{font-size:11px}
+.productDetailV3 .buybox{position:sticky;top:74px;padding:16px;border-radius:10px}
+.productDetailV3 .buybox strong{font-size:24px}
+.productDetailV3 .notice{border-radius:8px}
+.productDetailV3 .toggle{padding:10px}
+
+/* Order + invoice details */
+.portalShellV3 .recordDetailPage{gap:12px}
+.portalShellV3 .recordDetailHero{padding:2px 0 4px}
+.portalShellV3 .recordDetailGrid{gap:10px}
+.portalShellV3 .recordDetailGrid>.panel{padding:15px}
+.portalShellV3 .recordProductRow{padding:11px 0}
+.portalShellV3 .linkedRecordCard{padding:11px;border-radius:8px}
+.portalShellV3 .paymentHistoryRow{padding:10px 0}
+.portalShellV3 .recordPaymentPanel .form{gap:10px}
+.portalShellV3 .invoiceDocument{border-radius:8px}
+.portalShellV3 .invoiceDocHeader{padding:20px 22px}
+.portalShellV3 .invoiceDocBusiness strong,.portalShellV3 .invoiceDocMeta h2{font-size:20px}
+.portalShellV3 .invoiceDocBillTo,.portalShellV3 .invoiceDocItemHead,.portalShellV3 .invoiceDocItemRow,.portalShellV3 .invoiceDocTotals,.portalShellV3 .invoiceDocPaymentDetails,.portalShellV3 .invoiceDocFooter{padding-left:22px;padding-right:22px}
+
+/* Support ticket detail */
+.supportTicketV3{display:grid;gap:12px}
+.supportTicketV3>.portalTop{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.supportTicketV3>.portalTop h1{margin:4px 0 6px;font-size:clamp(23px,2.3vw,32px)}
+.supportTicketV3 .stats.four{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.supportTicketV3 .stats.four article{padding:11px 12px;border:1px solid #22364a;border-radius:8px;background:#0a1826}
+.supportTicketV3 .stats.four small{font-size:8px}.supportTicketV3 .stats.four strong{font-size:13px}
+.supportTicketV3>.panel{margin:0;padding:15px}
+.supportTicketV3 .thread{display:grid;gap:8px}
+.supportTicketV3 .message{padding:11px 12px;border-radius:8px}
+.supportTicketV3 .message>div{display:flex;justify-content:space-between;gap:10px}
+.supportTicketV3 .message p{margin:6px 0 0;font-size:12px;line-height:1.55}
+.supportTicketV3 .supportReplyBox textarea{min-height:150px}
+.supportTicketV3 .attachmentItem{min-height:34px}
+
+/* Knowledge base */
+.supportKbV3,.supportKbArticleV3{display:grid;gap:12px}
+.supportKbV3>.portalTop,.supportKbArticleV3>.portalTop{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.supportKbV3>.portalTop h1,.supportKbArticleV3>.portalTop h1{margin:4px 0 6px;font-size:clamp(24px,2.5vw,33px)}
+.supportKbV3>.panel,.supportKbArticleV3>.panel{margin:0;padding:15px}
+.supportKbV3 .supportKbSearch{padding:12px 14px}
+.supportKbV3 .supportKbFeatured{gap:8px}
+.supportKbV3 .supportKbFeatured button{padding:11px;border-radius:8px}
+.supportKbV3 .supportKbPublicList article{border-radius:8px}
+.supportKbV3 .supportKbPublicList article>button{padding:11px 12px}
+.supportKbV3 .supportKbBody{padding:0 12px 12px}
+.supportKbArticleV3 .supportKbArticleBody{max-width:980px}
+.supportKbArticleV3 .supportKbArticleContent{font-size:13px;line-height:1.68}
+
+/* Settings + wallet */
+.portalShellV3 .accountSettingsHero{align-items:flex-start;padding:2px 0 4px}
+.portalShellV3 .accountIdentity{padding:8px 10px;border:1px solid #23394d;border-radius:8px;background:#091724}
+.portalShellV3 .settingsPreferenceGrid{gap:12px}
+.portalShellV3 .walletSettingsActions{gap:10px}
+.portalShellV3 .walletBalanceBadge{padding:10px 12px;border-radius:8px}
+.portalShellV3 .walletBalanceBadge strong{font-size:20px}
+.portalShellV3 .walletRechargeRow{padding:10px 0}
+.portalShellV3 .walletActivityRow{padding:9px 0}
+
+@media(max-width:900px){
+ .productDetailV3 .purchaseLayout{grid-template-columns:1fr}
+ .productDetailV3 .buybox{position:static}
+ .supportTicketV3 .stats.four{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:700px){
+ .portalShellV3 .portalOverviewStats{grid-template-columns:1fr 1fr}
+ .productDetailV3>.portalTop,.supportTicketV3>.portalTop,.supportKbV3>.portalTop,.supportKbArticleV3>.portalTop{flex-direction:column}
+ .supportTicketV3 .stats.four{grid-template-columns:1fr 1fr}
+ .portalShellV3 .recordDetailGrid{gap:8px}
+}
+@media(max-width:430px){
+ .portalShellV3 .portalOverviewStats{grid-template-columns:1fr}
+ .supportTicketV3 .stats.four{grid-template-columns:1fr}
+}
+
+
+/* My OrbitFS customer-side redesign */
+.orbitfsBaseV3,.orbitfsLicenseController,.orbitfsReleasesV3{display:grid;gap:12px}
+.orbitfsBaseV3 .portalOverviewHero,.orbitfsLicenseController .portalOverviewHero,.orbitfsReleasesV3 .portalReleaseHeader{padding:2px 0 4px;align-items:flex-start}
+.orbitfsBaseV3 .portalOverviewHero h1,.orbitfsLicenseController .portalOverviewHero h1,.orbitfsReleasesV3 .portalReleaseHeader h1{margin:4px 0 6px;font-size:clamp(25px,2.5vw,34px)}
+.orbitfsBaseV3>.panel,.orbitfsLicenseController>.panel,.orbitfsReleasesV3>.portalCompactPanel{margin:0}
+.orbitfsBaseV3 .panel,.orbitfsLicenseController .panel,.orbitfsReleasesV3 .portalCompactPanel{padding:15px;border-radius:9px}
+.orbitfsBaseV3 .panelTitle,.orbitfsLicenseController .panelTitle,.orbitfsReleasesV3 .orbitPanelHead{gap:12px}
+.orbitfsBaseV3 .panelTitle h2,.orbitfsLicenseController h2,.orbitfsReleasesV3 .orbitPanelHead h2{margin:3px 0 5px;font-size:18px}
+.orbitfsBaseV3 .portalOverviewGrid,.orbitfsLicenseController .portalOverviewGrid{gap:10px}
+.orbitfsBaseV3 .portalOverviewBottom{gap:10px}
+.orbitfsBaseV3 .portalOverviewStats{gap:8px}
+.orbitfsBaseV3 .portalStatCard{padding:11px 12px}
+.orbitfsBaseV3 .portalStatCard strong{font-size:15px}
+.orbitfsBaseV3 .portalStatCard span:last-child{font-size:10px}
+.orbitfsBaseV3 .controllerActions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.orbitfsBaseV3 .controllerActions button,.orbitfsBaseV3 .controllerActions .buttonlink{min-height:33px;padding:7px 10px;font-size:10px}
+.orbitfsBaseV3 .controllerActions label{min-height:33px}
+.orbitfsBaseV3 details.panel{padding:0;overflow:hidden}
+.orbitfsBaseV3 details.panel>summary{padding:14px 15px;list-style:none}
+.orbitfsBaseV3 details.panel>summary::-webkit-details-marker{display:none}
+.orbitfsBaseV3 details.panel[open]>summary{border-bottom:1px solid #203246}
+.orbitfsBaseV3 details.panel>summary~*{margin-left:15px;margin-right:15px}
+.orbitfsBaseV3 details.panel>summary~*:last-child{margin-bottom:15px}
+.orbitfsBaseV3 details.panel .form{gap:10px}
+.orbitfsBaseV3 .listrow{padding:10px 0}
+.orbitfsBaseV3 .listrow b{font-size:11px}
+.orbitfsBaseV3 .listrow span{font-size:9px}
+.orbitfsBaseV3 .inlineStatus{margin:0}
+.orbitfsBaseV3 aside .portalQuickActions>a{padding:9px 10px}
+
+/* License controller */
+.orbitfsLicenseController .portalOverviewGrid{grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr)}
+.orbitfsLicenseController .portalOverviewGrid>section{margin:0;padding:15px}
+.orbitfsLicenseController .portalOverviewGrid>section:first-child>.panel{margin-top:9px!important;padding:13px;border-radius:8px;background:#091826}
+.orbitfsLicenseController .portalOverviewGrid>section:first-child>.panel h2{font-size:16px}
+.orbitfsLicenseController .listrow{padding:9px 0}
+.orbitfsLicenseController .listrow b{font-size:10px}
+.orbitfsLicenseController .listrow span{font-size:10px}
+.orbitfsLicenseController code{display:block;padding:10px;border:1px solid #294158;border-radius:7px;background:#07131f;font-size:10px}
+.orbitfsLicenseController .portalOverviewGrid>section:last-child button{min-height:33px;padding:7px 10px;font-size:10px}
+
+/* Releases and channels */
+.orbitfsReleasesV3 .portalReleaseHeader{display:flex;justify-content:space-between;gap:18px}
+.orbitfsReleasesV3 .portalHeaderActions{display:flex;gap:7px;flex-wrap:wrap}
+.orbitfsReleasesV3 .portalHeaderActions .buttonlink{min-height:32px;padding:7px 10px;font-size:10px}
+.orbitfsReleasesV3 .portalCompactPanel{padding:14px}
+.orbitfsReleasesV3 .portalChannelGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.orbitfsReleasesV3 .portalChannelCard{padding:11px;border-radius:8px}
+.orbitfsReleasesV3 .portalChannelTop b{font-size:12px}
+.orbitfsReleasesV3 .portalChannelCard p{font-size:10px;line-height:1.45}
+.orbitfsReleasesV3 .portalChannelCard small{font-size:9px}
+.orbitfsReleasesV3 .portalInstallRow{gap:12px}
+.orbitfsReleasesV3 .portalChannelPicker{min-width:170px}
+.orbitfsReleasesV3 .portalUpdateStrip{padding:11px;border-radius:8px}
+.orbitfsReleasesV3 .portalReleaseList{display:grid;gap:7px}
+.orbitfsReleasesV3 .portalReleaseRow{display:grid;grid-template-columns:minmax(210px,.8fr) minmax(0,1.5fr) auto;gap:14px;align-items:center;padding:11px 12px;border:1px solid #203246;border-radius:8px;background:#091724}
+.orbitfsReleasesV3 .portalReleaseIdentity{min-width:0}
+.orbitfsReleasesV3 .portalReleaseIdentity b{font-size:11px}
+.orbitfsReleasesV3 .portalReleaseIdentity small{font-size:9px}
+.orbitfsReleasesV3 .portalReleaseRow>p{margin:0;font-size:10px;line-height:1.5;color:var(--muted)}
+.orbitfsReleasesV3 .portalReleaseActions button{min-height:31px;padding:6px 9px;font-size:9px}
+
+@media(max-width:1050px){
+ .orbitfsLicenseController .portalOverviewGrid{grid-template-columns:1fr}
+ .orbitfsReleasesV3 .portalChannelGrid{grid-template-columns:1fr 1fr}
+ .orbitfsReleasesV3 .portalReleaseRow{grid-template-columns:1fr auto}
+ .orbitfsReleasesV3 .portalReleaseRow>p{grid-column:1/-1}
+}
+@media(max-width:700px){
+ .orbitfsBaseV3 .portalOverviewStats{grid-template-columns:1fr 1fr}
+ .orbitfsReleasesV3 .portalReleaseHeader{flex-direction:column}
+ .orbitfsReleasesV3 .portalHeaderActions{width:100%}
+ .orbitfsReleasesV3 .portalHeaderActions .buttonlink{flex:1;text-align:center}
+ .orbitfsReleasesV3 .portalChannelGrid{grid-template-columns:1fr}
+ .orbitfsReleasesV3 .portalInstallRow{align-items:flex-start;flex-direction:column}
+ .orbitfsReleasesV3 .portalChannelPicker{width:100%}
+ .orbitfsReleasesV3 .portalReleaseRow{grid-template-columns:1fr}
+ .orbitfsReleasesV3 .portalReleaseActions button{width:100%}
+}
+@media(max-width:430px){
+ .orbitfsBaseV3 .portalOverviewStats{grid-template-columns:1fr}
+}
+
+
+/* Adaptive customer portal layout + single-action interaction model */
+.portalShellV3 .portalOverviewStats,
+.orbitfsReleasesV3 .portalChannelGrid,
+.portalShellV3 .recordSummaryGrid,
+.portalShellV3 .walletSettingsActions{
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))!important;
+}
+.portalShellV3 .portalOrbitfsGrid{
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr))!important;
+}
+.portalShellV3 .recordsSplit{
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,430px),1fr));
+}
+.portalShellV3 .settingsPreferenceGrid{
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));
+}
+.portalShellV3 .storeAddonList{
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));
+}
+.portalShellV3 .storeAddonCard{
+  grid-template-columns:minmax(0,1fr) auto;
+}
+.portalShellV3 .panel,
+.portalShellV3 .portalCompactPanel,
+.portalShellV3 .recordsSection,
+.portalShellV3 .accountSettingsCard{
+  min-width:0;
+}
+.portalShellV3 .listrow,
+.portalShellV3 .recordCompactRow,
+.portalShellV3 .downloadFileRow,
+.portalShellV3 .portalReleaseRow{
+  overflow-wrap:anywhere;
+}
+
+/* Guided primary action bar */
+.orbitPrimaryActionBar{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:14px;
+  align-items:center;
+  padding:13px 14px;
+  border:1px solid #2d5561;
+  border-radius:10px;
+  background:linear-gradient(135deg,#0b1f2b,#0a1724);
+}
+.orbitPrimaryActionBar.compact{margin-top:10px}
+.orbitPrimaryActionCopy{display:grid;gap:3px;min-width:0}
+.orbitPrimaryActionCopy small{font-size:8px;font-weight:850;letter-spacing:.13em;color:#76bfb5}
+.orbitPrimaryActionCopy b{font-size:14px}
+.orbitPrimaryActionCopy span{max-width:760px;font-size:10px;line-height:1.45;color:var(--muted)}
+.orbitPrimaryActionControls{display:flex;align-items:center;gap:8px}
+.orbitHeroAction{
+  min-width:148px!important;
+  min-height:38px!important;
+  display:inline-flex!important;
+  align-items:center;
+  justify-content:center;
+  padding:8px 14px!important;
+  border:1px solid #4a9588!important;
+  background:linear-gradient(180deg,#1f6459,#174b45)!important;
+  color:#effffb!important;
+  box-shadow:0 0 0 1px #63c1ae1c,0 10px 26px #0004!important;
+  font-size:10px!important;
+  font-weight:800!important;
+}
+.orbitHeroAction:hover{background:linear-gradient(180deg,#287569,#1b5a51)!important}
+.orbitActionMenu{position:relative}
+.orbitActionMenu>summary{
+  list-style:none;
+  min-height:38px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:8px 11px;
+  border:1px solid #30465b;
+  border-radius:7px;
+  background:#0b1927;
+  color:#b7c7d7;
+  font-size:9px;
+  font-weight:750;
+  cursor:pointer;
+}
+.orbitActionMenu>summary::-webkit-details-marker{display:none}
+.orbitActionMenu[open]>summary{border-color:#477086;color:#fff;background:#102337}
+.orbitActionMenu>div{
+  position:absolute;
+  right:0;
+  top:calc(100% + 7px);
+  z-index:30;
+  width:min(290px,80vw);
+  display:grid;
+  gap:8px;
+  padding:10px;
+  border:1px solid #2b4358;
+  border-radius:9px;
+  background:#091522;
+  box-shadow:0 18px 42px #0009;
+}
+.orbitActionMenu label{display:grid;gap:5px;font-size:9px;color:#8da1b6}
+.orbitActionMenu select{width:100%}
+.orbitActionMenu button,.orbitActionMenu .buttonlink{width:100%;justify-content:center;text-align:center}
+
+/* Release/setup stage rail inspired by publication flow */
+.orbitStageRail{
+  position:relative;
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:10px!important;
+}
+.orbitStageRail:before{
+  content:"";
+  position:absolute;
+  left:7%;
+  right:7%;
+  top:50%;
+  height:1px;
+  background:linear-gradient(90deg,#3c9e87,#4d769e);
+  opacity:.45;
+  pointer-events:none;
+}
+.orbitStageRail .portalStatCard{
+  position:relative;
+  z-index:1;
+  min-height:86px;
+  border-color:#29495a;
+  background:#0a1825;
+}
+.orbitStageRail .portalStatCard:hover{border-color:#497b82;background:#0d202d}
+.orbitStageRail .portalStatCard[style*="opacity: 1"],
+.orbitStageRail .portalStatCard[style*="opacity:1"]{
+  border-color:#5ea89a;
+  box-shadow:0 0 0 1px #5ea89a24,0 0 28px #4f9d8e12;
+}
+.orbitStageRail .portalStatIcon{
+  border:1px solid #477c77;
+  background:#0d302f;
+  color:#9ee4d6;
+}
+.orbitStageRail .portalStatCard strong{font-size:13px}
+
+/* Release centre becomes one clear recommendation + supporting data */
+.orbitfsReleasesV3 .portalUpdateStrip{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  border:1px solid #3f7168;
+  background:linear-gradient(135deg,#0c2629,#0b1a27);
+}
+.orbitfsReleasesV3 .portalUpdateStrip b{font-size:13px}
+.orbitfsReleasesV3 .portalUpdateStrip span{font-size:10px;color:var(--muted)}
+.orbitfsReleasesV3 .portalUpdateStrip button{
+  min-width:150px;
+  min-height:36px;
+  background:linear-gradient(180deg,#21665a,#174c45);
+  border-color:#4c9a8c;
+}
+.orbitfsReleasesV3 .portalReleaseActions .state.current{
+  white-space:nowrap;
+  border-color:#35556e;
+  background:#10243a;
+  color:#9ec7eb;
+}
+
+/* Keep controls usable without awkward overflow */
+.portalShellV3 button,
+.portalShellV3 .buttonlink,
+.portalShellV3 select,
+.portalShellV3 input{
+  max-width:100%;
+}
+.portalShellV3 .inlineActions,
+.portalShellV3 .controllerActions,
+.portalShellV3 .portalHeaderActions{
+  flex-wrap:wrap;
+}
+.portalShellV3 .recordCompactRow,
+.portalShellV3 .portalReleaseRow{
+  min-width:0;
+}
+
+/* Mobile/tablet auto-adjustment */
+@media(max-width:900px){
+  .orbitPrimaryActionBar{grid-template-columns:1fr}
+  .orbitPrimaryActionControls{justify-content:flex-start}
+  .orbitStageRail{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .orbitStageRail:before{display:none}
+}
+@media(max-width:640px){
+  .orbitPrimaryActionControls{display:grid;grid-template-columns:minmax(0,1fr) auto}
+  .orbitHeroAction{min-width:0!important;width:100%}
+  .orbitActionMenu>summary{min-width:76px}
+  .orbitActionMenu>div{position:fixed;left:10px;right:10px;bottom:10px;top:auto;width:auto}
+  .orbitStageRail{
+    grid-template-columns:1fr!important;
+  }
+  .orbitfsReleasesV3 .portalUpdateStrip{grid-template-columns:1fr}
+  .orbitfsReleasesV3 .portalUpdateStrip button{width:100%}
+  .portalShellV3 .storeAddonCard{grid-template-columns:1fr}
+}
+
+
+/* Customer release channels */
+.orbitfsChannelsPage{display:grid;gap:12px}
+.orbitfsChannelsPage .portalReleaseHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;padding:2px 0 4px}
+.orbitfsChannelsPage .portalReleaseHeader h1{margin:4px 0 6px;font-size:clamp(25px,2.5vw,34px)}
+.orbitfsChannelsPage .portalHeaderActions{display:flex;gap:7px;flex-wrap:wrap}
+.orbitfsChannelsPage .portalHeaderActions .buttonlink{min-height:32px;padding:7px 10px;font-size:10px}
+.orbitfsChannelsPage .portalCompactPanel{margin:0;padding:14px;border-radius:9px}
+.orbitfsChannelsPage .channelIntroPanel{padding:11px 13px}
+.channelIntroCopy{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.channelIntroCopy>div{display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:2px;align-items:center;padding:9px 10px;border:1px solid #20384b;border-radius:8px;background:#091724}
+.channelIntroCopy b{font-size:10px;color:#dfe9ef}
+.channelIntroCopy small{grid-column:2;color:#7f94a4;font-size:8.5px}
+.channelLegendDot{width:9px;height:9px;border-radius:999px;background:#597185}
+.channelLegendDot.stable{background:#56d4c8}
+.channelLegendDot.open{background:#73c894}
+.channelLegendDot.request{background:#ddb961}
+.customerChannelGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.customerChannelCard{overflow:hidden;border:1px solid #20384b;border-radius:10px;background:#091724}
+.customerChannelCard.active{border-color:#2c726f;box-shadow:inset 3px 0 #4ccdc4}
+.customerChannelCardHead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:13px 14px;border-bottom:1px solid #1d3244}
+.customerChannelCardHead>div{min-width:0;flex:1}
+.customerChannelTitle{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.customerChannelTitle h2{margin:0;font-size:15px;color:#e8f0f5}
+.customerChannelCardHead p{margin:5px 0 0;font-size:9.5px;line-height:1.45;color:#8396a5}
+.channelPolicyBadge{display:inline-flex;align-items:center;min-height:21px;padding:3px 7px;border:1px solid #315064;border-radius:999px;background:#0d2537;color:#9eb2c0;font-size:7.5px;font-weight:750}
+.channelPolicyBadge.available{border-color:#356d5a;background:#123426;color:#8cdbaa}
+.customerChannelPolicy{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #1d3244}
+.customerChannelPolicy>div{padding:10px 13px}
+.customerChannelPolicy>div:first-child{border-right:1px solid #1d3244}
+.customerChannelPolicy span{display:block;margin-bottom:3px;color:#698396;font-size:7px;text-transform:uppercase;letter-spacing:.06em}
+.customerChannelPolicy b{font-size:9.5px;color:#cfdae1}
+.customerChannelActions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:11px 13px}
+.customerChannelActions button{min-height:31px;padding:6px 10px;font-size:9px}
+.channelRequestFeedback{margin:10px 13px 0;padding:9px 10px;border:1px solid #60414a;border-radius:7px;background:#241822}
+.channelRequestFeedback b,.channelRequestFeedback span{display:block}
+.channelRequestFeedback b{font-size:8px;color:#e0a5b2}
+.channelRequestFeedback span{margin-top:3px;font-size:8.5px;line-height:1.45;color:#b78f99}
+.channelRequestForm{display:grid;gap:10px;margin:0 13px 13px;padding:12px;border:1px solid #28566b;border-radius:8px;background:#081d2d}
+.channelRequestFormHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.channelRequestFormHead>div{display:grid;gap:3px}
+.channelRequestFormHead b{font-size:10px;color:#dce8ee}
+.channelRequestFormHead span{font-size:8.5px;color:#7f95a4}
+.channelRequestFormHead button{min-height:29px;padding:5px 8px;font-size:8px}
+.channelRequestForm label{display:grid;gap:5px;color:#a8bac5;font-size:9px}
+.channelRequestForm label>span{font-weight:700}
+.channelRequestForm label small{font-weight:500;color:#708797}
+.channelRequestForm textarea{min-height:72px;resize:vertical}
+.channelRequestForm textarea,.channelRequestForm select{width:100%;font-size:10px}
+.channelRequestSubmit{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.channelRequestSubmit small{color:#728a9a;font-size:8px}
+.channelRequestSubmit button{min-height:32px;padding:6px 11px;font-size:9px}
+@media(max-width:900px){
+ .customerChannelGrid{grid-template-columns:1fr}
+}
+@media(max-width:700px){
+ .orbitfsChannelsPage .portalReleaseHeader{flex-direction:column}
+ .orbitfsChannelsPage .portalHeaderActions{width:100%}
+ .orbitfsChannelsPage .portalHeaderActions .buttonlink{flex:1;text-align:center}
+ .channelIntroCopy{grid-template-columns:1fr}
+}
+@media(max-width:520px){
+ .customerChannelCardHead{flex-direction:column}
+ .customerChannelPolicy{grid-template-columns:1fr}
+ .customerChannelPolicy>div:first-child{border-right:0;border-bottom:1px solid #1d3244}
+ .channelRequestFormHead,.channelRequestSubmit{align-items:stretch;flex-direction:column}
+ .channelRequestSubmit button{width:100%}
+}
+
+
+/* Customer-controlled email subscriptions use the existing compact portal theme. */
+.mailSubscriptionCard{min-width:0}
+.mailSubscriptionList{display:grid;gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#091626}
+.mailSubscriptionRow{display:flex;align-items:center;justify-content:space-between;gap:18px;min-width:0;padding:15px 17px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .15s ease}
+.mailSubscriptionRow:last-child{border-bottom:0}
+.mailSubscriptionRow:hover{background:#12273c}
+.mailSubscriptionRow.locked,.mailSubscriptionRow.paused{cursor:default}
+.mailSubscriptionRow.locked:hover,.mailSubscriptionRow.paused:hover{background:transparent}
+.mailSubscriptionCopy{display:grid;gap:4px;min-width:0}
+.mailSubscriptionHeading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mailSubscriptionHeading b{font-size:13px;line-height:1.35;color:var(--text)}
+.mailSubscriptionHeading em{font-size:10px;font-weight:800;letter-spacing:.03em;font-style:normal;color:#bcead6;border:1px solid #376d5e;background:#153e34;border-radius:20px;padding:3px 7px}
+.mailSubscriptionRow.paused .mailSubscriptionHeading em{color:var(--muted);border-color:var(--line);background:transparent}
+.mailSubscriptionCopy small{color:var(--muted);font-size:11px;line-height:1.5;font-weight:400;max-width:740px}
+.mailSubscriptionControl{display:block;position:relative;flex:0 0 38px;height:23px}
+.mailSubscriptionControl input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;z-index:1;cursor:pointer}
+.mailSubscriptionControl input:disabled{cursor:not-allowed}
+.mailSubscriptionTrack{display:block;width:38px;height:23px;border-radius:20px;box-sizing:border-box;border:1px solid #526579;background:#374c62;transition:background .16s ease}
+.mailSubscriptionTrack:after{content:"";display:block;position:absolute;top:3px;left:3px;height:17px;width:17px;background:#eef4f8;border-radius:50%;transition:transform .16s ease}
+.mailSubscriptionControl input:checked+.mailSubscriptionTrack{background:#357ea6;border-color:#66b0d0}
+.mailSubscriptionControl input:checked+.mailSubscriptionTrack:after{transform:translateX(15px)}
+.mailSubscriptionControl input:focus-visible+.mailSubscriptionTrack{outline:3px solid #78c1ed;outline-offset:3px}
+.mailSubscriptionControl input:disabled+.mailSubscriptionTrack{opacity:.55}
+.mailSubscriptionFootnote{font-size:11px;color:var(--muted);line-height:1.55;margin:12px 0 0}
+@media(max-width:600px){.mailSubscriptionRow{padding:13px;gap:12px}.mailSubscriptionCopy small{font-size:11px}}
+
+/* Expand only the customer settings section and email category the user needs. */
+.mailSettingsAccordion{padding:0!important;overflow:hidden}
+.mailSettingsHeading{display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:pointer;list-style:none;padding:16px 19px}
+.mailSettingsHeading::-webkit-details-marker{display:none}
+.mailSettingsHeading .eyebrow{margin:0 0 4px}
+.mailSettingsHeading h2{margin:0 0 4px;font-size:17px}
+.mailSettingsHeading .muted{font-size:11px}
+.mailSettingsChevron{font-size:20px;font-weight:700;color:var(--muted);transition:transform .18s ease}
+.mailSettingsAccordion[open]>.mailSettingsHeading .mailSettingsChevron{transform:rotate(180deg)}
+.mailSettingsAccordion[open]>.mailSettingsHeading{border-bottom:1px solid var(--line)}
+.mailSettingsPanelBody{padding:15px 19px 18px}
+.mailSubscriptionCard .mailSubscriptionList{border-radius:10px}
+.mailSubscriptionRow{cursor:default}
+.mailSubscriptionCopy{display:block;flex:1;min-width:0}
+.mailSubscriptionCopy summary{cursor:pointer;list-style:revert;display:list-item;list-style-position:inside}
+.mailSubscriptionCopy[open] summary{margin-bottom:6px}
+.mailSubscriptionCopy>small{display:block;margin:2px 0 0 13px}
+.mailSubscriptionCopy:not([open])>small{display:none}
+.mailSubscriptionHeading b{padding-right:6px}
+.mailSubscriptionGroup{display:block;border-top:1px solid var(--line)}
+.mailSubscriptionGroup>summary{display:flex;justify-content:space-between;gap:10px;cursor:pointer;align-items:center;padding:13px 17px;list-style:revert;color:var(--text);font-size:12px;font-weight:800}
+.mailSubscriptionGroup>summary span{font-size:11px;font-weight:500;color:var(--muted)}
+.mailSubscriptionGroup[open]>summary{border-bottom:1px solid var(--line);background:#102136}
+.mailSubscriptionGroup>.mailSubscriptionRow:last-child{border-bottom:0}
+.mailSubscriptionRow:hover{background:transparent}
+.mailSubscriptionControl input:focus-visible+.mailSubscriptionTrack{outline-offset:3px}
+@media(max-width:600px){.mailSettingsHeading{padding:13px}.mailSettingsPanelBody{padding:12px}.mailSubscriptionGroup>summary{padding:12px}.mailSubscriptionGroup>summary span{max-width:130px;text-align:right}}
+
+.mailSubscriptionGroup>summary{list-style:none}
+.mailSubscriptionGroup>summary::before{content:"›";display:inline-block;font-size:17px;color:var(--muted);line-height:1;flex:0 0 auto;transition:transform .16s ease}
+.mailSubscriptionGroup[open]>summary::before{transform:rotate(90deg)}
