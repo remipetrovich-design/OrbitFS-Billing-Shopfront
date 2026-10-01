@@ -1,0 +1,147 @@
+name: Quick Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Select branch to deploy
+        required: true
+        default: main
+        type: choice
+        options:
+          - main
+          - CustomDesign/Run
+      custom_branch:
+        description: Optional custom branch name (overrides selector)
+        required: false
+        type: string
+  push:
+    branches:
+      - control/quick-deploy-main
+      - control/quick-deploy-custom
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v2-billing-quick
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.actor == 'lucaskerim123') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+
+    env:
+      SELECTED_BRANCH: ${{ inputs.branch }}
+      CUSTOM_BRANCH: ${{ inputs.custom_branch }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: team_W3fS0X03YCjNkD2BoqRj6Uld
+      VERCEL_PROJECT_ID: prj_3ARdg4cRikU2OiMeZjZDvQ3JuEZd
+      VERCEL_CLI_VERSION: 59.6.2
+
+    steps:
+      - name: Resolve selected branch
+        id: branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            test "${GITHUB_ACTOR}" = "lucaskerim123"
+            case "${GITHUB_REF_NAME}" in
+              control/quick-deploy-main) branch="main" ;;
+              control/quick-deploy-custom) branch="CustomDesign/Run" ;;
+              *)
+                echo "::error::Unsupported Quick Deploy control ref: ${GITHUB_REF_NAME}"
+                exit 1
+                ;;
+            esac
+            main_sha="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | awk '{print $1}')"
+            test -n "$main_sha"
+            if [ "${GITHUB_SHA}" != "$main_sha" ]; then
+              echo "::error::Quick Deploy control ref must point at the exact current main commit. Requested ${GITHUB_SHA}; main is $main_sha."
+              exit 1
+            fi
+          else
+            branch="${CUSTOM_BRANCH:-}"
+            if [ -z "$branch" ]; then
+              branch="$SELECTED_BRANCH"
+            fi
+          fi
+          if ! printf '%s' "$branch" | grep -Eq '^[A-Za-z0-9._/-]+$'; then
+            echo "::error::Branch contains unsupported characters: $branch"
+            exit 1
+          fi
+          case "$branch" in
+            -*|*..*|*//*|*/.|*/..|.|..)
+              echo "::error::Invalid branch name: $branch"
+              exit 1
+              ;;
+          esac
+          echo "name=$branch" >> "$GITHUB_OUTPUT"
+          echo "TARGET_BRANCH=$branch" >> "$GITHUB_ENV"
+          echo "Selected branch: $branch"
+
+      - name: Checkout selected branch
+        uses: actions/checkout@v6
+        with:
+          ref: refs/heads/${{ steps.branch.outputs.name }}
+          fetch-depth: 1
+
+      - name: Verify quick-deploy source
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${GITHUB_EVENT_NAME}" in
+            workflow_dispatch|push) ;;
+            *) echo "::error::Unsupported Quick Deploy event: ${GITHUB_EVENT_NAME}"; exit 1 ;;
+          esac
+          test -n "$VERCEL_TOKEN"
+          test -n "$VERCEL_ORG_ID"
+          test -n "$VERCEL_PROJECT_ID"
+
+          actual_branch="$(git branch --show-current)"
+          test "$actual_branch" = "$TARGET_BRANCH"
+
+          commit="$(git rev-parse HEAD)"
+          remote_commit="$(git ls-remote --exit-code --heads origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          test -n "$remote_commit"
+          test "$commit" = "$remote_commit"
+
+          echo "branch=$TARGET_BRANCH" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "Quick Deploy source: $TARGET_BRANCH @ $commit"
+
+      - name: Install pinned Vercel CLI
+        run: |
+          npm install --global "vercel@$VERCEL_CLI_VERSION"
+          vercel --version
+
+      - name: Quick deploy selected branch to production
+        id: deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          deployment_url="$(vercel deploy --prod --yes --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID")"
+          case "$deployment_url" in
+            https://*) ;;
+            *)
+              echo "::error::Vercel did not return a production deployment URL"
+              exit 1
+              ;;
+          esac
+          echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
+
+      - name: Verify deployment exists
+        run: vercel inspect "${{ steps.deploy.outputs.url }}" --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID"
+
+      - name: Report quick deployment
+        run: |
+          echo "Quick deployment completed."
+          echo "Branch: ${{ steps.source.outputs.branch }}"
+          echo "Commit: ${{ steps.source.outputs.commit }}"
+          echo "Deployment: ${{ steps.deploy.outputs.url }}"
