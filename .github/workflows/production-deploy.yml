@@ -1,0 +1,195 @@
+name: Production Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - control/production-deploy
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: v2-billing-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/control/production-deploy' && github.actor == 'lucaskerim123') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: production
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: team_W3fS0X03YCjNkD2BoqRj6Uld
+      VERCEL_PROJECT_ID: prj_3ARdg4cRikU2OiMeZjZDvQ3JuEZd
+      VERCEL_CLI_VERSION: 59.6.2
+    steps:
+      - name: Checkout complete repository history at selected commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Verify immutable production source
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${GITHUB_EVENT_NAME}:${GITHUB_REF}" in
+            workflow_dispatch:refs/heads/main) ;;
+            push:refs/heads/control/production-deploy)
+              test "${GITHUB_ACTOR}" = "lucaskerim123"
+              ;;
+            *)
+              echo "::error::Unsupported Production Deploy trigger: ${GITHUB_EVENT_NAME} on ${GITHUB_REF}"
+              exit 1
+              ;;
+          esac
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git rev-parse --is-shallow-repository)" = "false"
+          git fetch origin main --prune
+          test "$(git rev-parse origin/main)" = "${GITHUB_SHA}"
+          test -f package-lock.json
+          test -f vercel.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const config=JSON.parse(fs.readFileSync('vercel.json','utf8'));
+          if(config?.git?.deploymentEnabled!==false) {
+            throw new Error('Production policy violation: automatic Vercel Git deployments must remain disabled');
+          }
+          NODE
+
+      - name: Verify exact commit passed Full Scan
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs="$(gh api -H "Accept: application/vnd.github+json" "/repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?per_page=100")"
+          scan="$(printf '%s' "$runs" | jq -c --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha == $sha and ((.event == "workflow_dispatch" and .head_branch == "main") or (.event == "push" and .head_branch == "control/full-scan")))] | sort_by(.created_at) | reverse | .[0] // empty')"
+          if [ -z "$scan" ]; then
+            echo "::error::Deploy blocked: no Full Scan workflow_dispatch run exists for exact commit $GITHUB_SHA."
+            exit 1
+          fi
+          status="$(printf '%s' "$scan" | jq -r '.status // empty')"
+          conclusion="$(printf '%s' "$scan" | jq -r '.conclusion // empty')"
+          url="$(printf '%s' "$scan" | jq -r '.html_url // empty')"
+          if [ "$status" != "completed" ] || [ "$conclusion" != "success" ]; then
+            echo "::error::Deploy blocked: Full Scan for exact commit $GITHUB_SHA is $status/$conclusion."
+            [ -n "$url" ] && echo "Full Scan: $url"
+            exit 1
+          fi
+          echo "Reusing successful Full Scan for exact commit $GITHUB_SHA."
+          [ -n "$url" ] && echo "Full Scan: $url"
+
+      - name: Use Node 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Resolve currently deployed production commit
+        id: production_base
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&teamId=$VERCEL_ORG_ID&target=production&state=READY&limit=1")"
+          base_sha="$(printf '%s' "$response" | jq -r '.deployments[0].meta.githubCommitSha // empty')"
+          if [ -z "$base_sha" ]; then
+            echo "::error::Could not resolve the Git commit currently deployed to Vercel production."
+            exit 1
+          fi
+          git cat-file -e "$base_sha^{commit}"
+          relation="diverged"
+          if [ "$base_sha" = "$GITHUB_SHA" ]; then
+            relation="current"
+          elif git merge-base --is-ancestor "$base_sha" "$GITHUB_SHA"; then
+            relation="ancestor"
+          fi
+          echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+          echo "relation=$relation" >> "$GITHUB_OUTPUT"
+          echo "RELEASE_BASE_SHA=$base_sha" >> "$GITHUB_ENV"
+          echo "Production base: $base_sha"
+          echo "Selected main:   $GITHUB_SHA"
+          echo "Relationship:    $relation"
+          if [ "$relation" = "diverged" ]; then
+            echo "::notice::Production was deployed from a retired non-main branch. Comparing its exact tree against current main for this migration deploy."
+          fi
+          echo "Main commits not contained in the current production commit:"
+          git log --reverse --oneline "$base_sha..$GITHUB_SHA"
+
+      - name: Verify complete pending change-set
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${{ steps.production_base.outputs.base_sha }}"
+          count="$(git rev-list --count "$base..$GITHUB_SHA")"
+          echo "Main commits not contained in production: $count"
+          if git diff --quiet "$base" "$GITHUB_SHA"; then
+            echo "No source-tree changes are pending; production content already matches selected main."
+          else
+            echo "Changed files between current production tree and selected main:"
+            git diff --name-status "$base" "$GITHUB_SHA"
+          fi
+
+      - name: Generate cumulative production change-set manifest
+        env:
+          RELEASE_BASE_SHA: ${{ steps.production_base.outputs.base_sha }}
+        run: node scripts/release-manifest.mjs
+
+      - name: Upload release/change-set manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-release-${{ github.sha }}
+          path: release-manifest.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Verify production deployment identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$VERCEL_TOKEN"
+          test -n "$VERCEL_ORG_ID"
+          test -n "$VERCEL_PROJECT_ID"
+          test -n "$VERCEL_CLI_VERSION"
+
+      - name: Install pinned Vercel CLI
+        run: |
+          npm install --global "vercel@$VERCEL_CLI_VERSION"
+          vercel --version
+
+      - name: Deploy exact checked-out source to Vercel production
+        id: deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          deployment_url="$(vercel deploy --prod --yes --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID")"
+          case "$deployment_url" in
+            https://*) ;;
+            *) echo "::error::Vercel did not return a production deployment URL"; exit 1 ;;
+          esac
+          echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
+
+      - name: Verify deployed production target
+        shell: bash
+        run: |
+          set -euo pipefail
+          vercel inspect "${{ steps.deploy.outputs.url }}" --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID"
+
+      - name: Report deployed change-set
+        run: |
+          base="${{ steps.production_base.outputs.base_sha }}"
+          count="$(git rev-list --count "$base..$GITHUB_SHA")"
+          echo "Production deployment completed."
+          relation="${{ steps.production_base.outputs.relation }}"
+          echo "Previous production commit: $base"
+          echo "Previous relationship:      $relation"
+          echo "New production commit:      $GITHUB_SHA"
+          echo "Main commits not in prior production: $count"
+          echo "Deployment: ${{ steps.deploy.outputs.url }}"
