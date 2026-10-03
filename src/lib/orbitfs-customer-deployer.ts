@@ -146,7 +146,10 @@ async function publishedRelease(version:string|undefined,action:DeployAction,cha
     if(String(release.review_status||"").toLowerCase()!=="approved"||!String(release.checksum||release.sha256||"").trim())fail("Installed Base release is not verified for redeployment",409);
     return release;
   }
-  const rows=await masterReleases("orbitfs_base",channel,releaseType(action),"deployer");
+  // Deployment authorization must always resolve live License Manager state.
+  // A cached release list can retain a just-withdrawn revision and cause redeploy
+  // to authorize the wrong immutable release id.
+  const rows=await masterReleases("orbitfs_base",channel,releaseType(action),"deployer",true,false);
   const releases=(Array.isArray(rows?.releases)?rows.releases:Array.isArray(rows)?rows:[]).filter((r:any)=>String(r.status||"").toLowerCase()==="published"&&String(r.review_status||"").toLowerCase()==="approved"&&!r.archived_at);
   const wanted=releaseId?releases.find((r:any)=>String(r.id)===String(releaseId)):version?releases.find((r:any)=>String(r.version)===version):releases[0];
   if(!wanted?.id)fail(releaseId?`Selected published ${releaseType(action)} release is no longer available in License Manager`:version?`Published ${releaseType(action)} release ${version} was not found in License Manager`:`No approved published ${releaseType(action)} release is available`,404);
