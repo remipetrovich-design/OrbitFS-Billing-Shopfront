@@ -1,6 +1,6 @@
 import {randomUUID} from "node:crypto";
 import {requireLicenseMasterForDeployment} from "@/lib/license-master-availability";
-import {httpError,loadInstallation,registerInstallationLicense,requireOrbitUser,type DeployAction} from "@/lib/orbitfs-deployment";
+import {httpError,loadInstallation,requireOrbitUser,type DeployAction} from "@/lib/orbitfs-deployment";
 import {customerReleaseChannels} from "@/lib/orbitfs-release-channels";
 import {runCustomerDeployer} from "@/lib/orbitfs-customer-deployer";
 import {baseIdempotencyKey,runBaseLifecycleOperation} from "@/lib/orbitfs-base-operations";
@@ -15,19 +15,8 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
     const body=await req.json().catch(()=>({}));
     const rawAction=String(body.action||"deploy");
     const install=await loadInstallation(id,user.id);
-    if(rawAction==="register_license"){
-      const key=String(body.licenseKey||body.license_key||"").trim();
-      const pending=pendingBaseForceReinstall(install);
-      const rotatedLast4=String(pending?.rotatedKeyLast4||"").trim();
-      if(pending&&rotatedLast4&&key.slice(-4).toUpperCase()!==rotatedLast4.toUpperCase()){
-        throw Object.assign(new Error("That key does not match the newly rotated licence key. Copy the replacement key shown after rotation."),{status:409,code:"ROTATED_LICENSE_KEY_MISMATCH"});
-      }
-      const installation=await registerInstallationLicense(install,key);
-      if(pending){
-        const completion=await completePendingBaseForceReinstall(installation);
-        return Response.json({ok:true,installation:completion?.installation||installation,forceReinstallCompleted:Boolean(completion),operation:completion?.operation||null},{headers:{"cache-control":"no-store"}});
-      }
-      return Response.json({ok:true,installation},{headers:{"cache-control":"no-store"}});
+    if(rawAction==="register_runtime"||rawAction==="register_license"){
+      throw Object.assign(new Error("Licence activation is completed inside the deployed OrbitFS Base first-time setup."),{status:409,code:"BASE_FIRST_TIME_LICENSE_REQUIRED"});
     }
     if(rawAction==="set_channel"){
       await requireLicenseMasterForDeployment();
@@ -49,6 +38,12 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
     let releaseId=body.releaseId?String(body.releaseId).trim():undefined;
     if(version?.startsWith("release:")&&!releaseId){releaseId=version.slice(8).trim()||undefined;version=undefined}
     if(version?.startsWith("update:"))version=version.slice(7).trim()||undefined;
+    if(action==="redeploy"){
+      // Current published Base is the only redeploy authority. Ignore stale callers
+      // that still send a historical installation release id/version.
+      releaseId=undefined;
+      version=undefined;
+    }
     const channel=String(body.channel||install.release_channel||"stable").trim().toLowerCase();
     if(!/^[a-z0-9][a-z0-9_-]{0,31}$/.test(channel))throw Object.assign(new Error("Invalid release channel"),{status:400});
     const reason=body.reason?String(body.reason).trim():undefined;

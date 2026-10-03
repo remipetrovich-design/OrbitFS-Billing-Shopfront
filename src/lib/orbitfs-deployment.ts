@@ -3,7 +3,7 @@ import {errorMessage} from "@/lib/error-message";
 import {gunzipSync} from "node:zlib";
 import {licenseDb} from "@/lib/license-api";
 import {serviceRpc,userFromToken,userRpc} from "@/lib/paymentServer";
-import {masterDownloadReleaseArtifact,masterLicenseValidate,masterReleases} from "@/lib/master-api";
+import {masterDownloadReleaseArtifact,masterReleases} from "@/lib/master-api";
 import {requireLicenseMasterForDeployment,requireLicenseMasterForMutation} from "@/lib/license-master-availability";
 
 const SUPABASE_API="https://api.supabase.com/v1";
@@ -69,6 +69,233 @@ export async function loadInstallation(id:string,userId:string,allowAdmin=false)
   return data;
 }
 export async function event(install:any,type:string,status="info",message="",detail:any={}){await licenseDb().from("orbitfs_deployment_events").insert({installation_id:install.id,auth_user_id:install.auth_user_id,event_type:type,status,message,detail})}
+
+
+type DatabaseRuntimeAccessContract={
+  version:1;
+  schema:string;
+  publishableRole:string;
+  authenticatedRole:string;
+  serviceRole:string;
+  publicReadTables:string[];
+  authenticatedReadTables:string[];
+  serverFullAccessTables:string[];
+  restPreflightTables:string[];
+  serverPreflightTables:string[];
+  runtimeSecretHeader:"x-orbitfs-secret";
+  runtimeSecretRoles:string[];
+  runtimeSecretTablePrefixes:string[];
+  runtimeSecretExcludedTables:string[];
+  runtimeSecretPreflightTables:string[];
+  runtimeSecretRepairRpc:"orbitfs_repair_runtime_access";
+  runtimeSecretProbeTable:"orbitfs_runtime_secret_probe";
+  legacyCompatibility:boolean;
+};
+function runtimeAccessTables(value:any,label:string){
+  const tables=(Array.isArray(value)?value:[]).map((item:any)=>String(item||"").trim()).filter(Boolean);
+  if(!tables.length||tables.some((table:string)=>!/^[a-z_][a-z0-9_]*$/.test(table)))throw Object.assign(new Error(`Base release has an invalid ${label} runtime-access table list`),{status:422,code:"BASE_DATABASE_RUNTIME_ACCESS_INVALID"});
+  return [...new Set(tables)];
+}
+function runtimeAccessPrefixes(value:any,label:string){
+  const prefixes=(Array.isArray(value)?value:[]).map((item:any)=>String(item||"").trim()).filter(Boolean);
+  if(!prefixes.length||prefixes.some((prefix:string)=>!/^[a-z_][a-z0-9_]*$/.test(prefix)))throw Object.assign(new Error(`Base release has an invalid ${label} runtime-access prefix list`),{status:422,code:"BASE_DATABASE_RUNTIME_ACCESS_INVALID"});
+  return [...new Set(prefixes)];
+}
+function sqlLiteral(value:string){return "'"+value.replaceAll("'","''")+"'"}
+function databaseRuntimeAccessContract(release:any):DatabaseRuntimeAccessContract{
+  const raw=release?.manifest?.databaseRuntimeAccess;
+  if(!(raw&&typeof raw==="object"&&!Array.isArray(raw)))throw Object.assign(new Error("License Manager did not provide the authoritative Base database runtime-access contract"),{status:502,code:"BASE_DATABASE_RUNTIME_ACCESS_MISSING"});
+  const legacyCompatibility=false;
+  const source=raw;
+  const schema=String(source.schema||"").trim(),publishableRole=String(source.publishableRole||"").trim(),authenticatedRole=String(source.authenticatedRole||"").trim(),serviceRole=String(source.serviceRole||"").trim();
+  if(Number(source.version)!==1||schema!=="public"||publishableRole!=="anon"||authenticatedRole!=="authenticated"||serviceRole!=="service_role")throw Object.assign(new Error("Base release runtime-access contract is invalid"),{status:422,code:"BASE_DATABASE_RUNTIME_ACCESS_INVALID"});
+  const publicReadTables=runtimeAccessTables(source.publicReadTables,"public-read");
+  const authenticatedReadTables=runtimeAccessTables(source.authenticatedReadTables,"authenticated-read");
+  const serverFullAccessTables=runtimeAccessTables(source.serverFullAccessTables,"server-full-access");
+  const restPreflightTables=runtimeAccessTables(source.restPreflightTables,"REST-preflight");
+  const serverPreflightTables=runtimeAccessTables(source.serverPreflightTables,"server-REST-preflight");
+  const runtimeSecretHeader=String(source.runtimeSecretHeader||"").trim();
+  const runtimeSecretRoles=runtimeAccessTables(source.runtimeSecretRoles,"runtime-secret-role");
+  const runtimeSecretTablePrefixes=runtimeAccessPrefixes(source.runtimeSecretTablePrefixes,"runtime-secret-table");
+  const runtimeSecretExcludedTables=runtimeAccessTables(source.runtimeSecretExcludedTables,"runtime-secret-excluded");
+  const runtimeSecretPreflightTables=runtimeAccessTables(source.runtimeSecretPreflightTables,"runtime-secret-preflight");
+  const runtimeSecretRepairRpc=String(source.runtimeSecretRepairRpc||"").trim();
+  const runtimeSecretProbeTable=String(source.runtimeSecretProbeTable||"").trim();
+  if(restPreflightTables.some((table)=>!publicReadTables.includes(table)))throw Object.assign(new Error("Base release REST preflight tables must be included in public-read access"),{status:422,code:"BASE_DATABASE_RUNTIME_ACCESS_INVALID"});
+  if(serverPreflightTables.some((table)=>!serverFullAccessTables.includes(table)))throw Object.assign(new Error("Base release server preflight tables must be included in server full access"),{status:422,code:"BASE_DATABASE_RUNTIME_ACCESS_INVALID"});
+  if(runtimeSecretHeader!=="x-orbitfs-secret"||runtimeSecretRepairRpc!=="orbitfs_repair_runtime_access"||runtimeSecretProbeTable!=="orbitfs_runtime_secret_probe"||!["anon","authenticated"].every((role)=>runtimeSecretRoles.includes(role)))throw Object.assign(new Error("Base release runtime-secret access contract is invalid"),{status:422,code:"BASE_DATABASE_RUNTIME_ACCESS_INVALID"});
+  if(publicReadTables.some((table)=>!authenticatedReadTables.includes(table)))throw Object.assign(new Error("Base release public-read tables must also be authenticated-readable"),{status:422,code:"BASE_DATABASE_RUNTIME_ACCESS_INVALID"});
+  if(authenticatedReadTables.length!==publicReadTables.length||authenticatedReadTables.some((table)=>!publicReadTables.includes(table)))throw Object.assign(new Error("Base release runtime access contract v1 requires public/authenticated read tables to match"),{status:422,code:"BASE_DATABASE_RUNTIME_ACCESS_INVALID"});
+  if(runtimeSecretPreflightTables.some((table)=>runtimeSecretExcludedTables.includes(table)||!runtimeSecretTablePrefixes.some((prefix)=>table.startsWith(prefix))))throw Object.assign(new Error("Base release runtime-secret preflight tables are outside the permitted runtime table prefixes"),{status:422,code:"BASE_DATABASE_RUNTIME_ACCESS_INVALID"});
+  if([...new Set([...publicReadTables,...authenticatedReadTables])].some((table)=>runtimeSecretExcludedTables.includes(table)||!runtimeSecretTablePrefixes.some((prefix)=>table.startsWith(prefix))))throw Object.assign(new Error("Base release runtime-readable tables are outside the permitted runtime table prefixes"),{status:422,code:"BASE_DATABASE_RUNTIME_ACCESS_INVALID"});
+  if(!runtimeSecretExcludedTables.includes(runtimeSecretProbeTable)||!runtimeSecretTablePrefixes.some((prefix)=>runtimeSecretProbeTable.startsWith(prefix)))throw Object.assign(new Error("Base release runtime-secret probe table must be inside the runtime namespace and excluded from generic DML repair"),{status:422,code:"BASE_DATABASE_RUNTIME_ACCESS_INVALID"});
+  return {version:1,schema,publishableRole,authenticatedRole,serviceRole,publicReadTables,authenticatedReadTables,serverFullAccessTables,restPreflightTables,serverPreflightTables,runtimeSecretHeader:"x-orbitfs-secret",runtimeSecretRoles,runtimeSecretTablePrefixes,runtimeSecretExcludedTables,runtimeSecretPreflightTables,runtimeSecretRepairRpc:"orbitfs_repair_runtime_access",runtimeSecretProbeTable:"orbitfs_runtime_secret_probe",legacyCompatibility};
+}
+function sqlIdentifier(value:string){return `"${value.replaceAll('"','""')}"`}
+function runtimeAccessGrantSql(contract:DatabaseRuntimeAccessContract){
+  const schema=sqlIdentifier(contract.schema),service=sqlIdentifier(contract.serviceRole);
+  const publishable=sqlIdentifier(contract.publishableRole),authenticated=sqlIdentifier(contract.authenticatedRole);
+  const prefixes=`array[${contract.runtimeSecretTablePrefixes.map(sqlLiteral).join(",")}]::text[]`;
+  const excluded=`array[${contract.runtimeSecretExcludedTables.map(sqlLiteral).join(",")}]::text[]`;
+  const publicRead=`array[${contract.publicReadTables.map(sqlLiteral).join(",")}]::text[]`;
+  const secretPredicate="private.orbitfs_server_secret_valid()";
+  return [
+    `grant usage on schema ${schema} to ${publishable}, ${authenticated}, ${service};`,
+    `do $orbitfs_runtime_repair$
+declare r record;
+declare is_public_read boolean;
+begin
+  if to_regprocedure('${contract.schema}.${contract.runtimeSecretRepairRpc}(text[],text[],text[])') is not null then
+    revoke execute on function ${schema}.${sqlIdentifier(contract.runtimeSecretRepairRpc)}(text[],text[],text[]) from public, ${publishable}, ${authenticated};
+    grant execute on function ${schema}.${sqlIdentifier(contract.runtimeSecretRepairRpc)}(text[],text[],text[]) to ${service};
+  end if;
+
+  for r in
+    select tablename
+    from pg_tables
+    where schemaname=${sqlLiteral(contract.schema)}
+      and exists (select 1 from unnest(${prefixes}) p(prefix) where tablename like p.prefix || '%')
+      and not (tablename = any(${excluded}))
+  loop
+    is_public_read := r.tablename = any(${publicRead});
+
+    execute format('alter table %I.%I enable row level security', ${sqlLiteral(contract.schema)}, r.tablename);
+    execute format('grant select, insert, update, delete on table %I.%I to ${contract.publishableRole}, ${contract.authenticatedRole}', ${sqlLiteral(contract.schema)}, r.tablename);
+
+    if is_public_read then
+      execute format('drop policy if exists %I on %I.%I', 'orbitfs runtime public read', ${sqlLiteral(contract.schema)}, r.tablename);
+      execute format('create policy %I on %I.%I as permissive for select to ${contract.publishableRole}, ${contract.authenticatedRole} using (true)', 'orbitfs runtime public read', ${sqlLiteral(contract.schema)}, r.tablename);
+
+      execute format('drop policy if exists %I on %I.%I', 'orbitfs runtime secret access insert', ${sqlLiteral(contract.schema)}, r.tablename);
+      execute format('drop policy if exists %I on %I.%I', 'orbitfs runtime secret required insert', ${sqlLiteral(contract.schema)}, r.tablename);
+      execute format('create policy %I on %I.%I as permissive for insert to ${contract.publishableRole}, ${contract.authenticatedRole} with check (${secretPredicate})', 'orbitfs runtime secret access insert', ${sqlLiteral(contract.schema)}, r.tablename);
+      execute format('create policy %I on %I.%I as restrictive for insert to ${contract.publishableRole}, ${contract.authenticatedRole} with check (${secretPredicate})', 'orbitfs runtime secret required insert', ${sqlLiteral(contract.schema)}, r.tablename);
+
+      execute format('drop policy if exists %I on %I.%I', 'orbitfs runtime secret access update', ${sqlLiteral(contract.schema)}, r.tablename);
+      execute format('drop policy if exists %I on %I.%I', 'orbitfs runtime secret required update', ${sqlLiteral(contract.schema)}, r.tablename);
+      execute format('create policy %I on %I.%I as permissive for update to ${contract.publishableRole}, ${contract.authenticatedRole} using (${secretPredicate}) with check (${secretPredicate})', 'orbitfs runtime secret access update', ${sqlLiteral(contract.schema)}, r.tablename);
+      execute format('create policy %I on %I.%I as restrictive for update to ${contract.publishableRole}, ${contract.authenticatedRole} using (${secretPredicate}) with check (${secretPredicate})', 'orbitfs runtime secret required update', ${sqlLiteral(contract.schema)}, r.tablename);
+
+      execute format('drop policy if exists %I on %I.%I', 'orbitfs runtime secret access delete', ${sqlLiteral(contract.schema)}, r.tablename);
+      execute format('drop policy if exists %I on %I.%I', 'orbitfs runtime secret required delete', ${sqlLiteral(contract.schema)}, r.tablename);
+      execute format('create policy %I on %I.%I as permissive for delete to ${contract.publishableRole}, ${contract.authenticatedRole} using (${secretPredicate})', 'orbitfs runtime secret access delete', ${sqlLiteral(contract.schema)}, r.tablename);
+      execute format('create policy %I on %I.%I as restrictive for delete to ${contract.publishableRole}, ${contract.authenticatedRole} using (${secretPredicate})', 'orbitfs runtime secret required delete', ${sqlLiteral(contract.schema)}, r.tablename);
+    else
+      execute format('drop policy if exists %I on %I.%I', 'orbitfs runtime secret access', ${sqlLiteral(contract.schema)}, r.tablename);
+      execute format('drop policy if exists %I on %I.%I', 'orbitfs runtime secret required', ${sqlLiteral(contract.schema)}, r.tablename);
+      execute format('create policy %I on %I.%I as permissive for all to ${contract.publishableRole}, ${contract.authenticatedRole} using (${secretPredicate}) with check (${secretPredicate})', 'orbitfs runtime secret access', ${sqlLiteral(contract.schema)}, r.tablename);
+      execute format('create policy %I on %I.%I as restrictive for all to ${contract.publishableRole}, ${contract.authenticatedRole} using (${secretPredicate}) with check (${secretPredicate})', 'orbitfs runtime secret required', ${sqlLiteral(contract.schema)}, r.tablename);
+    end if;
+  end loop;
+end
+$orbitfs_runtime_repair$;`,
+    ...contract.publicReadTables.map((table)=>`grant select on table ${schema}.${sqlIdentifier(table)} to ${publishable}, ${authenticated};`),
+    ...contract.serverFullAccessTables.map((table)=>`grant all privileges on table ${schema}.${sqlIdentifier(table)} to ${service};`),
+    `grant usage, select, update on all sequences in schema ${schema} to ${service};`
+  ].join("\n");
+}
+async function databaseRestPreflight(install:any,key:string,tables:string[],credential:string,extraHeaders:Record<string,string>={}){
+  for(const table of tables){
+    const url=new URL(`https://${install.supabase_project_ref}.supabase.co/rest/v1/${table}`);
+    url.searchParams.set("select","*");
+    url.searchParams.set("limit","1");
+    const response=await fetch(url,{headers:{apikey:key,accept:"application/json",...extraHeaders},cache:"no-store"});
+    if(!response.ok){
+      const detail=(await response.text()).slice(0,500);
+      const code=response.status===401||response.status===403
+        ?(credential.includes("publishable")?"CUSTOMER_SUPABASE_PUBLISHABLE_KEY_REJECTED":"CUSTOMER_SUPABASE_SERVER_KEY_REJECTED")
+        :"CUSTOMER_DATABASE_RUNTIME_ACCESS_FAILED";
+      throw Object.assign(new Error(`Customer Supabase ${credential} preflight failed for ${table} (HTTP ${response.status}): ${detail}`),{status:502,code});
+    }
+  }
+}
+async function databaseRuntimeSecretProbe(install:any,key:string,contract:DatabaseRuntimeAccessContract,dbSecret:string){
+  const url=new URL(`https://${install.supabase_project_ref}.supabase.co/rest/v1/${encodeURIComponent(contract.runtimeSecretProbeTable)}`);
+  url.searchParams.set("select","probe_key,contract_version");
+  url.searchParams.set("probe_key","eq.runtime");
+  url.searchParams.set("limit","1");
+  const response=await fetch(url,{headers:{apikey:key,accept:"application/json",[contract.runtimeSecretHeader]:dbSecret},cache:"no-store"});
+  const body:any=await response.json().catch(()=>null);
+  if(!response.ok){
+    const detail=body&&typeof body==="object"?String(body.message||body.error_description||body.error||"").slice(0,500):"";
+    throw Object.assign(new Error(`Customer Supabase runtime-secret probe failed (HTTP ${response.status})${detail?`: ${detail}`:""}`),{status:502,code:"CUSTOMER_DATABASE_RUNTIME_SECRET_FAILED"});
+  }
+  if(!Array.isArray(body)||body.length!==1||body[0]?.probe_key!=="runtime"||Number(body[0]?.contract_version)!==1)throw Object.assign(new Error("Customer Supabase did not accept the OrbitFS database runtime secret"),{status:502,code:"CUSTOMER_DATABASE_RUNTIME_SECRET_FAILED"});
+}
+async function verifyDatabaseRuntimeAccess(install:any,contract:DatabaseRuntimeAccessContract,source:string){
+  const checks:{key:string;expr:string}[]=[
+    {key:"runtime_repair_rpc_service_only",expr:`to_regprocedure('${contract.schema}.${contract.runtimeSecretRepairRpc}(text[],text[],text[])') is not null and has_function_privilege('${contract.serviceRole}','${contract.schema}.${contract.runtimeSecretRepairRpc}(text[],text[],text[])','EXECUTE') and not has_function_privilege('${contract.publishableRole}','${contract.schema}.${contract.runtimeSecretRepairRpc}(text[],text[],text[])','EXECUTE') and not has_function_privilege('${contract.authenticatedRole}','${contract.schema}.${contract.runtimeSecretRepairRpc}(text[],text[],text[])','EXECUTE')`},
+    {key:"runtime_probe_table_restricted",expr:`to_regclass('${contract.schema}.${contract.runtimeSecretProbeTable}') is not null and exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='${contract.schema}' and c.relname='${contract.runtimeSecretProbeTable}' and c.relrowsecurity) and has_table_privilege('${contract.publishableRole}','${contract.schema}.${contract.runtimeSecretProbeTable}','SELECT') and has_table_privilege('${contract.authenticatedRole}','${contract.schema}.${contract.runtimeSecretProbeTable}','SELECT') and not has_table_privilege('${contract.publishableRole}','${contract.schema}.${contract.runtimeSecretProbeTable}','INSERT') and not has_table_privilege('${contract.publishableRole}','${contract.schema}.${contract.runtimeSecretProbeTable}','UPDATE') and not has_table_privilege('${contract.publishableRole}','${contract.schema}.${contract.runtimeSecretProbeTable}','DELETE') and not has_table_privilege('${contract.authenticatedRole}','${contract.schema}.${contract.runtimeSecretProbeTable}','INSERT') and not has_table_privilege('${contract.authenticatedRole}','${contract.schema}.${contract.runtimeSecretProbeTable}','UPDATE') and not has_table_privilege('${contract.authenticatedRole}','${contract.schema}.${contract.runtimeSecretProbeTable}','DELETE') and exists(select 1 from pg_policies where schemaname='${contract.schema}' and tablename='${contract.runtimeSecretProbeTable}' and policyname='orbitfs runtime secret probe' and cmd='SELECT')`},
+    {key:"publishable_schema_usage",expr:`has_schema_privilege('${contract.publishableRole}','${contract.schema}','USAGE')`},
+    {key:"authenticated_schema_usage",expr:`has_schema_privilege('${contract.authenticatedRole}','${contract.schema}','USAGE')`},
+    {key:"service_schema_usage",expr:`has_schema_privilege('${contract.serviceRole}','${contract.schema}','USAGE')`}
+  ];
+  for(const table of contract.publicReadTables)checks.push({key:`publishable_select_${table}`,expr:`has_table_privilege('${contract.publishableRole}','${contract.schema}.${table}','SELECT')`});
+  for(const table of contract.authenticatedReadTables)checks.push({key:`authenticated_select_${table}`,expr:`has_table_privilege('${contract.authenticatedRole}','${contract.schema}.${table}','SELECT')`});
+  for(const table of contract.runtimeSecretPreflightTables){
+    for(const role of contract.runtimeSecretRoles)for(const privilege of ["SELECT","INSERT","UPDATE","DELETE"])checks.push({key:`runtime_${role}_${privilege.toLowerCase()}_${table}`,expr:`has_table_privilege('${role}','${contract.schema}.${table}','${privilege}')`});
+    checks.push({key:`runtime_rls_${table}`,expr:`exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='${contract.schema}' and c.relname='${table}' and c.relrowsecurity)`});
+    if(contract.publicReadTables.includes(table)){
+      checks.push({key:`runtime_public_read_${table}`,expr:`exists(select 1 from pg_policies where schemaname='${contract.schema}' and tablename='${table}' and policyname='orbitfs runtime public read' and permissive='PERMISSIVE' and cmd='SELECT')`});
+      for(const action of ["INSERT","UPDATE","DELETE"])checks.push({key:`runtime_secret_${action.toLowerCase()}_${table}`,expr:`exists(select 1 from pg_policies where schemaname='${contract.schema}' and tablename='${table}' and policyname='orbitfs runtime secret access ${action.toLowerCase()}' and permissive='PERMISSIVE' and cmd='${action}') and exists(select 1 from pg_policies where schemaname='${contract.schema}' and tablename='${table}' and policyname='orbitfs runtime secret required ${action.toLowerCase()}' and permissive='RESTRICTIVE' and cmd='${action}')`});
+    }else{
+      checks.push({key:`runtime_secret_policy_${table}`,expr:`exists(select 1 from pg_policies where schemaname='${contract.schema}' and tablename='${table}' and policyname='orbitfs runtime secret access' and permissive='PERMISSIVE' and cmd='ALL') and exists(select 1 from pg_policies where schemaname='${contract.schema}' and tablename='${table}' and policyname='orbitfs runtime secret required' and permissive='RESTRICTIVE' and cmd='ALL')`});
+    }
+  }
+  for(const table of contract.serverFullAccessTables){
+    for(const privilege of ["SELECT","INSERT","UPDATE","DELETE"])checks.push({key:`service_${privilege.toLowerCase()}_${table}`,expr:`has_table_privilege('${contract.serviceRole}','${contract.schema}.${table}','${privilege}')`});
+  }
+  checks.push({key:"service_sequence_usage",expr:`not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='${contract.schema}' and c.relkind='S' and not has_sequence_privilege('${contract.serviceRole}',c.oid,'USAGE'))`});
+  const query=`select ${checks.map((check)=>`${check.expr} as ${sqlIdentifier(check.key)}`).join(",\n")};`;
+  const verification=await supabaseApi(install.auth_user_id,`/projects/${install.supabase_project_ref}/database/query`,{method:"POST",body:JSON.stringify({query})});
+  const row=Array.isArray(verification)?verification[0]:verification?.data?.[0]||verification?.result?.[0]||verification;
+  const failed=checks.filter((check)=>row?.[check.key]!==true).map((check)=>check.key);
+  if(failed.length)throw Object.assign(new Error(`Customer Supabase runtime-access verification failed: ${failed.join(", ")}`),{status:502,code:"CUSTOMER_DATABASE_RUNTIME_ACCESS_FAILED"});
+  const publishable=await publishableKey(install);
+  await databaseRestPreflight(install,publishable,contract.restPreflightTables,"publishable-key");
+  const dbSecret=String(await installationSecret(install.id,"db_secret")||"").trim();
+  if(!dbSecret)throw Object.assign(new Error("OrbitFS database secret is missing for runtime-secret preflight"),{status:409,code:"CUSTOMER_DATABASE_RUNTIME_SECRET_MISSING"});
+  await databaseRuntimeSecretProbe(install,publishable,contract,dbSecret);
+  await databaseRestPreflight(install,publishable,contract.runtimeSecretPreflightTables,"publishable-key + runtime-secret",{[contract.runtimeSecretHeader]:dbSecret});
+  const server=await supabaseSecretKey(install);
+  await databaseRestPreflight(install,server,contract.serverPreflightTables,"server-secret");
+  await event(install,"database.runtime_access_verified","ok","Customer Supabase runtime access verified",{source,contractVersion:contract.version,legacyCompatibility:contract.legacyCompatibility,publicReadTables:contract.publicReadTables,authenticatedReadTables:contract.authenticatedReadTables,serverFullAccessTables:contract.serverFullAccessTables,restPreflightTables:contract.restPreflightTables,serverPreflightTables:contract.serverPreflightTables,runtimeSecretTablePrefixes:contract.runtimeSecretTablePrefixes,runtimeSecretExcludedTables:contract.runtimeSecretExcludedTables,runtimeSecretPreflightTables:contract.runtimeSecretPreflightTables,runtimeSecretProbeTable:contract.runtimeSecretProbeTable});
+}
+async function repairDatabaseRuntimeAccess(install:any,contract:DatabaseRuntimeAccessContract,source:string){
+  await supabaseApi(install.auth_user_id,`/projects/${install.supabase_project_ref}/database/query`,{method:"POST",body:JSON.stringify({query:runtimeAccessGrantSql(contract)})});
+  await verifyDatabaseRuntimeAccess(install,contract,`${source}-direct-repair`);
+}
+async function installationDatabaseRuntimeAccessContract(install:any){
+  const channel=String(install.release_channel||"stable").trim().toLowerCase()||"stable";
+  // Runtime-access policy is current technical authority, not historical installation identity.
+  // License Manager publishes exactly one current Base per channel; old release ids are retained
+  // only for deployment history/rollback and must never block repair of a live installation.
+  const releaseRows=await masterReleases("orbitfs_base",channel,"base","deployer",true,false);
+  const releases=Array.isArray(releaseRows?.releases)?releaseRows.releases:Array.isArray(releaseRows)?releaseRows:[];
+  const release=releases.find((item:any)=>
+    String(item?.status||"").toLowerCase()==="published"
+    &&String(item?.review_status||"").toLowerCase()==="approved"
+    &&!item?.archived_at
+  )||null;
+  if(!release)throw Object.assign(new Error(`License Manager has no current published Base release in ${channel} for runtime-access repair`),{status:409,code:"BASE_CURRENT_RELEASE_NOT_FOUND"});
+  return databaseRuntimeAccessContract(release);
+}
+export async function ensureCustomerDatabaseRuntimeAccess(install:any,source="runtime"){
+  const accessContract=await installationDatabaseRuntimeAccessContract(install);
+  try{
+    await verifyDatabaseRuntimeAccess(install,accessContract,`${source}-preflight`);
+    return accessContract;
+  }catch(preflightError:any){
+    try{
+      await repairDatabaseRuntimeAccess(install,accessContract,source);
+      return accessContract;
+    }catch(repairError:any){
+      if(repairError&&typeof repairError==="object"&&!repairError.cause)repairError.cause=preflightError;
+      throw repairError;
+    }
+  }
+}
+
 
 const hash=(v:string)=>createHash("sha256").update(v).digest("hex");
 export async function createOAuthState(userId:string,provider:"supabase"|"vercel",installationId:string|null,returnPath="/portal/orbitfs"){
@@ -206,72 +433,12 @@ async function assertSupabaseProjectReady(install:any){
   const db=rows.find((x:any)=>String(x?.name||x?.service||"").toLowerCase()==="db")||rows[0];
   if(String(db?.status||"").toUpperCase()!=="ACTIVE_HEALTHY")throw Object.assign(new Error(`Supabase database is still starting (${db?.status||"not ready"}). Try again shortly.`),{status:409});
 }
-export async function registerInstallationLicense(install:any,licenseKey:string){
-  const key=String(licenseKey||"").trim().toUpperCase();
-  if(!/^LIC-[A-Z0-9]{10}-[A-Z0-9]{10}-[A-Z0-9]{10}$/.test(key))throw Object.assign(new Error("Invalid OrbitFS licence key format. Use LIC-XXXXXXXXXX-XXXXXXXXXX-XXXXXXXXXX."),{status:400,code:"LICENSE_KEY_FORMAT_INVALID"});
-  if(!install?.supabase_project_ref)throw Object.assign(new Error("Choose and initialize the customer Supabase project before registering the licence"),{status:409,code:"SUPABASE_PROJECT_REQUIRED"});
-  const validation=await masterLicenseValidate({action:"activate",activate:true,licenseKey:key,installationId:String(install.installation_id||""),product:"orbitfs_base",productVersion:String(install.release_version||"")||undefined,metadata:{source:"billing_store_installer"}});
-  if(validation?.valid!==true)throw Object.assign(new Error(String(validation?.code||"Licence validation failed")),{status:403,code:String(validation?.code||"LICENSE_INVALID")});
-  const runtime=validation?.runtime_policy&&typeof validation.runtime_policy==="object"?validation.runtime_policy:{};
-  const directComponents=validation?.components&&typeof validation.components==="object"&&!Array.isArray(validation.components)?validation.components:{};
-  const policyComponents=validation?.metadata?.license_policy?.components&&typeof validation.metadata.license_policy.components==="object"?validation.metadata.license_policy.components:{};
-  const componentIds=["orbitfs_base","orbitfs_mcp","orbitfs_apex","orbitfs_studio"];
-  const components=Object.fromEntries(componentIds.map((id)=>{
-    const direct=directComponents[id];
-    if(direct&&typeof direct==="object"&&!Array.isArray(direct))return [id,direct];
-    const allowed=id==="orbitfs_base"||policyComponents[id]===true;
-    return [id,allowed
-      ?{state:id==="orbitfs_base"?"active":"locked",allowed:true,lockedToThisInstallation:true,reason:null}
-      :{state:"blocked",allowed:false,lockedToThisInstallation:false,reason:"not_included"}];
-  }));
-  const now=new Date().toISOString();
-  const metadata={
-    ...(validation?.metadata&&typeof validation.metadata==="object"?validation.metadata:{}),
-    installationId:String(install.installation_id||""),
-    installationIdentitySource:"deployment",
-    masterLicenseId:validation?.license_id||null,
-    lastCheckedAt:now,
-    lastRevisionCheckedAt:now,
-    keyHint:"••••"+key.slice(-4),
-    validationTtlSeconds:Number(runtime.validation_ttl_seconds||60),
-    offlineGraceSeconds:Number(runtime.offline_grace_seconds||0),
-    pulsePollSeconds:Number(runtime.pulse_poll_seconds||15),
-    maxFailedValidations:Number(runtime.max_failed_validations||3),
-    allowOfflineGrace:Boolean(runtime.allow_offline_grace),
-    providerOutageFreezeEnabled:true,
-    manualAuthorityOfflineUsesGrace:true,
-    freezeGraceOnProviderFailure:true,
-    freezeFailureCounterOnProviderFailure:true,
-    pulseRevision:runtime.pulse_revision??null,
-    pulseAt:runtime.pulse_at??null,
-    pulseReason:runtime.pulse_reason??null,
-    failedValidationCount:0,
-    lastValidationAttemptAt:now,
-    pulseValidationRequired:false,
-    pendingPulseRevision:null,
-    pendingPulseAuthorityState:null,
-    lastAuthorityState:"active",
-    lastAuthoritativeValid:true
-  };
-  const sqlSafe=(value:string)=>value.replaceAll("'","''");
-  const metadataJson=sqlSafe(JSON.stringify(metadata));
-  const sql=`insert into public.orbitfs_license(id,license_key,status,plan,licensed_to,expires_at,metadata,updated_at)
-values ('primary','${sqlSafe(key)}','active',null,null,${validation?.expires_at?`'${sqlSafe(String(validation.expires_at))}'::timestamptz`:"null"},'${metadataJson}'::jsonb,now())
-on conflict (id) do update set license_key=excluded.license_key,status='active',expires_at=excluded.expires_at,metadata=excluded.metadata,updated_at=now();`;
-  await supabaseApi(install.auth_user_id,`/projects/${install.supabase_project_ref}/database/query`,{method:"POST",body:JSON.stringify({query:sql})});
-  const registration={valid:true,keyHint:"••••"+key.slice(-4),masterLicenseId:validation?.license_id||null,installationId:String(install.installation_id||""),registeredAt:now};
-  const nextMetadata={...(install.metadata&&typeof install.metadata==="object"?install.metadata:{}),licenseRegistration:registration};
-  const {data,error}=await licenseDb().from("orbitfs_installations").update({metadata:nextMetadata,last_error:null,updated_at:now}).eq("id",install.id).select().single();
-  if(error)throw error;
-  await event(data,"license.registered","ok","OrbitFS licence registered to this installation",{keyHint:registration.keyHint,masterLicenseId:registration.masterLicenseId,installationId:registration.installationId});
-  return data;
-}
-
 export async function initializeSupabaseDatabase(install:any,releaseId?:string){
   await requireSystem("deploy");if(!install.supabase_project_ref)throw Object.assign(new Error("Choose a customer Supabase project first"),{status:409});
   const channel=String(install.release_channel||"stable"),releaseRows=await masterReleases("orbitfs_base",channel,"base","deployer"),published=(releaseRows?.releases||[]).filter((r:any)=>String(r.status||"").toLowerCase()==="published"&&String(r.review_status||"").toLowerCase()==="approved"),release=releaseId?published.find((r:any)=>String(r.id)===releaseId):published[0];
   if(!release?.id)throw Object.assign(new Error(releaseId?"Selected Base release is no longer published in License Master":"No published Base release is available for this channel"),{status:409});
   if(String(release.channel||channel)!==channel)throw Object.assign(new Error("Selected Base release does not match the installation release channel"),{status:409});
+  const accessContract=databaseRuntimeAccessContract(release);
   await assertSupabaseProjectReady(install);
   const releaseSchema=String(release.manifest?.databaseSchemaVersion||release.manifest?.releaseInfo?.databaseSchemaVersion||"").trim();
   if(!releaseSchema)throw Object.assign(new Error(`Published Base release ${release.version} does not declare a customer database schema version. Publish a current Base release before initializing this installation.`),{status:409});
@@ -284,7 +451,22 @@ export async function initializeSupabaseDatabase(install:any,releaseId?:string){
     throw error;
   }
   const effectiveSchema=schemaAsset.schemaVersion;
-  const sql=schemaAsset.sql;
+  const rawSql=schemaAsset.sql;
+  if(!rawSql.includes("-- OrbitFS Base customer database snapshot"))throw Object.assign(new Error("Published Base database asset is not a generated OrbitFS customer snapshot"),{status:422,code:"BASE_SCHEMA_SNAPSHOT_INVALID"});
+  if(!rawSql.includes("20260923135040_profile_state_workspace_scope.sql"))throw Object.assign(new Error("Published Base database snapshot is missing the canonical workspace-scoped profile-state migration"),{status:422,code:"BASE_SCHEMA_PROFILE_SCOPE_MISSING"});
+  if(/\bcreate\s+(?:unique\s+)?index\s+concurrently\b/i.test(rawSql)||/\b(?:vacuum|reindex)\b/i.test(rawSql))throw Object.assign(new Error("Published Base database snapshot contains a command that cannot run inside the installer transaction"),{status:422,code:"BASE_SCHEMA_TRANSACTION_UNSAFE"});
+  const obsoleteProfileConflict=/on\s+conflict\s*\(\s*workspace_id\s*,\s*user_id\s*\)\s+do\s+nothing/i.test(rawSql);
+  const namedUniqueAdds=[...rawSql.matchAll(/alter\s+table\s+([a-z0-9_.]+)\s+add\s+constraint\s+([a-z0-9_]+)\s+unique\s*\(([^;]+)\)\s*;/ig)].length;
+  let sql=rawSql.replace(/on\s+conflict\s*\(\s*workspace_id\s*,\s*user_id\s*\)\s+do\s+nothing/ig,"on conflict do nothing");
+  sql=sql.replace(/alter\s+table\s+([a-z0-9_.]+)\s+add\s+constraint\s+([a-z0-9_]+)\s+unique\s*\(([^;]+)\)\s*;/ig,(_match,tableName,constraintName,columns)=>{
+    const parts=String(tableName).split(".");
+    const schemaName=parts.length>1?parts[0]:"public";
+    return [
+      `alter table ${tableName} drop constraint if exists ${constraintName};`,
+      `drop index if exists ${schemaName}.${constraintName};`,
+      `alter table ${tableName} add constraint ${constraintName} unique (${String(columns).trim()});`
+    ].join("\n");
+  });
   await licenseDb().from("orbitfs_installations").update({state:"preparing_database",last_error:null}).eq("id",install.id);
   await event(install,"database.initializing","info",`Initializing customer database from OrbitFS Base ${release.version} release snapshot`,{releaseId:release.id,releaseVersion:release.version,databaseSchemaVersion:effectiveSchema,databaseSchemaSha256:schemaAsset.sha256,databaseMigrationCount:schemaAsset.migrationCount,databaseLatestMigration:schemaAsset.latestMigration});
   let dbSecret=String(await installationSecret(install.id,"db_secret")||"");
@@ -308,7 +490,7 @@ grant all on public.orbitfs_schema_migrations to service_role;
 insert into public.orbitfs_schema_migrations(migration_id,sha256,component,source_file,release_id,release_version,applied_at)
 values ('${safe(baseMigrationId)}','${safe(schemaAsset.sha256)}','shared','${safe(schemaAsset.path)}','${safe(String(release.id))}','${safe(String(release.version))}',now())
 on conflict (migration_id) do nothing;
-insert into storage.buckets(id,name,public,file_size_limit) values ('orbitfs-files','orbitfs-files',false,1073741824) on conflict (id) do update set name=excluded.name,public=false,file_size_limit=excluded.file_size_limit;`;
+insert into storage.buckets(id,name,public,file_size_limit) values ('orbitfs-files','orbitfs-files',false,1073741824) on conflict (id) do update set name=excluded.name,public=false,file_size_limit=excluded.file_size_limit;\n${runtimeAccessGrantSql(accessContract)}`;
   const legacyRlsCompatPrelude=[
     "do $$",
     "begin",
@@ -347,11 +529,36 @@ insert into storage.buckets(id,name,public,file_size_limit) values ('orbitfs-fil
   to_regclass('public.orbitfs_license') is not null as orbitfs_license,
   to_regclass('public.orbitfs_addons') is not null as orbitfs_addons,
   to_regclass('public.orbitfs_audit_log') is not null as orbitfs_audit_log,
+  to_regclass('public.orbitfs_profile_state') is not null as orbitfs_profile_state,
+  exists(
+    select 1
+    from pg_constraint c
+    join pg_class t on t.oid=c.conrelid
+    join pg_namespace n on n.oid=t.relnamespace
+    where n.nspname='public'
+      and t.relname='orbitfs_profile_state'
+      and c.contype='u'
+      and pg_get_constraintdef(c.oid) ~* '^UNIQUE \\(workspace_id\\)$'
+  ) as profile_state_workspace_unique,
+  not exists(
+    select 1
+    from public.orbitfs_profile_state
+    group by workspace_id
+    having count(*) > 1
+  ) as profile_state_no_duplicate_workspaces,
+  exists(
+    select 1
+    from public.orbitfs_schema_migrations
+    where migration_id='${safe(baseMigrationId)}'
+      and sha256='${safe(schemaAsset.sha256)}'
+      and release_id='${safe(String(release.id))}'
+      and release_version='${safe(String(release.version))}'
+  ) as base_migration_recorded,
   to_regclass('private.orbitfs_runtime_secret') is not null as runtime_secret,
   to_regclass('public.orbitfs_schema_migrations') is not null as schema_migrations,
   to_regprocedure('public.rls_auto_enable()') is null as legacy_rls_helper_removed;`})});
   const verificationRow=Array.isArray(verification)?verification[0]:verification?.data?.[0]||verification?.result?.[0]||verification;
-  const requiredChecks=["orbitfs_users","orbitfs_workspaces","orbitfs_workspace_members","orbitfs_files","orbitfs_settings","orbitfs_license","orbitfs_addons","orbitfs_audit_log","runtime_secret","schema_migrations","legacy_rls_helper_removed"];
+  const requiredChecks=["orbitfs_users","orbitfs_workspaces","orbitfs_workspace_members","orbitfs_files","orbitfs_settings","orbitfs_license","orbitfs_addons","orbitfs_audit_log","orbitfs_profile_state","profile_state_workspace_unique","profile_state_no_duplicate_workspaces","base_migration_recorded","runtime_secret","schema_migrations","legacy_rls_helper_removed"];
   const failedChecks=requiredChecks.filter((key)=>verificationRow?.[key]!==true);
   if(failedChecks.length){
     const message=`OrbitFS database verification failed after schema import: ${failedChecks.join(", ")}`;
@@ -359,7 +566,16 @@ insert into storage.buckets(id,name,public,file_size_limit) values ('orbitfs-fil
     await event(install,"database.verify_failed","error",message,{failedChecks,releaseId:String(release.id),releaseVersion:String(release.version)});
     throw Object.assign(new Error(message),{status:502});
   }
-  const {data,error}=await licenseDb().from("orbitfs_installations").update({schema_version:effectiveSchema,database_initialized_at:new Date().toISOString(),state:"awaiting_vercel",last_error:null,release_id:String(release.id),release_version:String(release.version),release_sha256:String(release.sha256||release.checksum||""),release_source_commit:release.source_sha||release.source_commit||release.manifest?.sourceCommit||null,release_channel:channel}).eq("id",install.id).select().single();if(error)throw error;await event(data,"database.ready","ok",`Customer database initialized and verified with OrbitFS database schema ${effectiveSchema}`,{releaseId:release.id,releaseVersion:release.version,databaseSchemaVersion:effectiveSchema,databaseSchemaSha256:schemaAsset.sha256,databaseSchemaSource:schemaAsset.source,databaseMigrationCount:"migrationCount" in schemaAsset?schemaAsset.migrationCount:null,databaseLatestMigration:"latestMigration" in schemaAsset?schemaAsset.latestMigration:null,baseMigrationId});return data;
+  try{await verifyDatabaseRuntimeAccess(install,accessContract,"base-initialize")}
+  catch(e:any){
+    const message=String(e?.message||"Customer Supabase runtime-access verification failed");
+    await licenseDb().from("orbitfs_installations").update({state:"preparing_database",last_error:message,updated_at:new Date().toISOString()}).eq("id",install.id);
+    await event(install,"database.runtime_access_failed","error",message,{releaseId:String(release.id),releaseVersion:String(release.version),code:String(e?.code||"CUSTOMER_DATABASE_RUNTIME_ACCESS_FAILED")});
+    throw e;
+  }
+  const {data,error}=await licenseDb().from("orbitfs_installations").update({schema_version:effectiveSchema,database_initialized_at:new Date().toISOString(),state:"awaiting_vercel",last_error:null,release_id:String(release.id),release_version:String(release.version),release_sha256:String(release.sha256||release.checksum||""),release_source_commit:release.source_sha||release.source_commit||release.manifest?.sourceCommit||null,release_channel:channel}).eq("id",install.id).select().single();if(error)throw error;
+  await event(data,"database.ready","ok",`Customer database initialized and verified with OrbitFS database schema ${effectiveSchema}`,{releaseId:release.id,releaseVersion:release.version,databaseSchemaVersion:effectiveSchema,databaseSchemaSha256:schemaAsset.sha256,databaseSchemaSource:schemaAsset.source,databaseMigrationCount:"migrationCount" in schemaAsset?schemaAsset.migrationCount:null,databaseLatestMigration:"latestMigration" in schemaAsset?schemaAsset.latestMigration:null,baseMigrationId,profileStateConflictCompatibilityApplied:obsoleteProfileConflict,namedUniqueConstraintCompatibilityCount:namedUniqueAdds,runtimeAccessContractVersion:accessContract.version,runtimeAccessLegacyCompatibility:accessContract.legacyCompatibility});
+  return data;
 }
 
 async function supabaseProjectKeys(install:any){
@@ -367,25 +583,84 @@ async function supabaseProjectKeys(install:any){
   const keys=await supabaseApi(install.auth_user_id,`/projects/${install.supabase_project_ref}/api-keys?reveal=true`) as any[];
   return Array.isArray(keys)?keys:[];
 }
+function supabaseApiKeyValue(key:any){return String(key?.api_key||key?.key||key?.value||"").trim()}
+function supabaseApiKeyDisabled(key:any){
+  const state=String(key?.status||key?.state||"").trim().toLowerCase();
+  return key?.disabled===true||["disabled","revoked","inactive","deleted"].includes(state);
+}
+function supabaseApiKeyFormat(value:string){
+  if(value.startsWith("sb_publishable_"))return "publishable";
+  if(value.startsWith("sb_secret_"))return "secret";
+  if(value.startsWith("eyJ")&&value.split(".").length===3)return "legacy-jwt";
+  return "unknown";
+}
+function supabaseApiKeyFingerprint(value:string){return createHash("sha256").update(value).digest("hex")}
+function supabaseKeyRequestHeaders(value:string){
+  const headers:Record<string,string>={apikey:value,accept:"application/json","user-agent":"OrbitFS-Billing-Deployer/1.0"};
+  if(value.startsWith("eyJ")&&value.split(".").length===3)headers.authorization=`Bearer ${value}`;
+  return headers;
+}
+const wait=(ms:number)=>new Promise<void>((resolve)=>setTimeout(resolve,ms));
+async function probeSupabaseApiKey(install:any,value:string,kind:"publishable"|"server"){
+  const ref=String(install?.supabase_project_ref||"").trim();
+  assertCustomerSupabaseRef(ref);
+  if(!value||supabaseApiKeyFormat(value)==="unknown")return false;
+  const url=`https://${ref}.supabase.co/auth/v1/settings`;
+  let response:Response;
+  try{
+    response=await fetch(url,{headers:supabaseKeyRequestHeaders(value),cache:"no-store",signal:AbortSignal.timeout(10000)});
+  }catch(error:any){
+    throw Object.assign(new Error(`Could not reach customer Supabase while validating the ${kind} API key: ${String(error?.message||error)}`),{status:502,code:"CUSTOMER_SUPABASE_KEY_PROBE_FAILED"});
+  }
+  if(response.ok)return true;
+  if(response.status===401||response.status===403)return false;
+  const detail=(await response.text().catch(()=>"")).slice(0,500);
+  throw Object.assign(new Error(`Customer Supabase ${kind} API-key validation failed unexpectedly (HTTP ${response.status})${detail?`: ${detail}`:""}`),{status:502,code:"CUSTOMER_SUPABASE_KEY_PROBE_FAILED"});
+}
+async function firstWorkingSupabaseKey(install:any,keys:any[],kind:"publishable"|"server"){
+  const seen=new Set<string>();
+  for(const key of keys){
+    if(supabaseApiKeyDisabled(key))continue;
+    const value=supabaseApiKeyValue(key);
+    if(!value||seen.has(value))continue;
+    seen.add(value);
+    if(await probeSupabaseApiKey(install,value,kind))return value;
+  }
+  return "";
+}
+async function createAndValidateSupabaseKey(install:any,type:"publishable"|"secret",kind:"publishable"|"server"){
+  const created=await supabaseApi(install.auth_user_id,`/projects/${install.supabase_project_ref}/api-keys?reveal=true`,{
+    method:"POST",
+    body:JSON.stringify({type,name:`orbitfs-${kind}-${Date.now().toString(36)}`})
+  });
+  const value=supabaseApiKeyValue(created);
+  if(!value)throw Object.assign(new Error(`Supabase created a ${kind} API key but did not return its value`),{status:502,code:"CUSTOMER_SUPABASE_KEY_CREATE_FAILED"});
+  for(const delay of [0,250,750,1500,3000]){
+    if(delay)await wait(delay);
+    if(await probeSupabaseApiKey(install,value,kind))return value;
+  }
+  throw Object.assign(new Error(`New customer Supabase ${kind} API key was created but did not become usable`),{status:502,code:"CUSTOMER_SUPABASE_KEY_NOT_ACTIVE"});
+}
 async function publishableKey(install:any){
   const keys=await supabaseProjectKeys(install);
-  let key=keys.find((x:any)=>x.type==="publishable")||keys.find((x:any)=>x.name==="anon"||x.type==="anon");
-  if(!key){
-    const created=await supabaseApi(install.auth_user_id,`/projects/${install.supabase_project_ref}/api-keys?reveal=true`,{method:"POST",body:JSON.stringify({type:"publishable",name:"default"})});
-    key=created;
-  }
-  const value=key?.api_key||key?.key||key?.value;
-  if(!value)throw new Error("Could not retrieve or create a Supabase publishable key from the customer's project");
-  return String(value);
+  const candidates=[
+    ...keys.filter((x:any)=>x.type==="publishable"),
+    ...keys.filter((x:any)=>String(x.name||"").toLowerCase()==="anon"||String(x.type||"").toLowerCase()==="anon"||String(x.role||"").toLowerCase()==="anon")
+  ];
+  const live=await firstWorkingSupabaseKey(install,candidates,"publishable");
+  if(live)return live;
+  return createAndValidateSupabaseKey(install,"publishable","publishable");
 }
 async function supabaseSecretKey(install:any){
   const keys=await supabaseProjectKeys(install);
-  const key=keys.find((x:any)=>x.type==="secret")
-    ||keys.find((x:any)=>x.name==="service_role"||x.type==="service_role")
-    ||keys.find((x:any)=>String(x.name||"").toLowerCase().includes("secret"));
-  const value=key?.api_key||key?.key||key?.value;
-  if(!value)throw new Error("Could not retrieve the required Supabase server secret key from the customer's project");
-  return String(value);
+  const candidates=[
+    ...keys.filter((x:any)=>x.type==="secret"),
+    ...keys.filter((x:any)=>String(x.name||"").toLowerCase()==="service_role"||String(x.type||"").toLowerCase()==="service_role"||String(x.role||"").toLowerCase()==="service_role"),
+    ...keys.filter((x:any)=>String(x.name||"").toLowerCase().includes("secret")&&String(x.name||"").toLowerCase()!=="anon")
+  ];
+  const live=await firstWorkingSupabaseKey(install,candidates,"server");
+  if(live)return live;
+  return createAndValidateSupabaseKey(install,"secret","server");
 }
 export async function customerSupabaseServerKey(install:any){return supabaseSecretKey(install)}
 
@@ -442,6 +717,15 @@ const ORBITFS_LICENSE_TIMEOUT_MS="8000";
 export async function configureVercel(install:any,releaseVersion?:string,panelUrl?:string,releaseChannel?:string,releaseId?:string,releaseSha256?:string,releaseSourceCommit?:string){
   if(!install?.supabase_project_ref)throw new Error("Customer Supabase project is not configured");
   if(!install?.vercel_project_id)throw new Error("Customer Vercel project is not configured");
+  let accessContract:DatabaseRuntimeAccessContract;
+  try{
+    accessContract=await ensureCustomerDatabaseRuntimeAccess(install,"vercel-configure");
+  }catch(e:any){
+    const message=String(e?.message||"Customer Supabase runtime-access repair failed");
+    await licenseDb().from("orbitfs_installations").update({last_error:message,updated_at:new Date().toISOString()}).eq("id",install.id);
+    await event(install,"database.runtime_access_failed","error",message,{stage:"vercel-configure",code:String(e?.code||"CUSTOMER_DATABASE_RUNTIME_ACCESS_FAILED")});
+    throw e;
+  }
   const key=await publishableKey(install),supabaseServerKey=await supabaseSecretKey(install),secret=await installationSecret(install.id,"db_secret"),vercelCredentials=await vercelAccessToken(install.auth_user_id);
   if(!key)throw new Error("Customer Supabase publishable key is missing");
   if(!supabaseServerKey)throw new Error("Customer Supabase server secret key is missing");
@@ -457,8 +741,29 @@ export async function configureVercel(install:any,releaseVersion?:string,panelUr
     SUPABASE_URL:`https://${install.supabase_project_ref}.supabase.co`,
     SUPABASE_PUBLISHABLE_KEY:key,
     SUPABASE_SECRET_KEY:supabaseServerKey,
+    ORBITFS_SUPABASE_CONNECTION_ATTESTATION:JSON.stringify({
+      version:1,
+      projectRef:String(install.supabase_project_ref||"").trim(),
+      publishableKeySha256:supabaseApiKeyFingerprint(key),
+      publishableKeyFormat:supabaseApiKeyFormat(key),
+      serverKeySha256:supabaseApiKeyFingerprint(supabaseServerKey),
+      serverKeyFormat:supabaseApiKeyFormat(supabaseServerKey)
+    }),
     ORBITFS_DB_SECRET:secret,
+    ORBITFS_DATABASE_RUNTIME_ACCESS_CONTRACT:JSON.stringify({
+      version:accessContract.version,
+      schema:accessContract.schema,
+      publicReadTables:accessContract.publicReadTables,
+      runtimeSecretHeader:accessContract.runtimeSecretHeader,
+      runtimeSecretRoles:accessContract.runtimeSecretRoles,
+      runtimeSecretTablePrefixes:accessContract.runtimeSecretTablePrefixes,
+      runtimeSecretExcludedTables:accessContract.runtimeSecretExcludedTables,
+      runtimeSecretPreflightTables:accessContract.runtimeSecretPreflightTables,
+      runtimeSecretRepairRpc:accessContract.runtimeSecretRepairRpc,
+      runtimeSecretProbeTable:accessContract.runtimeSecretProbeTable
+    }),
     ORBITFS_INSTALLATION_ID:String(install.installation_id||"").trim(),
+    ORBITFS_INSTALLATION_ROUTE:"billing_store",
     ORBITFS_PANEL_URL:panelUrl||"https://panel.incendiarynetworks.cc",
     ORBITFS_LICENSE_API_URL:ORBITFS_LICENSE_API_URL,
     ORBITFS_APP_VERSION:version||"unknown",
@@ -479,6 +784,13 @@ export async function configureVercel(install:any,releaseVersion?:string,panelUr
     ORBITFS_RELEASE_SOURCE_COMMIT:sourceCommit
   };
   for(const [name,value] of Object.entries(vars)){if(value)await upsertVercelEnv(install,name,value)}
+  await event(install,"supabase.runtime_credentials_attested","ok","Validated customer Supabase credentials were written to the Base deployment",{
+    projectRef:String(install.supabase_project_ref||"").trim(),
+    publishableKeyFingerprint:supabaseApiKeyFingerprint(key).slice(0,16),
+    publishableKeyFormat:supabaseApiKeyFormat(key),
+    serverKeyFingerprint:supabaseApiKeyFingerprint(supabaseServerKey).slice(0,16),
+    serverKeyFormat:supabaseApiKeyFormat(supabaseServerKey)
+  });
 }
 export async function configureVercelUpdateIdentity(install:any,input:{version:string;releaseId:string;sha256:string;sourceCommit?:string|null;channel:string;components?:string[]}){
   if(!install?.vercel_project_id)throw new Error("Customer Vercel project is not configured");
@@ -500,13 +812,17 @@ export async function resolveProductionUrl(install:any,deployment?:any):Promise<
  const normalize=(v:any)=>String(v||"").trim().replace(/^https?:\/\//,"").replace(/\/$/,"").toLowerCase();
  const projectDomain=`${String(install.vercel_project_name||"").trim().toLowerCase()}.vercel.app`;
  const deploymentHost=normalize(deployment?.url);
- const aliases=Array.isArray(deployment?.alias)?deployment.alias.map(normalize):[];
- if(aliases.includes(projectDomain)&&projectDomain!==deploymentHost)return `https://${projectDomain}`;
+ const aliases=Array.isArray(deployment?.alias)?deployment.alias.map(normalize).filter(Boolean):[];
  const result=await vercelApi(String(install.auth_user_id),`/v9/projects/${encodeURIComponent(String(install.vercel_project_id))}/domains`,{method:"GET"});
  const domains=Array.isArray(result?.domains)?result.domains:[];
  const candidates=domains.filter((d:any)=>d?.verified!==false&&normalize(d?.name)&&normalize(d?.name)!==deploymentHost);
- const chosen=candidates.find((d:any)=>normalize(d.name)===projectDomain)||candidates.find((d:any)=>!d.redirect&&normalize(d.name).endsWith(".vercel.app"))||candidates.find((d:any)=>!d.redirect)||candidates[0];
- const name=normalize(chosen?.name);
+ const custom=candidates.find((d:any)=>!d.redirect&&!normalize(d.name).endsWith(".vercel.app"))
+  ||candidates.find((d:any)=>!normalize(d.name).endsWith(".vercel.app"));
+ const customAlias=aliases.find((host:string)=>host!==deploymentHost&&!host.endsWith(".vercel.app"));
+ const project=candidates.find((d:any)=>normalize(d.name)===projectDomain);
+ const vercel=candidates.find((d:any)=>!d.redirect&&normalize(d.name).endsWith(".vercel.app"))
+  ||candidates.find((d:any)=>normalize(d.name).endsWith(".vercel.app"));
+ const name=normalize(custom?.name)||customAlias||normalize(project?.name)||(aliases.includes(projectDomain)&&projectDomain!==deploymentHost?projectDomain:"")||normalize(vercel?.name)||normalize(candidates[0]?.name);
  return name?`https://${name}`:null;
 }
 export async function checkPublicPanelHealth(url:string,path:string):Promise<boolean>{
@@ -538,9 +854,16 @@ export async function syncDeployment(install:any){
   const url=await resolveProductionUrl(install,result);
   const settings=await billingOrbitfsConfig();
   const healthy=url?await checkPublicPanelHealth(url,settings.health_path||"/api/health"):false;
-  const patch={state:"ready",health_status:healthy?"healthy":"degraded",last_health_at:new Date().toISOString(),production_url:url,deployment_url:resultUrl||install.deployment_url||history.data.deployment_url||null,last_error:healthy?null:!url?"Production domain is not assigned":"Production Panel public health check failed; inspect Vercel protection and runtime"};
+  const nextHealth=healthy?"healthy":"degraded";
+  const patch={state:"ready",health_status:nextHealth,last_health_at:new Date().toISOString(),production_url:url,deployment_url:resultUrl||install.deployment_url||history.data.deployment_url||null,last_error:healthy?null:!url?"Production domain is not assigned":"Production Panel public health check failed; inspect Vercel protection and runtime"};
   const {data,error}=await licenseDb().from("orbitfs_installations").update(patch).eq("id",install.id).select().single();
   if(error)throw error;
-  await event(data,"panel.ready",healthy?"ok":"warning",healthy?"OrbitFS Panel is ready in the customer Vercel account":"Panel deployed; health check is degraded",{url});
+  const previousUrl=String(install.production_url||"").replace(/\/$/,"");
+  const nextUrl=String(url||"").replace(/\/$/,"");
+  const domainChanged=previousUrl!==nextUrl;
+  const healthChanged=String(install.health_status||"")!==nextHealth;
+  const stateChanged=String(install.state||"")!=="ready";
+  if(domainChanged)await event(data,previousUrl?"panel.domain_changed":"panel.domain_detected",healthy?"ok":"warning",nextUrl?(previousUrl?`Production domain changed to ${nextUrl}`:`Production domain detected: ${nextUrl}`):"Production domain is no longer assigned",{previousUrl:previousUrl||null,url:nextUrl||null});
+  if(healthChanged||stateChanged)await event(data,"panel.ready",healthy?"ok":"warning",healthy?"OrbitFS Panel is ready in the customer Vercel account":"Panel deployed; health check is degraded",{url});
   return data;
 }

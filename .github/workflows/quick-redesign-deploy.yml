@@ -2,88 +2,39 @@ name: Quick Deploy
 
 on:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: Select branch to deploy
-        required: true
-        default: main
-        type: choice
-        options:
-          - main
-          - CustomDesign/Run
-      custom_branch:
-        description: Optional custom branch name (overrides selector)
-        required: false
-        type: string
-  push:
-    branches:
-      - control/quick-deploy-main
-      - control/quick-deploy-custom
 
 permissions:
   contents: read
 
 concurrency:
   group: v2-billing-quick
-  cancel-in-progress: true
+  # Never cancel a deployment after Vercel may already have accepted it. A cancelled
+  # run still consumes a deployment, and the replacement run would create another.
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.actor == 'lucaskerim123') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
       name: production
 
     env:
-      SELECTED_BRANCH: ${{ inputs.branch }}
-      CUSTOM_BRANCH: ${{ inputs.custom_branch }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: team_W3fS0X03YCjNkD2BoqRj6Uld
       VERCEL_PROJECT_ID: prj_3ARdg4cRikU2OiMeZjZDvQ3JuEZd
       VERCEL_CLI_VERSION: 59.6.2
 
     steps:
-      - name: Resolve selected branch
+      - name: Resolve main branch
         id: branch
         shell: bash
         run: |
           set -euo pipefail
-          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
-            test "${GITHUB_ACTOR}" = "lucaskerim123"
-            case "${GITHUB_REF_NAME}" in
-              control/quick-deploy-main) branch="main" ;;
-              control/quick-deploy-custom) branch="CustomDesign/Run" ;;
-              *)
-                echo "::error::Unsupported Quick Deploy control ref: ${GITHUB_REF_NAME}"
-                exit 1
-                ;;
-            esac
-            main_sha="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | awk '{print $1}')"
-            test -n "$main_sha"
-            if [ "${GITHUB_SHA}" != "$main_sha" ]; then
-              echo "::error::Quick Deploy control ref must point at the exact current main commit. Requested ${GITHUB_SHA}; main is $main_sha."
-              exit 1
-            fi
-          else
-            branch="${CUSTOM_BRANCH:-}"
-            if [ -z "$branch" ]; then
-              branch="$SELECTED_BRANCH"
-            fi
-          fi
-          if ! printf '%s' "$branch" | grep -Eq '^[A-Za-z0-9._/-]+$'; then
-            echo "::error::Branch contains unsupported characters: $branch"
-            exit 1
-          fi
-          case "$branch" in
-            -*|*..*|*//*|*/.|*/..|.|..)
-              echo "::error::Invalid branch name: $branch"
-              exit 1
-              ;;
-          esac
-          echo "name=$branch" >> "$GITHUB_OUTPUT"
-          echo "TARGET_BRANCH=$branch" >> "$GITHUB_ENV"
-          echo "Selected branch: $branch"
+          test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
+          echo "name=main" >> "$GITHUB_OUTPUT"
+          echo "TARGET_BRANCH=main" >> "$GITHUB_ENV"
+          echo "Quick Deploy source is fixed to main."
 
       - name: Checkout selected branch
         uses: actions/checkout@v6
@@ -96,10 +47,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "${GITHUB_EVENT_NAME}" in
-            workflow_dispatch|push) ;;
-            *) echo "::error::Unsupported Quick Deploy event: ${GITHUB_EVENT_NAME}"; exit 1 ;;
-          esac
+          test "${GITHUB_EVENT_NAME}" = "workflow_dispatch"
           test -n "$VERCEL_TOKEN"
           test -n "$VERCEL_ORG_ID"
           test -n "$VERCEL_PROJECT_ID"
@@ -116,6 +64,45 @@ jobs:
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
           echo "Quick Deploy source: $TARGET_BRANCH @ $commit"
 
+      - name: Reuse an existing production deployment for this commit
+        id: existing
+        shell: bash
+        env:
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+            --header "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&target=production&limit=100&teamId=$VERCEL_ORG_ID")"
+          if [ "$status" != "200" ]; then
+            echo "::error::Could not inspect existing Vercel production deployments (HTTP $status)."
+            cat "$response_file"
+            exit 1
+          fi
+          existing_url="$(node - "$response_file" "$SOURCE_COMMIT" <<'NODE'
+          const fs=require('fs');
+          const [file,sha]=process.argv.slice(2);
+          const body=JSON.parse(fs.readFileSync(file,'utf8'));
+          const rows=Array.isArray(body.deployments)?body.deployments:[];
+          const match=rows.find((row)=>{
+            const meta=row&&row.meta&&typeof row.meta==='object'?row.meta:{};
+            const state=String(row?.readyState||row?.state||'').toUpperCase();
+            return state==='READY' && String(meta.githubCommitSha||'')===sha && row?.url;
+          });
+          if(match)process.stdout.write(String(match.url).startsWith('http')?String(match.url):'https://'+String(match.url));
+          NODE
+          )"
+          if [ -n "$existing_url" ]; then
+            echo "reuse=true" >> "$GITHUB_OUTPUT"
+            echo "url=$existing_url" >> "$GITHUB_OUTPUT"
+            echo "Existing READY production deployment already represents $SOURCE_COMMIT: $existing_url"
+          else
+            echo "reuse=false" >> "$GITHUB_OUTPUT"
+            echo "No READY production deployment found for $SOURCE_COMMIT; a new deployment is required."
+          fi
+
       - name: Install pinned Vercel CLI
         run: |
           npm install --global "vercel@$VERCEL_CLI_VERSION"
@@ -123,10 +110,17 @@ jobs:
 
       - name: Quick deploy selected branch to production
         id: deploy
+        if: ${{ steps.existing.outputs.reuse != 'true' }}
         shell: bash
         run: |
           set -euo pipefail
-          deployment_url="$(vercel deploy --prod --yes --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID")"
+          deployment_url="$(vercel deploy --prod --yes \
+            --token="$VERCEL_TOKEN" \
+            --scope="$VERCEL_ORG_ID" \
+            --meta "githubCommitSha=${{ steps.source.outputs.commit }}" \
+            --meta "githubCommitRef=${{ steps.source.outputs.branch }}" \
+            --meta "githubOrg=lucaskerim123" \
+            --meta "githubRepo=V2_Billing_Store")"
           case "$deployment_url" in
             https://*) ;;
             *)
@@ -137,11 +131,19 @@ jobs:
           echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
 
       - name: Verify deployment exists
-        run: vercel inspect "${{ steps.deploy.outputs.url }}" --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID"
+        env:
+          DEPLOYMENT_URL: ${{ steps.existing.outputs.reuse == 'true' && steps.existing.outputs.url || steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOYMENT_URL"
+          vercel inspect "$DEPLOYMENT_URL" --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID"
 
       - name: Report quick deployment
+        env:
+          DEPLOYMENT_URL: ${{ steps.existing.outputs.reuse == 'true' && steps.existing.outputs.url || steps.deploy.outputs.url }}
         run: |
           echo "Quick deployment completed."
           echo "Branch: ${{ steps.source.outputs.branch }}"
           echo "Commit: ${{ steps.source.outputs.commit }}"
-          echo "Deployment: ${{ steps.deploy.outputs.url }}"
+          echo "Deployment: $DEPLOYMENT_URL"
+          echo "Reused existing deployment: ${{ steps.existing.outputs.reuse }}"
