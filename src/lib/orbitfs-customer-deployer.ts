@@ -12,7 +12,7 @@ const MAX_FILES=5000,MAX_FILE_BYTES=25*1024*1024,MAX_TOTAL_BYTES=70*1024*1024;
 const SAFE_PATH=/^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))(?!.*(?:^|\/)(?:\.git|\.vercel|node_modules)(?:\/|$))[A-Za-z0-9._@+\-\/\[\]()=]+$/;
 type ReleaseFile={file:string;data:string;encoding?:string;sha256?:string;size?:number;component?:string};
 type Package={format?:string;schemaVersion?:number;version:string;releaseId?:string;sourceCommit?:string;components?:string[];projectSettings?:Record<string,unknown>;files:ReleaseFile[];[key:string]:any};
-type UpdateBundle={format:"orbitfs-update-bundle-v3";schemaVersion:number;version:string;sourceCommit?:string;components:string[];minimumBaseVersion?:string;minimumEngineDeployerProtocol?:number;checkpointRequired?:boolean;payloads:{panel:Package|null;engine:Package|null};[key:string]:any};
+type UpdateBundle={format:"orbitfs-update-bundle-v3";schemaVersion:number;version:string;sourceCommit?:string;components:string[];minimumBaseVersion?:string;minimumEngineDeployerProtocol?:number;checkpointRequired?:boolean;updateScope?:string;executor?:string;baseBaseline?:unknown;payloads:{engine:Package|null;panel?:Package|null};[key:string]:any};
 type ParsedArtifact={root:Package|UpdateBundle;artifactSha256:string};
 const fail=(message:string,status=400,code="ORBITFS_DEPLOYMENT_FAILED",retryable=status>=500):never=>{throw Object.assign(new Error(message),{status,code,retryable})};
 const checksum=(buf:Buffer)=>createHash("sha256").update(buf).digest("hex");
@@ -614,13 +614,15 @@ async function engineUpdateRequest(baseUrl:string,install:any,release:any,channe
 }
 async function applyEngineUpdatePayload(install:any,release:any,channel:string,baseUrl:string,components:string[]){
   let result=await engineUpdateRequest(baseUrl,install,release,channel,"apply",components);
+  const databaseMigrations=Array.isArray(result.body?.databaseMigrations)?result.body.databaseMigrations:[];
+  const updatePlan=result.body?.updatePlan||null;
   const deadline=Date.now()+120000;
   while((result.status===202||result.body?.waiting===true)&&Date.now()<deadline){
     await new Promise(resolve=>setTimeout(resolve,10000));
     result=await engineUpdateRequest(baseUrl,install,release,channel,"refresh",components);
   }
   if(result.status===202||result.body?.waiting===true)fail("Engine Host update did not become ready within the deployment window",504);
-  return {deploymentId:String(result.body?.host?.deploymentId||""),hostUrl:String(result.body?.host?.hostUrl||""),state:String(result.body?.host?.state||"ready")};
+  return {deploymentId:String(result.body?.host?.deploymentId||""),hostUrl:String(result.body?.host?.hostUrl||""),state:String(result.body?.host?.state||"ready"),databaseMigrations,updatePlan};
 }
 async function rollbackEngineUpdatePayload(install:any,release:any,channel:string,baseUrl:string,components:string[]=[]){
   let result=await engineUpdateRequest(baseUrl,install,release,channel,"rollback",components);
@@ -911,88 +913,84 @@ export async function runCustomerDeployer(install:any,action:DeployAction,versio
     const parsed=await readArtifact(release);
     if((parsed.root as any).format!=="orbitfs-update-bundle-v3")fail("Published Update release is not an OrbitFS Update Bundle v3",422);
     const bundle=parsed.root as UpdateBundle;
+    const allowedUpdateComponents=new Set(["apex","mcp","studio"]);
     const bundleComponents=[...new Set(bundle.components.map(value=>String(value||"").trim().toLowerCase()).filter(Boolean))];
-    if(!bundleComponents.length||bundleComponents.some(value=>!["base","apex","mcp","studio"].includes(value)))fail("Update Bundle targets are invalid",422);
+    if(!bundleComponents.length||bundleComponents.some(value=>!allowedUpdateComponents.has(value)))fail("Update Bundle may target only MCP, APEX and Studio. Base must use the Base Deployer/Updater.",422,"UPDATE_SCOPE_INVALID");
+    if(bundle.updateScope!=="engine-components-only-v1")fail("Update Bundle does not declare the Engine/addon-only update scope",422,"UPDATE_SCOPE_INVALID");
+    if(bundle.executor!=="orbitfs-base-inner-deployer-v1")fail("Update Bundle is not assigned to the Base-owned inner deployer",422,"UPDATE_EXECUTOR_INVALID");
+    if(bundle.baseBaseline!==undefined&&bundle.baseBaseline!==null)fail("Update Bundle contains forbidden Base baseline data",422,"UPDATE_SCOPE_INVALID");
+
     const releaseComponents=(Array.isArray(release?.manifest?.components)?release.manifest.components:[]).map((value:any)=>String(value||"").trim().toLowerCase()).filter(Boolean).sort();
-    if(releaseComponents.length&&releaseComponents.join(",")!==bundleComponents.slice().sort().join(","))fail("Update Bundle targets do not match License Master",422);
+    if(releaseComponents.length&&(releaseComponents.some((value:string)=>!allowedUpdateComponents.has(value))||releaseComponents.join(",")!==bundleComponents.slice().sort().join(",")))fail("Update Bundle targets do not match License Manager Engine/addon targets",422,"UPDATE_SCOPE_INVALID");
+
     const authoritativeComponents:string[]=Array.isArray(deploymentAuthorization?.componentPlan?.executionComponents)
       ?deploymentAuthorization.componentPlan.executionComponents.map(value=>String(value||"").trim().toLowerCase()).filter(Boolean)
       :[];
+    if(authoritativeComponents.some(value=>!allowedUpdateComponents.has(value)))fail("License Manager returned a non-Engine target for the normal Update path",502,"UPDATE_AUTHORITY_SCOPE_INVALID");
     const components:string[]=[...new Set<string>(authoritativeComponents.filter(value=>bundleComponents.includes(value)))];
     const skippedComponents=bundleComponents.filter(component=>!components.includes(component));
     if(deploymentAuthorization?.notApplicable===true||!components.length){
-      await event(install,"update.skipped","ok",`OrbitFS Update ${release.version} has no components applicable to this licence`,{releaseId:release.id,releaseComponents:bundleComponents,skippedComponents,componentPlan:deploymentAuthorization?.componentPlan||null});
+      await event(install,"update.skipped","ok",`OrbitFS Update ${release.version} has no Engine/addon components applicable to this licence`,{releaseId:release.id,releaseComponents:bundleComponents,skippedComponents,componentPlan:deploymentAuthorization?.componentPlan||null});
       return {...install,updateSkipped:true,updateVersion:String(release.version),skippedComponents};
     }
+
     const installedBase=String(install.release_version||"").trim();
-    if(!installedBase)fail("Deploy OrbitFS Base before applying an Update release",409);
+    if(!installedBase)fail("Deploy OrbitFS Base before applying an Engine/addon Update release",409,"BASE_INSTALLATION_REQUIRED");
     const requiredBase=String(bundle.minimumBaseVersion||"").trim();
     const baseComparison=requiredBase?compareOrbitReleaseVersions(installedBase,requiredBase):0;
-    if(requiredBase&&(baseComparison===null||baseComparison<0))fail(`Update ${release.version} requires Base ${requiredBase} or newer; this installation is Base ${installedBase}.`,409);
-    const bundleWantsPanel=bundleComponents.includes("base"),bundleWantsEngine=bundleComponents.some(component=>component!=="base");
-    const wantsPanel=components.includes("base"),wantsEngine=components.some(component=>component!=="base");
+    if(requiredBase&&(baseComparison===null||baseComparison<0))fail(`Update ${release.version} requires Base ${requiredBase} or newer; this installation is Base ${installedBase}.`,409,"BASE_VERSION_TOO_OLD");
+
     const requiredEngineProtocol=Number(bundle.minimumEngineDeployerProtocol??release?.manifest?.minimumEngineDeployerProtocol??0);
     const releaseEngineProtocol=Number(release?.manifest?.minimumEngineDeployerProtocol??requiredEngineProtocol);
-    let installedEngineProtocol=0;
-    if(wantsEngine){
-      if(!Number.isInteger(requiredEngineProtocol)||requiredEngineProtocol<1)fail("Update Bundle is missing a valid minimum Engine deployer protocol",422);
-      if(Number.isFinite(releaseEngineProtocol)&&releaseEngineProtocol!==requiredEngineProtocol)fail("Update Bundle Engine deployer protocol does not match License Manager",422);
-      const installedBaseRelease=await exactRelease(String(install.release_id||""));
-      installedEngineProtocol=Number(installedBaseRelease?.manifest?.engineDeployerProtocol||0);
-      if(!Number.isInteger(installedEngineProtocol)||installedEngineProtocol<1)fail("License Manager did not provide a valid Inner Engine deployer protocol for the installed Base",502,"BASE_ENGINE_DEPLOYER_PROTOCOL_MISSING");
-      if(requiredEngineProtocol>installedEngineProtocol)fail(`Update ${release.version} requires Engine deployer protocol ${requiredEngineProtocol}, but installed Base ${installedBase} provides protocol ${installedEngineProtocol}.`,409,"ENGINE_DEPLOYER_PROTOCOL_UNSUPPORTED");
-      if(bundle.checkpointRequired!==true||release?.manifest?.checkpointRequired===false)fail("Engine update requires a mandatory rollback checkpoint",422,"ENGINE_CHECKPOINT_REQUIRED");
-    }
-    const panel=bundle.payloads?.panel||null,engine=bundle.payloads?.engine||null;
-    if(bundleWantsPanel&&!panel)fail("Update Bundle targets Base but has no Panel payload",422);
-    if(!bundleWantsPanel&&panel)fail("Update Bundle contains a Panel payload without the Base target",422);
-    if(bundleWantsEngine&&!engine)fail("Update Bundle targets Engine components but has no Engine payload",422);
-    if(!bundleWantsEngine&&engine)fail("Update Bundle contains an Engine payload without Engine targets",422);
-    if(engine)validateFiles(engine.files,"Engine update payload");
-    const applicableMigrations=validateDatabaseContract(bundle).filter(migration=>String(migration.component||"shared")==="shared"||components.includes(String(migration.component||"").toLowerCase()));
+    if(!Number.isInteger(requiredEngineProtocol)||requiredEngineProtocol<1)fail("Update Bundle is missing a valid minimum Engine deployer protocol",422);
+    if(Number.isFinite(releaseEngineProtocol)&&releaseEngineProtocol!==requiredEngineProtocol)fail("Update Bundle Engine deployer protocol does not match License Manager",422);
+    const installedBaseRelease=await exactRelease(String(install.release_id||""));
+    const installedEngineProtocol=Number(installedBaseRelease?.manifest?.engineDeployerProtocol||0);
+    if(!Number.isInteger(installedEngineProtocol)||installedEngineProtocol<1)fail("License Manager did not provide a valid Inner Engine deployer protocol for the installed Base",502,"BASE_ENGINE_DEPLOYER_PROTOCOL_MISSING");
+    if(requiredEngineProtocol>installedEngineProtocol)fail(`Update ${release.version} requires Engine deployer protocol ${requiredEngineProtocol}, but installed Base ${installedBase} provides protocol ${installedEngineProtocol}.`,409,"ENGINE_DEPLOYER_PROTOCOL_UNSUPPORTED");
+    if(bundle.checkpointRequired!==true||release?.manifest?.checkpointRequired===false)fail("Engine/addon update requires a mandatory rollback checkpoint",422,"ENGINE_CHECKPOINT_REQUIRED");
+
+    const panel=bundle.payloads?.panel??null;
+    const engine=bundle.payloads?.engine||null;
+    if(panel)fail("Normal Update Bundle contains a Base/Panel payload. Base must use the Base Deployer/Updater.",422,"UPDATE_SCOPE_INVALID");
+    if(!engine)fail("Update Bundle has no Shared Engine payload",422,"ENGINE_RELEASE_PAYLOAD_MISSING");
+    validateFiles(engine.files,"Engine update payload");
+
+    const declaredMigrations=validateDatabaseContract(bundle);
+    if(declaredMigrations.some(migration=>String(migration.component||"").toLowerCase()==="base"))fail("Normal Update Bundle contains a Base database migration",422,"UPDATE_SCOPE_INVALID");
+    const applicableMigrations=declaredMigrations.filter(migration=>String(migration.component||"shared")==="shared"||components.includes(String(migration.component||"").toLowerCase()));
+
     const currentBaseUrl=String(install.production_url||install.deployment_url||"").trim();
-    let enginePreflight:any=null;
-    if(wantsEngine){
-      if(!currentBaseUrl)fail("Installed OrbitFS Base URL is unavailable for Engine update preflight",409);
-      await ensureCustomerDatabaseRuntimeAccess(install,"inner-deployer-preflight");
-      const planned=await engineUpdateRequest(currentBaseUrl,install,release,requestedChannel,"plan",components.filter(component=>component!=="base"));
-      enginePreflight=planned.body?.plan||null;
-      if(planned.body?.release?.checkpointRequired!==true)fail("Installed Base rejected the Engine update checkpoint contract",409);
-      const reportedProtocol=Number(planned.body?.engineDeployerProtocol??planned.body?.deployerProtocol??planned.body?.plan?.engineDeployerProtocol??planned.body?.plan?.deployerProtocol??installedEngineProtocol);
-      if(!Number.isInteger(reportedProtocol)||reportedProtocol<requiredEngineProtocol)fail(`Installed Base Engine deployer protocol ${reportedProtocol||"unknown"} does not satisfy required protocol ${requiredEngineProtocol}.`,409,"ENGINE_DEPLOYER_PROTOCOL_UNSUPPORTED");
-      if(reportedProtocol!==installedEngineProtocol)fail(`Installed Base reported Engine deployer protocol ${reportedProtocol}, but License Manager records protocol ${installedEngineProtocol} for Base ${installedBase}.`,409,"ENGINE_DEPLOYER_PROTOCOL_MISMATCH");
-      await event(install,"update.engine.preflight","ok","Installed Base Engine deployer preflight passed",{releaseId:release.id,releaseVersion:release.version,requiredEngineProtocol,installedEngineProtocol,reportedProtocol,checkpointRequired:true,components:components.filter(component=>component!=="base"),plan:enginePreflight});
-    }
-    await event(install,"update.started","info",`Applying OrbitFS Update ${release.version}`,{releaseId:release.id,components,checksum:parsed.artifactSha256,databaseMigrationCount:applicableMigrations.length,skippedComponents,enginePreflight,requiredEngineProtocol:wantsEngine?requiredEngineProtocol:null,engineDeployerProtocol:wantsEngine?installedEngineProtocol:null});
-    let panelResult:any=null;
+    if(!currentBaseUrl)fail("Installed OrbitFS Base URL is unavailable for the Engine/addon updater",409);
+    await ensureCustomerDatabaseRuntimeAccess(install,"inner-deployer-preflight");
+    const planned=await engineUpdateRequest(currentBaseUrl,install,release,requestedChannel,"plan",components);
+    const enginePreflight=planned.body?.plan||null;
+    if(planned.body?.release?.checkpointRequired!==true)fail("Installed Base rejected the Engine update checkpoint contract",409);
+    const reportedProtocol=Number(planned.body?.engineDeployerProtocol??planned.body?.deployerProtocol??planned.body?.plan?.engineDeployerProtocol??planned.body?.plan?.deployerProtocol??installedEngineProtocol);
+    if(!Number.isInteger(reportedProtocol)||reportedProtocol<requiredEngineProtocol)fail(`Installed Base Engine deployer protocol ${reportedProtocol||"unknown"} does not satisfy required protocol ${requiredEngineProtocol}.`,409,"ENGINE_DEPLOYER_PROTOCOL_UNSUPPORTED");
+    if(reportedProtocol!==installedEngineProtocol)fail(`Installed Base reported Engine deployer protocol ${reportedProtocol}, but License Manager records protocol ${installedEngineProtocol} for Base ${installedBase}.`,409,"ENGINE_DEPLOYER_PROTOCOL_MISMATCH");
+    await event(install,"update.engine.preflight","ok","Installed Base inner deployer preflight passed",{releaseId:release.id,releaseVersion:release.version,requiredEngineProtocol,installedEngineProtocol,reportedProtocol,checkpointRequired:true,components,plan:enginePreflight});
+
+    await event(install,"update.started","info",`Applying OrbitFS Engine/addon Update ${release.version}`,{releaseId:release.id,components,checksum:parsed.artifactSha256,databaseMigrationCount:applicableMigrations.length,skippedComponents,enginePreflight,requiredEngineProtocol,engineDeployerProtocol:installedEngineProtocol,executor:"base-inner-deployer"});
     let engineResult:any=null;
     let engineAttempted=false;
     try{
-      await event(install,"update.database.started","info","Checking and applying approved customer database migrations",{releaseId:release.id,releaseVersion:release.version,migrationCount:applicableMigrations.length,skippedComponents});
-      const databaseResult=await applyCustomerDatabaseMigrations(install,release,bundle,components);
-      await ensureCustomerDatabaseRuntimeAccess(install,"update-migrations");
-      await event(install,"update.database.completed","ok","Customer database migrations completed and runtime access verified",{releaseId:release.id,releaseVersion:release.version,migrationCount:applicableMigrations.length,skippedComponents});
-      if(wantsPanel&&panel)await event(install,"update.panel.started","info","Deploying the verified Panel update payload",{releaseId:release.id,releaseVersion:release.version});
-      panelResult=wantsPanel&&panel?await deployPanelUpdatePayload(install,release,bundle,panel,parsed.artifactSha256,requestedChannel,components):null;
-      if(wantsPanel&&panel)await event(install,"update.panel.completed","ok","Panel update deployment completed",{releaseId:release.id,releaseVersion:release.version});
-      const engineBaseUrl=String(panelResult?.deploymentUrl||install.production_url||install.deployment_url||"").trim();
-      if(wantsEngine&&!engineBaseUrl)fail("Installed OrbitFS Base URL is unavailable for the Engine update",409);
-      if(wantsEngine){
-        await event(install,"update.engine.started","info","Applying the verified Engine update payload",{releaseId:release.id,releaseVersion:release.version,components:components.filter(component=>component!=="base")});
-        engineAttempted=true;
-        engineResult=await applyEngineUpdatePayload(install,release,requestedChannel,engineBaseUrl,components.filter(component=>component!=="base"));
-        await event(install,"update.engine.completed","ok","Engine update payload completed",{releaseId:release.id,releaseVersion:release.version});
-      }
-      await event(install,"update.recording","info","Recording successful Update deployment and reporting to License Manager",{releaseId:release.id,releaseVersion:release.version});
+      await event(install,"update.database.delegated","info","Database migrations are delegated to the Base-owned inner deployer so checkpoint, migration and Engine deployment remain one transaction boundary",{releaseId:release.id,releaseVersion:release.version,migrationCount:applicableMigrations.length,components});
+      await event(install,"update.engine.started","info","Applying the verified Engine/addon payload through the installed Base inner deployer",{releaseId:release.id,releaseVersion:release.version,components});
+      engineAttempted=true;
+      engineResult=await applyEngineUpdatePayload(install,release,requestedChannel,currentBaseUrl,components);
+      await ensureCustomerDatabaseRuntimeAccess(install,"update-post-inner-deployer");
+      const databaseResult=Array.isArray(engineResult?.databaseMigrations)?engineResult.databaseMigrations:[];
+      await event(install,"update.engine.completed","ok","Base inner deployer completed the Engine/addon update",{releaseId:release.id,releaseVersion:release.version,databaseMigrations:databaseResult,engineDeploymentId:engineResult?.deploymentId||null});
+
+      await event(install,"update.recording","info","Recording successful Engine/addon Update and reporting to License Manager",{releaseId:release.id,releaseVersion:release.version});
       const appliedAt=new Date().toISOString();
       const declaredComponentVersions=bundle.componentVersions&&typeof bundle.componentVersions==="object"&&!Array.isArray(bundle.componentVersions)?bundle.componentVersions:{};
-      const componentVersions=Object.fromEntries(components.map(component=>[component,String(declaredComponentVersions?.[component]||(component==="base"?install.release_version:release.version)||"")]));
+      const componentVersions=Object.fromEntries(components.map(component=>[component,String(declaredComponentVersions?.[component]||release.version||"")]));
       const componentState=Object.fromEntries(components.map((component:string)=>[component,{version:String(componentVersions?.[component]||""),status:"installed"}]));
-      const updateState={version:String(release.version),releaseId:String(release.id),sha256:parsed.artifactSha256,sourceCommit:String(bundle.sourceCommit||expectedSource(release)||""),channel:requestedChannel,components,releaseComponents:bundleComponents,skippedComponents,componentVersions,componentPlan:deploymentAuthorization?.componentPlan||null,appliedAt,panelDeploymentId:panelResult?.deploymentId||null,engineDeploymentId:engineResult?.deploymentId||null,databaseMigrations:databaseResult};
+      const updateState={version:String(release.version),releaseId:String(release.id),sha256:parsed.artifactSha256,sourceCommit:String(bundle.sourceCommit||expectedSource(release)||""),channel:requestedChannel,components,releaseComponents:bundleComponents,skippedComponents,componentVersions,componentPlan:deploymentAuthorization?.componentPlan||null,appliedAt,panelDeploymentId:null,engineDeploymentId:engineResult?.deploymentId||null,databaseMigrations:databaseResult,executor:"base-inner-deployer"};
       const patch:any={
         release_channel:requestedChannel,
-        vercel_deployment_id:panelResult?.deploymentId||install.vercel_deployment_id,
-        deployment_url:panelResult?.deploymentUrl||install.deployment_url,
         last_deployment_at:appliedAt,
         last_error:null,
         state:"ready",
@@ -1000,28 +998,22 @@ export async function runCustomerDeployer(install:any,action:DeployAction,versio
       };
       const {data,error}=await licenseDb().from("orbitfs_installations").update(patch).eq("id",install.id).select().single();
       if(error)throw error;
-      const history=await licenseDb().from("orbitfs_installation_releases").insert({installation_id:install.id,auth_user_id:install.auth_user_id,release_version:String(release.version),release_id:String(release.id),release_sha256:parsed.artifactSha256,source_commit:bundle.sourceCommit||expectedSource(release)||null,vercel_deployment_id:panelResult?.deploymentId||null,deployment_url:panelResult?.deploymentUrl||null,action:"update",release_type:"update",components,status:"ready",ready_at:appliedAt});
+      const history=await licenseDb().from("orbitfs_installation_releases").insert({installation_id:install.id,auth_user_id:install.auth_user_id,release_version:String(release.version),release_id:String(release.id),release_sha256:parsed.artifactSha256,source_commit:bundle.sourceCommit||expectedSource(release)||null,vercel_deployment_id:engineResult?.deploymentId||null,deployment_url:engineResult?.hostUrl||null,action:"update",release_type:"update",components,status:"ready",ready_at:appliedAt});
       if(history.error)throw history.error;
       const customerResult=await licenseDb().from("customers").select("id,customer_number,name,email").eq("auth_user_id",install.auth_user_id).maybeSingle();
       const customer=customerResult.data||null;
-      await masterExecuteDeployment({action:"update",phase:"completed",releaseId:release.id,installationId:install.installation_id,userRef:install.auth_user_id,licenseId:authorityLicenseId,channel:requestedChannel,baseVersion:String(install.release_version||""),productVersion:String(install.release_version||""),previousVersion:install.release_version||null,deploymentId:panelResult?.deploymentId||engineResult?.deploymentId||null,deploymentUrl:panelResult?.deploymentUrl||engineResult?.hostUrl||null,projectId:install.vercel_project_id,projectName:install.vercel_project_name,componentState,components:componentState,customerIdentity:{customerId:customer?.id||null,customerNumber:customer?.customer_number||null,customerName:customer?.name||null,customerEmail:customer?.email||null,installationId:install.installation_id}});
-      await event(data,"update.completed","ok",`OrbitFS Update ${release.version} applied`,updateState);
+      await masterExecuteDeployment({action:"update",phase:"completed",releaseId:release.id,installationId:install.installation_id,userRef:install.auth_user_id,licenseId:authorityLicenseId,channel:requestedChannel,baseVersion:String(install.release_version||""),productVersion:String(install.release_version||""),previousVersion:install.release_version||null,deploymentId:engineResult?.deploymentId||null,deploymentUrl:engineResult?.hostUrl||null,projectId:install.vercel_project_id,projectName:install.vercel_project_name,componentState,components:componentState,customerIdentity:{customerId:customer?.id||null,customerNumber:customer?.customer_number||null,customerName:customer?.name||null,customerEmail:customer?.email||null,installationId:install.installation_id}});
+      await event(data,"update.completed","ok",`OrbitFS Engine/addon Update ${release.version} applied`,updateState);
       return data;
     }catch(updateError){
-      const recovery:any={databaseMigrations:"forward-compatible; not reversed",panel:null,engine:null};
+      const recovery:any={databaseMigrations:"forward-only; controlled by Base inner deployer",engine:null};
       if(engineAttempted&&currentBaseUrl){
         try{
-          const rolledBack=await rollbackEngineUpdatePayload(install,release,requestedChannel,currentBaseUrl,components.filter(component=>component!=="base"));
+          const rolledBack=await rollbackEngineUpdatePayload(install,release,requestedChannel,currentBaseUrl,components);
           recovery.engine={ok:true,checkpointId:rolledBack.checkpointId||null,restoredVersion:rolledBack.restoredVersion||null};
         }catch(recoveryError){recovery.engine={ok:false,error:errorMessage(recoveryError,"Update recovery failed")}}
       }
-      if(panelResult?.deploymentId&&install.vercel_project_id&&install.vercel_deployment_id){
-        try{
-          await vercelApi(install.auth_user_id,`/v9/projects/${encodeURIComponent(String(install.vercel_project_id))}/rollback/${encodeURIComponent(String(install.vercel_deployment_id))}`,{method:"POST",body:JSON.stringify({})});
-          recovery.panel={ok:true,deploymentId:String(install.vercel_deployment_id)};
-        }catch(recoveryError){recovery.panel={ok:false,error:errorMessage(recoveryError,"Update recovery failed")}}
-      }
-      await event(install,"update.recovery",recovery.panel?.ok===false||recovery.engine?.ok===false?"warning":"ok","Update failed; recovery attempted",{releaseId:release.id,components,recovery,error:errorMessage(updateError,"Update failed")});
+      await event(install,"update.recovery",recovery.engine?.ok===false?"warning":"ok","Engine/addon Update failed; inner-deployer recovery attempted",{releaseId:release.id,components,recovery,error:errorMessage(updateError,"Update failed")});
       throw Object.assign(updateError instanceof Error?updateError:new Error(errorMessage(updateError,"Update failed")),{updateRecovery:recovery});
     }
   }
