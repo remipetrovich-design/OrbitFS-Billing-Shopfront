@@ -280,7 +280,7 @@ async function verifyDatabaseRuntimeAccess(install:any,contract:DatabaseRuntimeA
         where tbl.relname like p.prefix || '%'
       )
       and not (tbl.relname = any(array[${contract.runtimeSecretExcludedTables.map(sqlLiteral).join(",")}]::text[]))
-      and not has_sequence_privilege('${contract.serviceRole}',seq.oid,'USAGE')
+      and not has_sequence_privilege('${contract.serviceRole}',format('%I.%I',sn.nspname,seq.relname),'USAGE')
   )`});
   const query=`select ${checks.map((check)=>`${check.expr} as ${sqlIdentifier(check.key)}`).join(",\n")};`;
   const verification=await supabaseApi(install.auth_user_id,`/projects/${install.supabase_project_ref}/database/query`,{method:"POST",body:JSON.stringify({query})});
