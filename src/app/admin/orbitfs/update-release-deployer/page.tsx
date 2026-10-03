@@ -120,7 +120,7 @@ export default function OrbitFSUpdateReleaseDeployer(){
    const r=await fetch("/api/admin/orbitfs/release-handoff",{method:"POST",headers:{...(await auth()),"content-type":"application/json"},body:JSON.stringify({releaseId:selected.id,action,reason:reason||undefined})});
    const j=await r.json().catch(()=>({}));
    if(!r.ok)throw Error(j.error||("Could not "+action+" update release"));
-   setMessage(action==="validate"?"Technical validation passed in License Manager.":action==="approve"?"Update technically approved in License Manager.":"Update rejected in License Manager.");
+   setMessage(action==="validate"?"Technical validation passed in License Manager.":action==="approve"?"Update technically approved in License Manager.":selected.status==="withdrawn"?"Update rejected and returned to Dev Panel Stage 1.":"Update rejected in License Manager and returned to Dev Panel.");
    await load({preserveMessage:true});
   }catch(e:any){
    setPipelineError(action==="validate"?2:3);
@@ -229,7 +229,8 @@ export default function OrbitFSUpdateReleaseDeployer(){
       <div className="orbitAdminActions">
        {!portalPublished&&validationPassed!==true&&<button className="orbitAction orbitActionPrimary" onClick={()=>void reviewAction("validate")} disabled={!!busy}>{busy==="validate"?"Validating…":"Run technical validation"}</button>}
        {!portalPublished&&validationPassed===true&&selected.reviewStatus!=="approved"&&<button className="orbitAction orbitActionPrimary" onClick={()=>void reviewAction("approve")} disabled={!!busy}>{busy==="approve"?"Approving…":"Approve technical review"}</button>}
-       {!portalPublished&&selected.reviewStatus!=="rejected"&&<button className="orbitAction orbitActionDanger" onClick={()=>void reviewAction("reject")} disabled={!!busy}>{busy==="reject"?"Rejecting…":"Reject release"}</button>}
+       {!portalPublished&&selected.reviewStatus!=="rejected"&&<button className="orbitAction orbitActionDanger" onClick={()=>void reviewAction("reject")} disabled={!!busy}>{busy==="reject"?"Returning…":selected.status==="withdrawn"?"Reject & return to Dev":"Reject release"}</button>}
+       {selected.status==="withdrawn"&&selected.reviewStatus!=="rejected"&&<span className="muted">Unpublished releases can be returned to Dev Panel for Stage 1 rework. Published history remains retained in License Manager for audit and rollback.</span>}
        <button className="orbitAction orbitActionSecondary" onClick={()=>beginEdit(selected)} disabled={!!busy}>Review customer presentation</button>
        {selected.status!=="published"&&<button className="orbitAction orbitActionPublish" onClick={()=>void publish()} disabled={!canPublish||busy==="publish"}>{busy==="publish"?"Publishing…":"Publish to customers"}</button>}
        {selected.status==="published"&&<button className="orbitAction orbitActionDanger" onClick={()=>void unpublish(selected)} disabled={busy.startsWith("unpublish")}>Unpublish</button>}
