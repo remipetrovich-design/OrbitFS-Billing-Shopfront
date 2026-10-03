@@ -208,6 +208,17 @@ async function readArtifact(release:any):Promise<ParsedArtifact>{
   if(raw.byteLength>MAX_TOTAL_BYTES*3)fail("Release package exceeds the customer deployer unpacked size limit",413);
   return {root:parseArtifact(raw,release),artifactSha256:digest};
 }
+function validateBaseRuntimeOwnership(pkg:Package,release:any){
+  const ownership=(pkg as any).runtimeOwnership&&typeof (pkg as any).runtimeOwnership==="object"&&!Array.isArray((pkg as any).runtimeOwnership)?(pkg as any).runtimeOwnership:{};
+  const excluded=Array.isArray(ownership.excludedUpdateTargets)?ownership.excludedUpdateTargets.map((value:any)=>String(value||"").trim().toLowerCase()).filter(Boolean).sort():[];
+  if(String(ownership.base||"")!=="base-deployer-updater"||String(ownership.innerDeployer||"")!=="base"||String(ownership.engineUpdaterExecutor||"")!=="base-inner-deployer-v1"||excluded.join(",")!==["apex","mcp","studio"].sort().join(",")){
+    fail("Base package does not declare the required Base / inner-deployer ownership boundary",422,"BASE_RUNTIME_OWNERSHIP_INVALID");
+  }
+  const packagedProtocol=Number((pkg as any).engineDeployerProtocol??(pkg as any).releaseInfo?.engineDeployerProtocol??0);
+  const authorityProtocol=Number(release?.manifest?.engineDeployerProtocol??0);
+  if(!Number.isInteger(packagedProtocol)||packagedProtocol<1)fail("Base package does not declare a valid inner-deployer protocol",422,"BASE_ENGINE_DEPLOYER_PROTOCOL_MISSING");
+  if(authorityProtocol&&packagedProtocol!==authorityProtocol)fail("Base package inner-deployer protocol does not match License Manager",422,"BASE_ENGINE_DEPLOYER_PROTOCOL_MISMATCH");
+}
 async function readBasePackage(release:any):Promise<{pkg:Package;files:Array<{file:string;data:string;sha256:string;size:number}>;artifactSha256:string}>{
   const parsed=await readArtifact(release);
   if((parsed.root as any).format==="orbitfs-update-bundle-v3")fail("Base deployment cannot use an Update Bundle artifact",422);
@@ -217,6 +228,7 @@ async function readBasePackage(release:any):Promise<{pkg:Package;files:Array<{fi
   if(releaseComponents.length&&packageComponents.length&&releaseComponents.join(",")!==packageComponents.join(","))fail("Release package components do not match License Manager",422);
 
   const manifest=release?.manifest&&typeof release.manifest==="object"?release.manifest:{};
+  validateBaseRuntimeOwnership(pkg,release);
   const expectedSchemaVersion=String(manifest.databaseSchemaVersion||manifest.releaseInfo?.databaseSchemaVersion||"").trim();
   const expectedSchemaHash=String(manifest.databaseSchemaSha256||manifest.releaseInfo?.databaseSchemaSha256||"").trim().toLowerCase();
   const expectedSchemaPath=String(manifest.databaseSchemaPath||manifest.releaseInfo?.databaseSchemaPath||"").trim();
@@ -248,6 +260,7 @@ async function readCurrentBasePackageForRedeploy(release:any):Promise<{pkg:Packa
   const parsed=await readArtifact(release);
   if((parsed.root as any).format==="orbitfs-update-bundle-v3")fail("Base redeploy cannot use an Update Bundle artifact",422);
   const pkg=parsed.root as Package;
+  validateBaseRuntimeOwnership(pkg,release);
   const files=validateFiles(pkg.files,"Installed Base package");
   validateDeployableBaseFiles(files);
   return {pkg,files,artifactSha256:parsed.artifactSha256};
