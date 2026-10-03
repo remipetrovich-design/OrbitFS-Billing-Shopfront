@@ -74,7 +74,7 @@ export default function OrbitFSUpdateReleaseDeployer(){
  const finalReviewWorking=busy==="channel"||busy==="edit";
  const portalPublished=selected?.status==="published";
  const publicationWorking=busy==="publish"||workingStatus(selected?.status);
- const canPublish=Boolean(selected&&!portalPublished&&validationPassed&&reviewApproved&&finalReviewReady);
+ const canPublish=Boolean(selected&&!portalPublished&&!selected.publishedAt&&validationPassed&&reviewApproved&&finalReviewReady);
  const blockers=[!reviewApproved&&"Technical approval",!validationPassed&&"Validation",!selected?.checksum&&"Artifact checksum",!selected?.channel&&"Customer channel",!presentationReady&&"Customer title + changelog",!rolloutPublishable&&"Internal rollout cannot publish"].filter(Boolean) as string[];
  const stageClass=(state:"done"|"active"|"working"|"error"|"idle")=>"orbitStage "+(state==="idle"?"":state);
  const intakeStage=selected?"done":"active";
@@ -241,8 +241,8 @@ export default function OrbitFSUpdateReleaseDeployer(){
       </div>
       {selected.validation?.status==="failed"&&<div className="orbitValidationList">{(selected.validation.checks||[]).filter(c=>!c.ok).map((c,i)=><div key={c.key||i}><b>{c.key||"Validation check"}</b><span>{c.message||"Validation failed."}</span>{c.fix&&<small>Fix: {c.fix}</small>}</div>)}</div>}
       <div className="orbitAdminActions">
-       {!portalPublished&&validationPassed!==true&&<button className="orbitAction orbitActionPrimary" onClick={()=>void reviewAction("validate")} disabled={!!busy}>{busy==="validate"?"Validating…":"Run technical validation"}</button>}
-       {!portalPublished&&validationPassed===true&&selected.reviewStatus!=="approved"&&<button className="orbitAction orbitActionPrimary" onClick={()=>void reviewAction("approve")} disabled={!!busy}>{busy==="approve"?"Approving…":"Approve technical review"}</button>}
+       {!portalPublished&&!selected.publishedAt&&validationPassed!==true&&<button className="orbitAction orbitActionPrimary" onClick={()=>void reviewAction("validate")} disabled={!!busy}>{busy==="validate"?"Validating…":"Run technical validation"}</button>}
+       {!portalPublished&&!selected.publishedAt&&validationPassed===true&&selected.reviewStatus!=="approved"&&<button className="orbitAction orbitActionPrimary" onClick={()=>void reviewAction("approve")} disabled={!!busy}>{busy==="approve"?"Approving…":"Approve technical review"}</button>}
        {!portalPublished&&!selected.publishedAt&&selected.reviewStatus!=="rejected"&&<button className="orbitAction orbitActionDanger" onClick={()=>void reviewAction("reject")} disabled={!!busy}>{busy==="reject"?"Rejecting…":"Reject release"}</button>}
        {selected.status==="withdrawn"&&Boolean(selected.publishedAt)&&<>
         <button className="orbitAction orbitActionDanger" onClick={()=>void returnToDev(selected,false)} disabled={!!busy}>{busy==="return:"+selected.id?"Returning…":"Reject & return to Dev"}</button>
