@@ -46,7 +46,7 @@ export default function OrbitFSUpdateReleaseDeployer(){
    setReleases(rows);
    setChannels((Array.isArray(cj.channels)?cj.channels:[]).filter((x:any)=>x.enabled!==false&&x.customer_visible!==false));
    if(dr.ok&&dj.settings)setControls(dj.settings);
-   setSelectedId(current=>rows.some((x:UpdateRelease)=>x.id===current)?current:(rows.find((x:UpdateRelease)=>x.status!=="published")?.id||rows[0]?.id||""));
+   setSelectedId(current=>rows.some((x:UpdateRelease)=>x.id===current)?current:(rows.find((x:UpdateRelease)=>x.status!=="published"&&!x.publishedAt)?.id||rows[0]?.id||""));
   }catch(e:any){setMessage(e?.message||"Could not load Update release state")}finally{if(!silent)setBusy("")}
  }
  useEffect(()=>{void load()},[]);
@@ -58,7 +58,7 @@ export default function OrbitFSUpdateReleaseDeployer(){
   const timer=setInterval(()=>{if(document.visibilityState==="visible")void load({silent:true,preserveMessage:true})},30000);
   return()=>clearInterval(timer);
  },[selected?.id,selected?.status,busy]);
- const pending=useMemo(()=>releases.filter(r=>r.status!=="published"),[releases]);
+ const pending=useMemo(()=>releases.filter(r=>r.status!=="published"&&!r.publishedAt),[releases]);
  const published=useMemo(()=>releases.filter(r=>r.status==="published"),[releases]);
  const validationStatus=String(selected?.validation?.status||"");
  const reviewStatus=String(selected?.reviewStatus||"");
@@ -160,8 +160,22 @@ export default function OrbitFSUpdateReleaseDeployer(){
    const res=await fetch("/api/admin/orbitfs/release-control",{method:"POST",headers:{...(await auth()),"content-type":"application/json"},body:JSON.stringify({action:"withdraw",releaseId:r.id})});
    const j=await res.json().catch(()=>({}));
    if(!res.ok)throw Error(j.error||"Could not unpublish update");
-   setMessage("Update removed from customer publication.");await load({preserveMessage:true});
+   setMessage("Update removed from customer publication. You can now return it to Dev Panel.");await load({preserveMessage:true});
   }catch(e:any){setMessage(e?.message||"Could not unpublish update")}finally{setBusy("")}
+ }
+ async function returnToDev(r:UpdateRelease,deleteBillingCopy=false){
+  const reason=prompt(deleteBillingCopy?"Reason for deleting the Billing copy and returning this release to Dev Panel:":"Reason for returning this release to Dev Panel:","")||"";
+  if(!reason.trim())return;
+  if(deleteBillingCopy&&!confirm("Delete Billing-owned presentation data for v"+r.version+" and return it to Dev Panel? License Manager publication/audit history will be retained."))return;
+  const key=(deleteBillingCopy?"delete-return:":"return:")+r.id;
+  setBusy(key);setMessage("");
+  try{
+   const res=await fetch("/api/admin/orbitfs/release-control",{method:"POST",headers:{...(await auth()),"content-type":"application/json"},body:JSON.stringify({action:deleteBillingCopy?"delete_return_to_dev":"return_to_dev",releaseId:r.id,reason})});
+   const j=await res.json().catch(()=>({}));
+   if(!res.ok)throw Error(j.error||"Could not return update to Dev Panel");
+   setMessage(deleteBillingCopy?"Billing copy deleted and release returned to Dev Panel.":"Release returned to Dev Panel for Stage 1 rework.");
+   await load({preserveMessage:true});
+  }catch(e:any){setMessage(e?.message||"Could not return update to Dev Panel")}finally{setBusy("")}
  }
 
  return <main className="orbitAdminPage">
@@ -229,10 +243,14 @@ export default function OrbitFSUpdateReleaseDeployer(){
       <div className="orbitAdminActions">
        {!portalPublished&&validationPassed!==true&&<button className="orbitAction orbitActionPrimary" onClick={()=>void reviewAction("validate")} disabled={!!busy}>{busy==="validate"?"Validating…":"Run technical validation"}</button>}
        {!portalPublished&&validationPassed===true&&selected.reviewStatus!=="approved"&&<button className="orbitAction orbitActionPrimary" onClick={()=>void reviewAction("approve")} disabled={!!busy}>{busy==="approve"?"Approving…":"Approve technical review"}</button>}
-       {!portalPublished&&selected.reviewStatus!=="rejected"&&<button className="orbitAction orbitActionDanger" onClick={()=>void reviewAction("reject")} disabled={!!busy}>{busy==="reject"?"Returning…":selected.status==="withdrawn"?"Reject & return to Dev":"Reject release"}</button>}
-       {selected.status==="withdrawn"&&selected.reviewStatus!=="rejected"&&<span className="muted">Unpublished releases can be returned to Dev Panel for Stage 1 rework. Published history remains retained in License Manager for audit and rollback.</span>}
+       {!portalPublished&&!selected.publishedAt&&selected.reviewStatus!=="rejected"&&<button className="orbitAction orbitActionDanger" onClick={()=>void reviewAction("reject")} disabled={!!busy}>{busy==="reject"?"Rejecting…":"Reject release"}</button>}
+       {selected.status==="withdrawn"&&Boolean(selected.publishedAt)&&<>
+        <button className="orbitAction orbitActionDanger" onClick={()=>void returnToDev(selected,false)} disabled={!!busy}>{busy==="return:"+selected.id?"Returning…":"Reject & return to Dev"}</button>
+        <button className="orbitAction orbitActionDanger" onClick={()=>void returnToDev(selected,true)} disabled={!!busy}>{busy==="delete-return:"+selected.id?"Deleting…":"Delete Billing copy & return to Dev"}</button>
+        <span className="muted">Published License Manager history is retained for audit and rollback; Dev Panel receives a new rejected handback revision.</span>
+       </>}
        <button className="orbitAction orbitActionSecondary" onClick={()=>beginEdit(selected)} disabled={!!busy}>Review customer presentation</button>
-       {selected.status!=="published"&&<button className="orbitAction orbitActionPublish" onClick={()=>void publish()} disabled={!canPublish||busy==="publish"}>{busy==="publish"?"Publishing…":"Publish to customers"}</button>}
+       {selected.status!=="published"&&!selected.publishedAt&&<button className="orbitAction orbitActionPublish" onClick={()=>void publish()} disabled={!canPublish||busy==="publish"}>{busy==="publish"?"Publishing…":"Publish to customers"}</button>}
        {selected.status==="published"&&<button className="orbitAction orbitActionDanger" onClick={()=>void unpublish(selected)} disabled={busy.startsWith("unpublish")}>Unpublish</button>}
       </div>
      </>:<div className="orbitEmptyCompact">Select an Update release to review.</div>}
@@ -257,7 +275,7 @@ export default function OrbitFSUpdateReleaseDeployer(){
      <div><b>v{r.version}</b><span>{r.title||"OrbitFS update"}</span></div>
      <span>{r.channel||"stable"}</span>
      <span>{r.status||"draft"}</span>
-     <div className="orbitRowActions"><button className="orbitAction orbitActionSecondary" onClick={()=>beginEdit(r)}>Edit</button><button className="orbitAction orbitActionQuiet" onClick={()=>{setSelectedId(r.id);setPipelineError(null)}}>View</button>{r.status==="published"&&<button className="orbitAction orbitActionDanger" onClick={()=>void unpublish(r)}>Unpublish</button>}</div>
+     <div className="orbitRowActions"><button className="orbitAction orbitActionSecondary" onClick={()=>beginEdit(r)}>Edit</button><button className="orbitAction orbitActionQuiet" onClick={()=>{setSelectedId(r.id);setPipelineError(null)}}>View</button>{r.status==="published"&&<button className="orbitAction orbitActionDanger" onClick={()=>void unpublish(r)}>Unpublish</button>}{r.status==="withdrawn"&&Boolean(r.publishedAt)&&<><button className="orbitAction orbitActionDanger" onClick={()=>void returnToDev(r,false)}>Return to Dev</button><button className="orbitAction orbitActionDanger" onClick={()=>void returnToDev(r,true)}>Delete Billing copy</button></>}</div>
     </div>)}
     {!releases.length&&<div className="orbitEmptyCompact">No Update release history is available.</div>}
    </div>
