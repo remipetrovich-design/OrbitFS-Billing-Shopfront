@@ -245,7 +245,7 @@ async function verifyDatabaseRuntimeAccess(install:any,contract:DatabaseRuntimeA
   for(const table of contract.serverFullAccessTables){
     for(const privilege of ["SELECT","INSERT","UPDATE","DELETE"])checks.push({key:`service_${privilege.toLowerCase()}_${table}`,expr:`has_table_privilege('${contract.serviceRole}','${contract.schema}.${table}','${privilege}')`});
   }
-  checks.push({key:"service_sequence_usage",expr:`not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='${contract.schema}' and c.relkind='S' and not has_sequence_privilege('${contract.serviceRole}',c.oid,'USAGE'))`});
+  checks.push({key:"service_sequence_usage",expr:`not exists(select 1 from pg_sequences s where s.schemaname='${contract.schema}' and not has_sequence_privilege('${contract.serviceRole}',format('%I.%I',s.schemaname,s.sequencename),'USAGE'))`});
   const query=`select ${checks.map((check)=>`${check.expr} as ${sqlIdentifier(check.key)}`).join(",\n")};`;
   const verification=await supabaseApi(install.auth_user_id,`/projects/${install.supabase_project_ref}/database/query`,{method:"POST",body:JSON.stringify({query})});
   const row=Array.isArray(verification)?verification[0]:verification?.data?.[0]||verification?.result?.[0]||verification;
