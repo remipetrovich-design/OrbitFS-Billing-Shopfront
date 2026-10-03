@@ -219,6 +219,17 @@ function validateBaseRuntimeOwnership(pkg:Package,release:any){
   if(!Number.isInteger(packagedProtocol)||packagedProtocol<1)fail("Base package does not declare a valid inner-deployer protocol",422,"BASE_ENGINE_DEPLOYER_PROTOCOL_MISSING");
   if(authorityProtocol&&packagedProtocol!==authorityProtocol)fail("Base package inner-deployer protocol does not match License Manager",422,"BASE_ENGINE_DEPLOYER_PROTOCOL_MISMATCH");
 }
+function requireEngineUpdatePayload(bundle:UpdateBundle):Package{
+  const payloads=(bundle as any).payloads;
+  if(!payloads||typeof payloads!=="object"||Array.isArray(payloads)){
+    fail("Update Bundle payloads are missing or invalid",422,"ENGINE_RELEASE_PAYLOAD_MISSING");
+  }
+  const engine=(payloads as {engine?:unknown}).engine;
+  if(!engine||typeof engine!=="object"||Array.isArray(engine)){
+    fail("Update Bundle has no Shared Engine payload",422,"ENGINE_RELEASE_PAYLOAD_MISSING");
+  }
+  return engine as Package;
+}
 async function readBasePackage(release:any):Promise<{pkg:Package;files:Array<{file:string;data:string;sha256:string;size:number}>;artifactSha256:string}>{
   const parsed=await readArtifact(release);
   if((parsed.root as any).format==="orbitfs-update-bundle-v3")fail("Base deployment cannot use an Update Bundle artifact",422);
@@ -963,10 +974,9 @@ export async function runCustomerDeployer(install:any,action:DeployAction,versio
     if(requiredEngineProtocol>installedEngineProtocol)fail(`Update ${release.version} requires Engine deployer protocol ${requiredEngineProtocol}, but installed Base ${installedBase} provides protocol ${installedEngineProtocol}.`,409,"ENGINE_DEPLOYER_PROTOCOL_UNSUPPORTED");
     if(bundle.checkpointRequired!==true||release?.manifest?.checkpointRequired===false)fail("Engine/addon update requires a mandatory rollback checkpoint",422,"ENGINE_CHECKPOINT_REQUIRED");
 
+    const engine=requireEngineUpdatePayload(bundle);
     const panel=bundle.payloads?.panel??null;
-    const engine=bundle.payloads?.engine||null;
     if(panel)fail("Normal Update Bundle contains a Base/Panel payload. Base must use the Base Deployer/Updater.",422,"UPDATE_SCOPE_INVALID");
-    if(!engine)fail("Update Bundle has no Shared Engine payload",422,"ENGINE_RELEASE_PAYLOAD_MISSING");
     validateFiles(engine.files,"Engine update payload");
 
     const declaredMigrations=validateDatabaseContract(bundle);
