@@ -180,7 +180,7 @@ export default function OrbitFSUpdateReleaseDeployer(){
 
  return <main className="orbitAdminPage">
   <header className="orbitAdminHeader">
-   <div><p className="eyebrow">ORBITFS CONTROL · UPDATES</p><h1>Update releases</h1><p className="muted">Billing Store is the release-control workspace. Validate, approve, configure, publish and unpublish Updates here; License Manager records and enforces the authoritative technical state.</p></div>
+   <div><p className="eyebrow">ORBITFS CONTROL · ENGINE / ADDON UPDATES</p><h1>Update releases</h1><p className="muted">This path publishes Shared Engine, MCP, APEX and Studio updates only. Base releases stay on the separate Base Deployer / Updater path. Customer execution is delegated to the Base-owned inner deployer; License Manager remains technical authority.</p></div>
    <div className="orbitAdminActions"><button className="orbitAction orbitActionSecondary" onClick={()=>void load()} disabled={busy==="load"}>{busy==="load"?"Refreshing…":"Refresh"}</button><a className="buttonlink orbitAction orbitActionSecondary" href="https://panel.incendiarynetworks.cc/releases/update" target="_blank" rel="noreferrer">Open License Manager</a></div>
   </header>
 
