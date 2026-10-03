@@ -3,7 +3,7 @@ import {useEffect,useMemo,useState} from "react";
 import {createClient} from "@/lib/supabase";
 
 type Release={
- id:string;version:string;channel?:string;status?:string;reviewStatus?:string;releaseType?:string;
+ id:string;version:string;revision?:number;attempt?:number;channel?:string;status?:string;reviewStatus?:string;releaseType?:string;
  title?:string;description?:string;changelog?:string;customerNotes?:string;sourceCommit?:string;sourceRepo?:string;sourceRef?:string;
  artifactName?:string;artifactRunId?:number|null;checksum?:string;publishedAt?:string|null;updatedAt?:string|null;
  validation?:{status?:string;checks?:Array<{key?:string;ok?:boolean;message?:string}>}|null;
@@ -162,13 +162,13 @@ export default function BaseDeploymentAdmin(){
    <div className="orbitSplit">
     <div className="orbitReleaseQueue">
      {queue.length?queue.map(r=><button key={r.id} type="button" className={"orbitReleaseRow "+(selected?.id===r.id?"selected":"")} onClick={()=>{setSelectedId(r.id);setPipelineError(null)}}>
-      <div><b>v{r.version}</b><span>{r.title||"Base release"} · {r.channel||"stable"}</span></div>
+      <div><b>v{r.version}</b><span>{r.title||"Base release"} · {r.channel||"stable"} · Attempt {r.attempt||1} · package r{r.revision||1}</span></div>
       <div className="orbitRowMeta"><span className={r.validation?.status==="passed"?"state ready":"state"}>{r.validation?.status||"validation pending"}</span><span className={r.reviewStatus==="approved"?"state ready":"state"}>{r.reviewStatus||"review pending"}</span></div>
      </button>):<div className="orbitEmptyCompact">No Base releases are waiting for review.</div>}
     </div>
 
     <div className="orbitReviewPane">
-     {selected?<><div className="orbitReviewTop"><div><small>SELECTED RELEASE</small><h3>v{selected.version}</h3></div><span className={portalPublished?"state ready":"state"}>{portalPublished?"Published":selected.status||"pending"}</span></div>
+     {selected?<><div className="orbitReviewTop"><div><small>SELECTED RELEASE · Attempt {selected.attempt||1} · package r{selected.revision||1}</small><h3>v{selected.version}</h3></div><span className={portalPublished?"state ready":"state"}>{portalPublished?"Published":selected.status||"pending"}</span></div>
       <div className="orbitFactGrid">
        <div><span>Validation</span><b>{selected.validation?.status||"Not run"}</b></div>
        <div><span>Review</span><b>{selected.reviewStatus||"Pending"}</b></div>
