@@ -193,7 +193,7 @@ export default function BaseDeploymentAdmin(){
         <button className="orbitAction orbitActionDanger" type="button" disabled={busy!==""} onClick={()=>void returnToDev(selected,true)}>{busy==="delete-return:"+selected.id?"Deleting…":"Delete Billing copy & return to Dev"}</button>
         <span className="muted">Published License Manager history is retained for audit and rollback; Dev Panel receives a rejected handback revision.</span>
        </>}
-       {portalPublished&&<span className="state ready">Available to customers</span>
+       {portalPublished&&<span className="state ready">Available to customers</span>}
       </div>
       {!portalPublished&&!presentationReady&&<small className="muted">Add a customer-facing title and changelog before publication.</small>}
      </>:<div className="orbitEmptyCompact">Select a release to review.</div>}
