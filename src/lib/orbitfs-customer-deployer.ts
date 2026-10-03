@@ -1040,7 +1040,7 @@ export async function runCustomerDeployer(install:any,action:DeployAction,versio
   }
   const deploymentInstall=action==="redeploy"&&packageDatabaseSchema?{...install,schema_version:packageDatabaseSchema}:install;
   await configureVercel(deploymentInstall,String(release.version),undefined,requestedChannel,String(release.id),String(release.sha256||release.checksum||""),String(release.source_sha||release.source_commit||release.manifest?.sourceCommit||""));
-  const installedDatabaseSchema=String(install.schema_version||"").trim();
+  const installedDatabaseSchema=String(deploymentInstall.schema_version||"").trim();
   const requireExactDatabaseSchema=release?.manifest?.compatibility?.databaseSchema?.required===true||release?.manifest?.requireDatabaseSchemaMatch===true;
   if(requireExactDatabaseSchema&&packageDatabaseSchema&&installedDatabaseSchema&&packageDatabaseSchema!==installedDatabaseSchema)fail(`Base release ${release.version} explicitly requires database schema ${packageDatabaseSchema}, but this installation is initialized with schema ${installedDatabaseSchema}.`,409);
   const projectSettings={framework:"sveltekit",installCommand:"npm ci",buildCommand:"npm run build",...(parsed.pkg.projectSettings||{})};
@@ -1062,7 +1062,7 @@ export async function runCustomerDeployer(install:any,action:DeployAction,versio
   // first-time installer. Licence activation itself happens later inside Base.
   await registerInstalledBaseRoute(productionUrl||deploymentUrl,install,deploymentId);
   // Do not publish an individual protected deployment URL as the customer-facing address.
-  await configureVercel(install,String(release.version),productionUrl||undefined,requestedChannel,String(release.id),parsed.artifactSha256,String(parsed.pkg.sourceCommit||release.sourceCommit||""));
+  await configureVercel(deploymentInstall,String(release.version),productionUrl||undefined,requestedChannel,String(release.id),parsed.artifactSha256,String(parsed.pkg.sourceCommit||release.sourceCommit||""));
   // Billing Store owns deployment coordination only. Base owns first-time bootstrap:
   // storage preparation, licence activation, Owner creation, workspace creation and
   // runtime installation registration all happen inside the installed Base setup flow.
