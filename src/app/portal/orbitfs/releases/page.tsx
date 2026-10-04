@@ -27,7 +27,7 @@ const stages:{id:Stage;title:string;description:string}[]=[
   {id:2,title:"Channel / Update",description:"Choose an authorized published Update."},
   {id:3,title:"Review",description:"Review changes and compatibility."},
   {id:4,title:"Live Progress",description:"Follow actual update execution."},
-  {id:5,title:"Finished",description:"See the installed Update and recovery controls."}
+  {id:5,title:"Finished",description:"See the installed Update."}
 ];
 const idOf=(release:Release|null|undefined)=>String(release?.id||release?.releaseId||"");
 const versionOf=(release:Release|null|undefined)=>String(release?.version||"");
@@ -139,7 +139,6 @@ export default function OrbitFSUpdateReleaseSystem(){
   const compatible=Boolean(!selected||!requiredBase||
     (baseVersion&&compareOrbitReleaseVersions(baseVersion,requiredBase)!==null&&
       (compareOrbitReleaseVersions(baseVersion,requiredBase)??-1)>=0));
-  const selectedNeedsEngine=Boolean(selected&&Array.isArray(selected.components)&&selected.components.some((component:string)=>component!=="base"));
   const canInstall=Boolean(selected&&baseReady&&compatible&&!isPrevious&&!alreadyInstalled&&
     !updateUnavailable&&!blockingBaseOperation&&!busy&&updateDiscoveryReady);
   const canRepairAppliedUpdate=Boolean(appliedPublishedRelease&&appliedId&&appliedVersion&&baseReady&&
@@ -542,7 +541,7 @@ export default function OrbitFSUpdateReleaseSystem(){
     {stage===5&&<section className="panel orbitV5UpdatePanel">
       <div className="orbitV5UpdatePanelHeading"><div><p className="eyebrow">STEP 5 · INSTALLED UPDATE</p>
         <h2>{appliedVersion?"Update v"+appliedVersion+" installed":"Update operation complete"}</h2>
-        <p>Review the installed Update. Recovery controls are available only when you open Recovery.</p></div>
+        <p>Review the installed Update. Use Recovery only when you need to repair or roll it back.</p></div>
         <span className={"state "+(appliedVersion?"ready":"waiting")}>{appliedVersion?"UPDATE INSTALLED":"NO UPDATE ACTIVE"}</span></div>
       <div className="orbitV5UpdateFacts">
         <div><small>INSTALLED BASE</small><b>{baseVersion?"v"+baseVersion:"Not installed"}</b></div>
