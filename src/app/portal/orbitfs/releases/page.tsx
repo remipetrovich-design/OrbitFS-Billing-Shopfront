@@ -371,6 +371,7 @@ export default function OrbitFSUpdateReleaseSystem(){
       <div className="orbitV5UpdateHeroActions">
         <button type="button" className="secondary" disabled={!!busy} onClick={()=>void load(true)}>Refresh releases</button>
         <Link className="buttonlink secondary" href="/portal/orbitfs/configuration">Updater configuration</Link>
+        <Link className="buttonlink secondary" href="/portal/orbitfs/recovery">Recovery</Link>
         <Link className="buttonlink secondary" href="/portal/orbitfs">Base control panel ↗</Link>
       </div>
     </header>
@@ -572,6 +573,7 @@ export default function OrbitFSUpdateReleaseSystem(){
         {recentActivity.length?<ol>{recentActivity.map(event=><li key={event.id}><span>{dateLabel(event.createdAt)||"Recorded"}</span><p>{event.message}</p></li>)}</ol>:<p>No Update activity recorded.</p>}
       </details>
       <div className="orbitV5UpdateActions">
+        <Link className="buttonlink secondary" href="/portal/orbitfs/recovery">Open Recovery</Link>
         <Link className="buttonlink secondary" href="/portal/orbitfs">Open Base control panel ↗</Link>
         <button type="button" onClick={()=>{setSelectedId("");setConfirmed(false);setStage(2);void load(true)}}>Browse further Updates →</button>
       </div>
