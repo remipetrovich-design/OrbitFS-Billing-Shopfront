@@ -980,13 +980,10 @@ export async function runCustomerDeployer(install:any,action:DeployAction,versio
     const appliesEngine=engineComponents.length>0;
     if(appliesBase&&!panel)fail("Update targets Base/inner-deployer files but has no Base payload",422,"UPDATE_BASE_PAYLOAD_REQUIRED");
     if(!appliesBase&&panel)fail("Update contains a Base payload but Base is not an authorized target",422,"UPDATE_SCOPE_INVALID");
-    if(appliesBase)validateFiles(panel.files,"Base update payload");
-    if(appliesEngine){
-      if(!engine)fail("Update targets Engine/addons but has no Engine payload",422,"UPDATE_ENGINE_PAYLOAD_REQUIRED");
-      validateFiles(engine.files,"Engine update payload");
-    }else if(engine){
-      fail("Update contains an Engine payload but no Engine/addon target is authorized",422,"UPDATE_SCOPE_INVALID");
-    }
+    if(appliesEngine&&!engine)fail("Update targets Engine/addons but has no Engine payload",422,"UPDATE_ENGINE_PAYLOAD_REQUIRED");
+    if(!appliesEngine&&engine)fail("Update contains an Engine payload but no Engine/addon target is authorized",422,"UPDATE_SCOPE_INVALID");
+    if(panel)validateFiles(panel.files,"Base update payload");
+    if(engine)validateFiles(engine.files,"Engine update payload");
 
     const declaredMigrations=validateDatabaseContract(bundle);
     const applicableMigrations=declaredMigrations.filter(migration=>String(migration.component||"shared")==="shared"||components.includes(String(migration.component||"").toLowerCase()));
@@ -1001,7 +998,7 @@ export async function runCustomerDeployer(install:any,action:DeployAction,versio
       databaseResult=await applyCustomerDatabaseMigrations(install,release,bundle,components);
       await event(install,"update.database.completed","ok","Update database migration check completed",{releaseId:release.id,releaseVersion:release.version,databaseMigrations:databaseResult});
 
-      if(appliesBase){
+      if(panel){
         await event(install,"update.base.started","info","Updating Base and inner-deployer files in the existing Vercel project",{releaseId:release.id,releaseVersion:release.version,projectId:install.vercel_project_id});
         panelResult=await deployPanelUpdatePayload(install,release,bundle,panel,parsed.artifactSha256,requestedChannel,components);
         await event(install,"update.base.completed","ok","Base and inner-deployer files updated in the existing deployment",{releaseId:release.id,releaseVersion:release.version,deploymentId:panelResult?.deploymentId||null,fileCount:panelResult?.fileCount||null});
@@ -1010,7 +1007,7 @@ export async function runCustomerDeployer(install:any,action:DeployAction,versio
       let enginePreflight:any=null;
       let reportedProtocol:number|null=null;
       let requiredEngineProtocol:number|null=null;
-      if(appliesEngine){
+      if(engine){
         requiredEngineProtocol=Number(bundle.minimumEngineDeployerProtocol??release?.manifest?.minimumEngineDeployerProtocol??0);
         const releaseEngineProtocol=Number(release?.manifest?.minimumEngineDeployerProtocol??requiredEngineProtocol);
         if(!Number.isInteger(requiredEngineProtocol)||requiredEngineProtocol<1)fail("Update Bundle is missing a valid minimum Engine deployer protocol",422);
