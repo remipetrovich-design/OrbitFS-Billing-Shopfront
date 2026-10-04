@@ -33,7 +33,8 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
     const body=await req.json().catch(()=>({}));
     const engineHostUrl=httpsOrigin(body.engineHostUrl);
     const engineProjectId=projectId(body.engineProjectId);
-    const engineProjectName=String(body.engineProjectName||"").trim().slice(0,100)||null;
+    const engineProjectName=String(body.engineProjectName||"").trim().slice(0,100);
+    if(!engineProjectName||!/^[a-z0-9][a-z0-9._-]{0,99}$/i.test(engineProjectName))throw Object.assign(new Error("A valid Vercel Engine project name is required"),{status:400,code:"UPDATER_ENGINE_PROJECT_NAME_INVALID"});
     const previous=install.metadata?.updaterConnection&&typeof install.metadata.updaterConnection==="object"?install.metadata.updaterConnection:{};
     const connection={
       ...previous,
