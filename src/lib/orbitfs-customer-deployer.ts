@@ -572,7 +572,7 @@ async function waitForReady(userId:string,id:string):Promise<any>{
       const error=Object.assign(new Error(`Vercel deployment failed (${state})${detail?`: ${detail}`:""}`),{status:502,code:String(last?.errorCode||last?.error?.code||"VERCEL_DEPLOYMENT_FAILED"),deploymentId:id,diagnostics});
       throw error;
     }
-    await new Promise(r=>setTimeout(r,3000));
+    await new Promise(r=>setTimeout(r,60000));
   }
   return last;
 }
