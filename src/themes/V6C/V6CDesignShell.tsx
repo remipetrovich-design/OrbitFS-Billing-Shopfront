@@ -162,6 +162,66 @@ function Release({path}:{path:string}){
 }
 
 
+
+function ProductDetail({path}:{path:string}){
+  return <Frame path={path}>
+    <section className="v6c-title row-title"><div><span>← ORBITFS STORE · CORE SYSTEM</span><h1>OrbitFS Base System</h1><p>The foundation of your OrbitFS environment, ready for customer deployment and supported releases.</p></div><em>Core Platform</em></section>
+    <section className="v6c-product-detail">
+      <article className="v6c-card v6c-product-showcase">
+        <div className="v6c-product-visual"><div className="v6c-orbit-core"/><div className="v6c-orbit-ring ring-one"/><div className="v6c-orbit-ring ring-two"/></div>
+        <div className="v6c-product-copy"><span className="v6c-kicker">WHAT YOU GET</span><h2>Core customer platform</h2><p>Everything required to establish the customer-facing OrbitFS Base environment before adding supported components and services.</p><div className="v6c-feature-list"><span>✓ Customer deployment workflow</span><span>✓ Licence-managed activation</span><span>✓ Stable release support</span><span>✓ Update-ready foundation</span></div></div>
+      </article>
+      <aside className="v6c-card v6c-buybox">
+        <span className="v6c-kicker">PURCHASE</span><small>Starting price</small><b>$299.00</b><p>One-time base purchase. Add-ons and support services can be added later.</p>
+        <label><small>DEPLOYMENT TYPE</small><div>Standard customer deployment <span>⌄</span></div></label>
+        <label><small>REGION</small><div>Australia / Sydney <span>⌄</span></div></label>
+        <button>Add to basket</button><span className="v6c-buy-note">Secure checkout · AUD</span>
+      </aside>
+    </section>
+  </Frame>;
+}
+
+function CheckoutFlow({path}:{path:string}){
+  const basket=path.startsWith("/portal/basket");
+  return <Frame path={path}>
+    <section className="v6c-title"><span>● ORBITFS STORE · {basket?"BASKET":"CHECKOUT"}</span><h1>{basket?"Review your basket.":"Complete your order."}</h1><p>{basket?"Confirm the products and configuration before checkout.":"Review billing details, payment method and order total."}</p></section>
+    <section className="v6c-checkout-grid">
+      <article className="v6c-card v6c-checkout-main">
+        <div className="v6c-cart-item"><div className="v6c-product-mark">CORE</div><div><small>ORBITFS CORE</small><h2>OrbitFS Base System</h2><p>Standard customer deployment · Australia / Sydney</p></div><strong>$299.00</strong></div>
+        {!basket&&<><div className="v6c-checkout-section"><span className="v6c-kicker">BILLING DETAILS</span><div className="v6c-field-grid"><label><small>NAME</small><div>Lucas Kerim</div></label><label><small>EMAIL</small><div>customer@example.com</div></label><label className="wide"><small>BILLING ADDRESS</small><div>Customer billing address</div></label></div></div><div className="v6c-checkout-section"><span className="v6c-kicker">PAYMENT METHOD</span><div className="v6c-payment-choice selected"><i>●</i><div><b>Card / secure payment</b><small>Continue through the configured payment provider.</small></div></div><div className="v6c-payment-choice"><i>○</i><div><b>OrbitFS Wallet</b><small>Use available account credit where eligible.</small></div></div></div></>}
+      </article>
+      <aside className="v6c-card v6c-order-summary"><span className="v6c-kicker">ORDER SUMMARY</span><div><span>OrbitFS Base System</span><b>$299.00</b></div><div><span>Subtotal</span><b>$299.00</b></div><div><span>Tax</span><b>$0.00</b></div><div className="total"><span>Total</span><b>$299.00 AUD</b></div><button>{basket?"Continue to checkout":"Place order"}</button><small>Orders and payment status will appear in Billing.</small></aside>
+    </section>
+  </Frame>;
+}
+
+function InvoiceDetail({path}:{path:string}){
+  return <Frame path={path}>
+    <section className="v6c-title row-title"><div><span>← BILLING · INVOICE</span><h1>Invoice INV-1087</h1><p>Created April 1, 2025 · Due April 22, 2025</p></div><em>Overdue</em></section>
+    <section className="v6c-ticket-meta"><article><small>STATUS</small><b>Overdue</b></article><article><small>TOTAL</small><b>$1,200.00</b></article><article><small>PAID</small><b>$0.00</b></article><article><small>AMOUNT DUE</small><b>$1,200.00</b></article></section>
+    <section className="v6c-invoice-grid">
+      <article className="v6c-card v6c-invoice-doc"><div className="v6c-invoice-head"><div><strong>OrbitFS</strong><small>Customer Billing</small></div><div><span>INVOICE</span><b>INV-1087</b></div></div><div className="v6c-billto"><small>BILL TO</small><b>Customer Account</b><span>customer@example.com</span></div><div className="v6c-invoice-lines"><div className="head"><span>DESCRIPTION</span><span>QTY</span><span>UNIT PRICE</span><span>AMOUNT</span></div><div><span>OrbitFS Business / Pro Infrastructure</span><span>1</span><span>$1,200.00</span><b>$1,200.00</b></div></div><div className="v6c-invoice-totals"><span>Subtotal <b>$1,200.00</b></span><span>Tax <b>$0.00</b></span><span className="total">Total <b>$1,200.00</b></span><span>Balance <b>$1,200.00</b></span></div></article>
+      <aside className="v6c-card v6c-pay-panel"><span className="v6c-kicker">PAYMENT</span><h2>Pay this invoice</h2><p>Choose an available payment method to settle the outstanding balance.</p><label><small>PAYMENT METHOD</small><div>Card / secure payment <span>⌄</span></div></label><label><small>COUPON CODE</small><div>Enter coupon code</div></label><button>Pay $1,200.00</button><div className="v6c-ready"><b>Invoice payment</b><small>Payment status will update here after confirmation.</small></div></aside>
+    </section>
+  </Frame>;
+}
+
+function MyOrbitFSHome({path}:{path:string}){
+  return <Frame path={path}>
+    <section className="v6c-title"><span>● MY ORBITFS</span><h1>Your systems,<br/>releases and licence.</h1><p>Everything technical about your OrbitFS account lives here — deployment, updates, licensing and release access.</p></section>
+    <section className="v6c-orbitfs-overview">
+      <article className="v6c-card v6c-orbitfs-primary"><div><span className="v6c-kicker">CURRENT INSTALLATION</span><h2>Production</h2><p>OrbitFS Base System · v3.0.0</p></div><strong>HEALTHY</strong><div className="v6c-orbitfs-meta"><span><small>DOMAIN</small><b>production.orbitfs.example</b></span><span><small>CHANNEL</small><b>Stable</b></span><span><small>LAST CHECK</small><b>4 minutes ago</b></span></div></article>
+      <article className="v6c-card v6c-orbitfs-status"><span className="v6c-kicker">SYSTEM STATUS</span><div><i/>Base Deployment<b>Healthy</b></div><div><i/>Update Authority<b>Available</b></div><div><i/>Licence Validation<b>Healthy</b></div><div><i/>Release Channel<b>Stable</b></div></article>
+    </section>
+    <section className="v6c-orbitfs-grid">
+      <a href="/portal/orbitfs/deployer" className="v6c-card v6c-feature-card"><div className="v6c-feature-icon">◇</div><span className="v6c-kicker">BASE DEPLOYMENTS</span><h2>Deploy & manage Base</h2><p>Set up, verify and manage your customer Base installation.</p><div className="v6c-feature-footer"><b>Production</b><span>Healthy</span><em>→</em></div></a>
+      <a href="/portal/orbitfs/releases" className="v6c-card v6c-feature-card"><div className="v6c-feature-icon">↻</div><span className="v6c-kicker">UPDATE RELEASE SYSTEM</span><h2>Updates</h2><p>Review published updates and follow authorized update execution.</p><div className="v6c-feature-footer"><b>v2.5.0</b><span>1 update ready</span><em>→</em></div></a>
+      <a href="/portal/orbitfs/license" className="v6c-card v6c-feature-card"><div className="v6c-feature-icon">▣</div><span className="v6c-kicker">LICENSE CONTROLLER</span><h2>Licence</h2><p>View current licence status, entitlements, bindings and validation state.</p><div className="v6c-feature-footer"><b>Business</b><span>Active</span><em>→</em></div></a>
+      <a href="/portal/orbitfs/channels" className="v6c-card v6c-feature-card"><div className="v6c-feature-icon">◎</div><span className="v6c-kicker">RELEASE CHANNELS</span><h2>Channels</h2><p>See Stable, Staging and Canary access available to your licence.</p><div className="v6c-feature-footer"><b>Stable</b><span>Current</span><em>→</em></div></a>
+    </section>
+  </Frame>;
+}
+
 function SupportCentre({path}:{path:string}){
   const tickets=[
     ["#4821","Update installation failed after validation","Waiting on Support","High","Today, 9:42 PM"],
@@ -260,11 +320,15 @@ function Placeholder({path,title,section}:{path:string;title:string;section:stri
 
 export default function V6CDesignShell({path}:Props){
   if(path==="/portal")return <Dashboard path={path}/>;
-  if(path.startsWith("/portal/products")||path.startsWith("/portal/basket"))return <Store path={path}/>;
+  if(/^\/portal\/products\/[^/]+$/.test(path))return <ProductDetail path={path}/>;
+  if(path.startsWith("/portal/basket")||path.startsWith("/portal/checkout"))return <CheckoutFlow path={path}/>;
+  if(path.startsWith("/portal/products"))return <Store path={path}/>;
   if(path.startsWith("/portal/orbitfs/releases"))return <Release path={path}/>;
-  if(path==="/portal/orbitfs"||path.startsWith("/portal/orbitfs/deployer"))return <Deployment path={path}/>;
+  if(path==="/portal/orbitfs")return <MyOrbitFSHome path={path}/>;
+  if(path.startsWith("/portal/orbitfs/deployer"))return <Deployment path={path}/>;
+  if(/^\/portal\/invoices\/[^/]+$/.test(path))return <InvoiceDetail path={path}/>;
   if(path.startsWith("/portal/invoices"))return <Billing path={path} view="Invoices"/>;
-  if(path.startsWith("/portal/orders")||path.startsWith("/portal/checkout"))return <Billing path={path} view="Payment History"/>;
+  if(path.startsWith("/portal/orders"))return <Billing path={path} view="Payment History"/>;
   if(path.startsWith("/portal/support/knowledge-base"))return <KnowledgeBase path={path}/>;
   if(/^\/portal\/support\/[^/]+$/.test(path))return <SupportTicket path={path}/>;
   if(path.startsWith("/portal/support"))return <SupportCentre path={path}/>;
