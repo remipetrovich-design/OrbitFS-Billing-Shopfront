@@ -118,6 +118,8 @@ export default function OrbitFSUpdateReleaseSystem(){
   const applied=progress?.appliedUpdate||data?.normalUpdate?.applied||install?.metadata?.appliedUpdate||null;
   const appliedVersion=String(applied?.version||"");
   const appliedId=String(applied?.releaseId||"");
+  const appliedChannel=String(applied?.channel||channel||installedChannel||"stable");
+  const appliedPublishedRelease=publishedUpdates.find(release=>idOf(release)===appliedId&&String(release.channel||"stable")===appliedChannel)||null;
   const baseVersion=String(install?.release_version||"");
   const baseReady=Boolean(install?.vercel_project_id&&baseVersion&&
     ["ready","deployed","active"].includes(String(install?.state||"").toLowerCase()));
@@ -138,6 +140,8 @@ export default function OrbitFSUpdateReleaseSystem(){
     (baseVersion&&compareOrbitReleaseVersions(baseVersion,requiredBase)!==null&&
       (compareOrbitReleaseVersions(baseVersion,requiredBase)??-1)>=0));
   const canInstall=Boolean(selected&&baseReady&&licenceReady&&compatible&&!isPrevious&&!alreadyInstalled&&
+    !updateUnavailable&&!blockingBaseOperation&&!busy&&updateDiscoveryReady);
+  const canRepairAppliedUpdate=Boolean(appliedPublishedRelease&&appliedId&&appliedVersion&&baseReady&&licenceReady&&
     !updateUnavailable&&!blockingBaseOperation&&!busy&&updateDiscoveryReady);
 
   useEffect(()=>{
@@ -273,6 +277,32 @@ export default function OrbitFSUpdateReleaseSystem(){
     }catch(error:any){
       setMessage((error?.message||"The update request did not return a result.")+
         " Check recorded progress before attempting another installation.");
+      await refreshProgress(String(install.id));
+    }finally{requestInFlight.current=false;setBusy("")}
+  }
+
+  async function repairAppliedUpdate(){
+    if(!install||!appliedPublishedRelease||!canRepairAppliedUpdate)return;
+    if(!window.confirm("Repair the installed Engine/addon Update v"+appliedVersion+"? This re-applies the same verified Update through the Base-owned inner updater. It does not redeploy OrbitFS Base."))return;
+    const releaseId=idOf(appliedPublishedRelease);
+    setProgressTarget(releaseId);setProgressMode("update");setProgress(null);setAttemptStartedAt(Date.now());
+    completionReported.current="";setStage(4);setBusy("repair-update");setMessage("");
+    requestInFlight.current=true;
+    try{
+      const res=await fetch("/api/orbitfs/installations/"+install.id+"/deploy",{
+        method:"POST",
+        headers:{...(await headers()),"content-type":"application/json"},
+        body:JSON.stringify({action:"update",version:"update:"+appliedVersion,releaseId,channel:appliedChannel,reason:"repair_reapply"})
+      });
+      const response=await res.json().catch(()=>({}));
+      if(!res.ok)throw Error(response.error||"The Engine Update repair request was not completed.");
+      await refreshProgress(String(install.id));
+      setMessage("Engine/addon Update v"+appliedVersion+" was re-applied through the updater.");
+      setStage(5);
+      await load(true);
+    }catch(error:any){
+      setMessage((error?.message||"The Engine Update repair did not return a result.")+
+        " Review the recorded updater events before retrying.");
       await refreshProgress(String(install.id));
     }finally{requestInFlight.current=false;setBusy("")}
   }
@@ -520,6 +550,12 @@ export default function OrbitFSUpdateReleaseSystem(){
         <div><small>CHANNEL</small><b>{applied?.channel||channel||"—"}</b></div>
         <div><small>APPLIED</small><b>{dateLabel(applied?.appliedAt)||"Not recorded"}</b></div>
       </div>
+      {appliedVersion&&<details className="orbitV5UpdateRecovery"><summary>Repair / reapply installed Engine Update</summary>
+        <p>Use this when the Shared Engine Host or an addon is deployed but unhealthy (for example, returning HTTP 500). It re-applies the same published, verified Update through the Base-owned inner updater and does not redeploy OrbitFS Base.</p>
+        <button type="button" disabled={!canRepairAppliedUpdate} onClick={()=>void repairAppliedUpdate()}>{busy==="repair-update"?"Repairing Engine Update…":"Repair / reapply Update v"+appliedVersion}</button>
+        {!appliedPublishedRelease&&<p className="orbitV5UpdateHint">The installed Update release is no longer published in this authorized channel, so it cannot be re-applied. Publish/restore an authorized Update release first.</p>}
+        {appliedPublishedRelease&&!canRepairAppliedUpdate&&<p className="orbitV5UpdateHint">Repair is blocked until Base, licence, Update authority and release discovery are ready.</p>}
+      </details>}
       {appliedVersion&&<details className="orbitV5UpdateRecovery"><summary>Rollback installed Update</summary>
         <p>Rollback requires License Manager authorization and may restore Panel and Engine checkpoints where available. Forward-compatible database migrations remain applied.</p>
         <label htmlFor="orbit-update-rollback-reason">Reason for rollback
