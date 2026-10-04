@@ -106,7 +106,7 @@ export default function OrbitFSUpdateReleaseSystem(){
   const updateUnavailable=authorityUnavailable||settings.customer_updates_enabled===false;
   const rollbackUnavailable=authorityUnavailable||settings.customer_rollbacks_enabled===false;
   const publishedUpdates:Release[]=(data?.publishedReleases||[])
-    .filter((value:Release)=>String(value.release_type||value.releaseType||"")==="update"&&
+    .filter((value:Release)=>String(value.release_type||value.releaseType||"").trim().toLowerCase()==="update"&&
       allowedChannels.includes(String(value.channel||"stable"))&&
       (!value.status||String(value.status)==="published"))
     .sort((a:Release,b:Release)=>{
