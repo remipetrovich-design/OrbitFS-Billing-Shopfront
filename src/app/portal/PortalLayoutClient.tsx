@@ -14,7 +14,7 @@ type NavItem={label:string;href:string;short:string};
 
 export default function PortalLayoutClient({children}:{children:React.ReactNode}){
  const sb=useMemo(()=>createClient(),[]),path=usePathname(),router=useRouter();
- const [d,setD]=useState<any>(),[enforcement,setEnforcement]=useState<any>({state:"active"}),[loggingOut,setLoggingOut]=useState(false),[mobileMenuOpen,setMobileMenuOpen]=useState(false);
+ const [d,setD]=useState<any>(),[enforcement,setEnforcement]=useState<any>({state:"active"}),[loggingOut,setLoggingOut]=useState(false),[mobileMenuOpen,setMobileMenuOpen]=useState(false),[activeTheme,setActiveTheme]=useState(String(themeDefaults.customer));
  const lastEnforcementCheck=useRef(0),lastPulseRevision=useRef<number|null>(null),billingMenuRef=useRef<HTMLDetailsElement|null>(null),orbitfsMenuRef=useRef<HTMLDetailsElement|null>(null);
 
  useEffect(()=>{
@@ -67,7 +67,7 @@ export default function PortalLayoutClient({children}:{children:React.ReactNode}
   void checkPulse();return()=>{alive=false;if(timer)clearTimeout(timer)};
  },[]);
 
- const closeDropdowns=useCallback((except?:HTMLDetailsElement|null)=>{
+ const onThemeResolved=useCallback((theme:{id:string})=>setActiveTheme(String(theme.id||themeDefaults.customer)),[]);\n\n const closeDropdowns=useCallback((except?:HTMLDetailsElement|null)=>{
   if(billingMenuRef.current&&billingMenuRef.current!==except)billingMenuRef.current.open=false;
   if(orbitfsMenuRef.current&&orbitfsMenuRef.current!==except)orbitfsMenuRef.current.open=false;
  },[]);
