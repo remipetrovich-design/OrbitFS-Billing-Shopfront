@@ -392,3 +392,50 @@ html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-app-s
 .v6c-system-status{padding:20px;border:1px solid #123750;border-radius:9px;background:#041827}.v6c-system-status>header{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding-bottom:15px;border-bottom:1px solid #0f3049}.v6c-system-status h2{margin:9px 0 5px;font-size:18px}.v6c-system-status header p{margin:0;color:#6787a1;font-size:9px}.v6c-status-summary{min-width:185px;text-align:right}.v6c-status-summary b,.v6c-status-summary span{display:block}.v6c-status-summary b{font-size:22px;color:#fff}.v6c-status-summary span{margin:3px 0 8px;color:#6e8ea8;font-size:8px}.v6c-status-summary button{height:30px!important;padding:0 10px!important}
 .v6c-status-message{padding:10px;margin:12px 0 0;border:1px solid #75435a;border-radius:6px;background:#241522;color:#ffb2c1!important;font-size:8px!important}.v6c-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}.v6c-status-card{min-height:112px;padding:13px;border:1px solid #12364f;border-radius:7px;background:#031522}.v6c-status-card>div{display:flex;align-items:center;gap:7px}.v6c-status-card i{width:7px;height:7px;border-radius:50%;background:#55738c}.v6c-status-card small{color:#64849e!important;font-size:7px!important;letter-spacing:.06em}.v6c-status-card>b{display:block;margin-top:12px;font-size:11px}.v6c-status-card>p{margin:4px 0 0;color:#587994!important;font-size:7px!important;line-height:1.45}.v6c-status-card.tone-ready i{background:#20d2b4;box-shadow:0 0 10px rgba(32,210,180,.45)}.v6c-status-card.tone-ready>b{color:#63ddca}.v6c-status-card.tone-warning i{background:#f3b642}.v6c-status-card.tone-warning>b{color:#ffd27f}.v6c-status-card.tone-offline i{background:#ef6479}.v6c-status-card.tone-offline>b{color:#ff9eac}
 
+
+
+/* V6C top-nav readability pass — larger labels without crowding utilities */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-appbar{
+  height:58px!important;
+  max-width:1180px!important;
+  margin:0 auto!important;
+  padding:0 14px!important;
+  gap:12px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-mark{
+  min-width:88px!important;
+  gap:8px!important;
+  font-size:10px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-globalnav{
+  display:flex!important;
+  align-items:center!important;
+  gap:2px!important;
+  flex:0 1 auto!important;
+  min-width:0!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-globalnav>a{
+  height:32px!important;
+  padding:0 9px!important;
+  border-radius:6px!important;
+  font-size:9px!important;
+  font-weight:700!important;
+  letter-spacing:0!important;
+  white-space:nowrap!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-appbar-spacer{
+  min-width:4px!important;
+  flex:1 1 auto!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-app-search{
+  width:140px!important;
+  flex:0 0 140px!important;
+  height:31px!important;
+  font-size:8px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-notification-compact{
+  flex:0 0 32px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-account-menu{
+  flex:0 0 34px!important;
+}
