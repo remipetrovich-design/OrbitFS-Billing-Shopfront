@@ -126,7 +126,7 @@ export default function PortalLayoutClient({children}:{children:React.ReactNode}
 
  return <div className="portalLayout portalCustomerSite">
   <ThemeRuntime surface="customer" fallback={themeDefaults.customer}/>
-  <div className="v6cMount"><V6CDesignShell path={path}/></div>
+  <div className="v6cMount"><V6CDesignShell path={path} canAccessAdmin={Boolean(d.staff?.is_staff)}/></div>
 
   <header className="portalTopbar">
    <Link className="portalTopBrand" href="/portal">OrbitFS</Link>
