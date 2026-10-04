@@ -1086,7 +1086,10 @@ export async function runCustomerDeployer(install:any,action:DeployAction,versio
     const applicableMigrations=declaredMigrations.filter(migration=>String(migration.component||"shared")==="shared"||components.includes(String(migration.component||"").toLowerCase()));
     await event(install,"update.started","info",`Applying OrbitFS Update ${release.version} to the existing deployment`,{releaseId:release.id,components,checksum:parsed.artifactSha256,databaseMigrationCount:applicableMigrations.length,skippedComponents});
 
-    let basePatchResult:any=null;\n    let basePatchAttempted=false;\n    let engineResult:any=null;\n    let engineAttempted=false;
+    let basePatchResult:any=null;
+    let basePatchAttempted=false;
+    let engineResult:any=null;
+    let engineAttempted=false;
     let databaseResult:any=null;
     try{
       databaseResult=await applyCustomerDatabaseMigrations(install,release,bundle,components);
