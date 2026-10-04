@@ -23,7 +23,7 @@ type UpdateProgress={
 type Stage=1|2|3|4|5;
 type UpdateMode="update"|"rollback";
 const stages:{id:Stage;title:string;description:string}[]=[
-  {id:1,title:"Installation",description:"Check your installed Base and licence."},
+  {id:1,title:"Installation",description:"Check your installed Base."},
   {id:2,title:"Channel / Update",description:"Choose an authorized published Update."},
   {id:3,title:"Review",description:"Review changes and compatibility."},
   {id:4,title:"Live Progress",description:"Follow actual update execution."},
@@ -123,7 +123,6 @@ export default function OrbitFSUpdateReleaseSystem(){
   const baseVersion=String(install?.release_version||"");
   const baseReady=Boolean(install?.vercel_project_id&&baseVersion&&
     ["ready","deployed","active"].includes(String(install?.state||"").toLowerCase()));
-  const licenceReady=Boolean(install?.metadata?.licenseRegistration?.valid===true);
   const hasBase=Boolean(install?.vercel_project_id&&baseVersion);
   const blockingBaseOperation=Boolean(data?.activeOperation);
   const updateChannelDiscovery=data?.updateReleaseDiscoveryByChannel?.[channel];
@@ -139,9 +138,9 @@ export default function OrbitFSUpdateReleaseSystem(){
   const compatible=Boolean(!selected||!requiredBase||
     (baseVersion&&compareOrbitReleaseVersions(baseVersion,requiredBase)!==null&&
       (compareOrbitReleaseVersions(baseVersion,requiredBase)??-1)>=0));
-  const canInstall=Boolean(selected&&baseReady&&licenceReady&&compatible&&!isPrevious&&!alreadyInstalled&&
+  const canInstall=Boolean(selected&&baseReady&&compatible&&!isPrevious&&!alreadyInstalled&&
     !updateUnavailable&&!blockingBaseOperation&&!busy&&updateDiscoveryReady);
-  const canRepairAppliedUpdate=Boolean(appliedPublishedRelease&&appliedId&&appliedVersion&&baseReady&&licenceReady&&
+  const canRepairAppliedUpdate=Boolean(appliedPublishedRelease&&appliedId&&appliedVersion&&baseReady&&
     !updateUnavailable&&!blockingBaseOperation&&!busy&&updateDiscoveryReady);
 
   useEffect(()=>{
@@ -405,14 +404,12 @@ export default function OrbitFSUpdateReleaseSystem(){
       <div className="orbitV5UpdateFacts">
         <div><small>BASE VERSION</small><b>{baseVersion?"v"+baseVersion:"Not installed"}</b></div>
         <div><small>VERCEL PROJECT</small><b>{install?.vercel_project_name||"Not connected"}</b></div>
-        <div><small>LICENCE</small><b>{licenceReady?"Registered":"Registration required"}</b></div>
         <div><small>CURRENT UPDATE</small><b>{appliedVersion?"v"+appliedVersion:"None installed"}</b></div>
       </div>
       {hasBase&&!baseReady&&<p className="orbitV5UpdateHint">Your Base is not currently in a ready state. Review its control panel before updating.</p>}
-      {hasBase&&!licenceReady&&<p className="orbitV5UpdateHint">Register your installation licence in Base Deployment before proceeding.</p>}
       {!hasBase&&<Link className="buttonlink" href="/portal/orbitfs">Set up Base deployment →</Link>}
       <div className="orbitV5UpdateActions">
-        <button type="button" disabled={!baseReady||!licenceReady||updateUnavailable||blockingBaseOperation} onClick={()=>setStage(2)}>Continue to Update selection →</button>
+        <button type="button" disabled={!baseReady||updateUnavailable||blockingBaseOperation} onClick={()=>setStage(2)}>Continue to Update selection →</button>
       </div>
     </section>}
 
@@ -489,7 +486,6 @@ export default function OrbitFSUpdateReleaseSystem(){
         </div>
         <div className="orbitV5UpdateChecks"><p className="eyebrow">PRE-DEPLOYMENT CHECK</p>
           <div><span className={baseReady?"ok":"blocked"}>{baseReady?"✓":"!"}</span><p>{!hasBase?"Installed Base required":baseReady?"Installed Base ready":`Installed Base status is ${String(install?.state||"unknown")}; verify Base deployment is ready before updating`}{!baseReady&&install?.last_error?<small className="muted" style={{display:"block",marginTop:6}}>{String(install.last_error)}</small>:null}{hasBase&&!baseReady?<button type="button" className="secondary" style={{marginTop:8}} disabled={!!busy} onClick={()=>void verifyBaseDeployment()}>{busy==="verify-base"?"Verifying…":"Verify Base deployment"}</button>:null}</p></div>
-          <div><span className={licenceReady?"ok":"blocked"}>{licenceReady?"✓":"!"}</span><p>Installation licence {licenceReady?"registered":"required"}</p></div>
           <div><span className={compatible?"ok":"blocked"}>{compatible?"✓":"!"}</span><p>{requiredBase?"Requires Base v"+requiredBase: "No minimum Base version specified"}{!compatible?" · incompatible":""}</p></div>
           <div><span className={!updateUnavailable?"ok":"blocked"}>{!updateUnavailable?"✓":"!"}</span><p>{updateUnavailable?"Update execution currently disabled":"Update authority available"}</p></div>
           <div><span className={updateDiscoveryReady?"ok":"blocked"}>{updateDiscoveryReady?"✓":"!"}</span><p>{updateDiscoveryReady?"Published Update discovery available":`Update discovery failed: ${updateDiscoveryError}`}</p></div>
@@ -554,7 +550,7 @@ export default function OrbitFSUpdateReleaseSystem(){
         <p>Use this when the Shared Engine Host or an addon is deployed but unhealthy (for example, returning HTTP 500). It re-applies the same published, verified Update through the Base-owned inner updater and does not redeploy OrbitFS Base.</p>
         <button type="button" disabled={!canRepairAppliedUpdate} onClick={()=>void repairAppliedUpdate()}>{busy==="repair-update"?"Repairing Engine Update…":"Repair / reapply Update v"+appliedVersion}</button>
         {!appliedPublishedRelease&&<p className="orbitV5UpdateHint">The installed Update release is no longer published in this authorized channel, so it cannot be re-applied. Publish/restore an authorized Update release first.</p>}
-        {appliedPublishedRelease&&!canRepairAppliedUpdate&&<p className="orbitV5UpdateHint">Repair is blocked until Base, licence, Update authority and release discovery are ready.</p>}
+        {appliedPublishedRelease&&!canRepairAppliedUpdate&&<p className="orbitV5UpdateHint">Repair is blocked until Base, Update authority and release discovery are ready.</p>}
       </details>}
       {appliedVersion&&<details className="orbitV5UpdateRecovery"><summary>Rollback installed Update</summary>
         <p>Rollback requires License Manager authorization and may restore Panel and Engine checkpoints where available. Forward-compatible database migrations remain applied.</p>
