@@ -35,7 +35,7 @@ export default function BaseDeploymentAdmin(){
    const r=await fetch("/api/admin/orbitfs/release-handoff?action=history&type=base",{headers:await auth(),cache:"no-store"});
    const j=await r.json().catch(()=>({}));
    if(!r.ok)throw Error(j.error||"Could not load Base releases from License Manager");
-   const rows=Array.isArray(j.releases)?j.releases:[];
+   const rows=(Array.isArray(j.releases)?j.releases:[]).filter((x:Release)=>String(x.releaseType||"").trim().toLowerCase()==="base");
    setReleases(rows);
    setChannels(Array.isArray(j.channels)?j.channels:[]);
    setSelectedId(current=>rows.some((x:Release)=>x.id===current)?current:(rows.find((x:Release)=>x.status!=="published"&&!x.publishedAt)?.id||rows[0]?.id||""));
