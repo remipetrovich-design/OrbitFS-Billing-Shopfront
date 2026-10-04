@@ -491,7 +491,7 @@ export default function OrbitFSUpdateReleaseSystem(){
           <div><span className={compatible?"ok":"blocked"}>{compatible?"✓":"!"}</span><p>{requiredBase?"Requires Base v"+requiredBase: "No minimum Base version specified"}{!compatible?" · incompatible":""}</p></div>
           <div><span className={!updateUnavailable?"ok":"blocked"}>{!updateUnavailable?"✓":"!"}</span><p>{updateUnavailable?"Update execution currently disabled":"Update authority available"}</p></div>
           <div><span className={updateDiscoveryReady?"ok":"blocked"}>{updateDiscoveryReady?"✓":"!"}</span><p>{updateDiscoveryReady?"Published Update discovery available":`Update discovery failed: ${updateDiscoveryError}`}</p></div>
-          {selectedNeedsEngine&&<div><span className="ok">✓</span><p>Shared Engine Host will be auto-verified from the Inner Deployer deployment when this Update starts.</p></div>}
+          
           {blockingBaseOperation&&<p className="orbitV5UpdateHint">Finish the active Base operation before installing an Update.</p>}
           {busy&&<p className="orbitV5UpdateHint">Please wait for the current request to finish.</p>}
           {(alreadyInstalled||isPrevious)&&<p className="orbitV5UpdateHint">{alreadyInstalled?"This Update is already installed.":"This version is not newer than your recorded installed Update."}</p>}
