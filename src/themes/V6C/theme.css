@@ -439,3 +439,273 @@ html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-notif
 html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-account-menu{
   flex:0 0 34px!important;
 }
+
+
+/* --------------------------------------------------------------------------
+   12ui compact density pass — move V6C away from the old portal proportions.
+   -------------------------------------------------------------------------- */
+
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content{
+  max-width:1120px!important;
+  padding:22px 22px 64px!important;
+}
+
+/* Compact top navigation + My OrbitFS submenu */
+.v6c-orbitfs-nav{position:relative}
+.v6c-orbitfs-nav>summary{
+  list-style:none;
+  height:32px;
+  padding:0 9px;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  border-radius:6px;
+  cursor:pointer;
+  color:#b5c9da;
+  font-size:9px;
+  font-weight:700;
+  white-space:nowrap;
+}
+.v6c-orbitfs-nav>summary::-webkit-details-marker{display:none}
+.v6c-orbitfs-nav>summary span{font-size:7px;color:#6e8ea8}
+.v6c-orbitfs-nav[open]>summary,
+.v6c-orbitfs-nav.is-active>summary{
+  color:#fff;
+  background:linear-gradient(180deg,#152051,#4821a9);
+  box-shadow:0 0 14px rgba(94,46,210,.16);
+}
+.v6c-orbitfs-menu{
+  position:absolute;
+  top:38px;
+  left:0;
+  z-index:120;
+  width:178px;
+  padding:6px;
+  border:1px solid #173d59;
+  border-radius:7px;
+  background:#031522;
+  box-shadow:0 18px 44px rgba(0,0,0,.48);
+}
+.v6c-orbitfs-menu a{
+  display:flex!important;
+  align-items:center!important;
+  min-height:30px!important;
+  padding:0 8px!important;
+  border-radius:5px!important;
+  background:transparent!important;
+  color:#8faac0!important;
+  text-decoration:none!important;
+  font-size:8px!important;
+  font-weight:600!important;
+}
+.v6c-orbitfs-menu a:hover{background:#082238!important;color:#fff!important}
+
+/* Reduce the visual scale across every V6C route. */
+.v6c-context-hero{
+  min-height:160px!important;
+  margin-bottom:12px!important;
+  padding:22px 310px 20px 22px!important;
+  border-radius:8px!important;
+}
+.v6c-context-hero h1{
+  margin:9px 0 6px!important;
+  font-size:28px!important;
+  line-height:1.04!important;
+}
+.v6c-context-hero p{
+  max-width:520px!important;
+  font-size:9px!important;
+  line-height:1.5!important;
+}
+.v6c-context-badge{
+  height:21px!important;
+  padding:0 7px!important;
+  font-size:6px!important;
+}
+.v6c-context-art{
+  right:22px!important;
+  top:8px!important;
+  width:245px!important;
+  height:145px!important;
+  transform:scale(.9);
+  transform-origin:center;
+}
+
+/* Old portal components are visually flattened and tightened under V6C. */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(
+  .panel,.portalCompactPanel,.accountSettingsCard,.customerChannelCard,.storeBaseFeature,.storeAddonCard,
+  .storeCheckout,.portalStatCard,.portalOrbitfsHub,.portalActivityPanel,.portalQuickActions
+){
+  border-radius:7px!important;
+  box-shadow:none!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(
+  .panel,.portalCompactPanel,.accountSettingsCard,.customerChannelCard,.storeAddonCard,
+  .portalOrbitfsHub,.portalActivityPanel,.portalQuickActions
+){
+  padding:14px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(h1){font-size:27px!important}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(h2){font-size:16px!important}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(h3){font-size:12px!important}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(p,.muted){font-size:9px!important;line-height:1.5!important}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(button,.buttonlink,.ghostbtn){
+  min-height:29px!important;
+  padding:0 9px!important;
+  border-radius:5px!important;
+  font-size:7px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(input,select){
+  min-height:31px!important;
+  font-size:8px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content textarea{
+  font-size:8px!important;
+}
+
+/* Dashboard: more 12ui-like, less stacked legacy admin portal. */
+.v6c-route-dashboard .portalOverviewV2{gap:10px!important}
+.v6c-route-dashboard .portalOverviewStats{gap:8px!important}
+.v6c-route-dashboard .portalStatCard{
+  min-height:68px!important;
+  padding:10px 12px!important;
+  gap:9px!important;
+}
+.v6c-route-dashboard .portalStatIcon{
+  width:28px!important;
+  height:28px!important;
+  font-size:9px!important;
+}
+.v6c-route-dashboard .portalStatCard strong{font-size:15px!important}
+.v6c-route-dashboard .portalStatCard small{font-size:6px!important}
+.v6c-route-dashboard .portalStatCard span{font-size:7px!important}
+.v6c-route-dashboard .portalOrbitfsHub{padding:14px!important}
+.v6c-route-dashboard .portalOrbitfsHead{align-items:center!important}
+.v6c-route-dashboard .portalOrbitfsGrid{
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:7px!important;
+  margin-top:10px!important;
+}
+.v6c-route-dashboard .portalOrbitfsGrid>a{
+  min-height:88px!important;
+  padding:10px!important;
+  border-radius:6px!important;
+}
+.v6c-route-dashboard .portalOrbitfsStep{
+  width:24px!important;
+  height:24px!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:50%!important;
+  background:#073c37!important;
+  color:#67ddc8!important;
+  font-size:6px!important;
+}
+.v6c-route-dashboard .portalOrbitfsGrid b{margin-top:8px!important;font-size:9px!important}
+.v6c-route-dashboard .portalOrbitfsGrid span{margin-top:3px!important;font-size:6px!important;line-height:1.35!important}
+.v6c-route-dashboard .portalOverviewGrid{gap:9px!important}
+.v6c-route-dashboard .portalActivityPanel,
+.v6c-route-dashboard .portalQuickActions{padding:13px!important}
+.v6c-route-dashboard .portalActivityTabs button{min-height:25px!important;padding:0 8px!important;font-size:6px!important}
+.v6c-route-dashboard .listrow{min-height:34px!important;padding:6px 0!important}
+.v6c-route-dashboard .portalQuickActions>a{padding:8px 0!important}
+.v6c-route-dashboard .portalQuickActions>a b{font-size:9px!important}
+.v6c-route-dashboard .portalQuickActions>a span{font-size:6px!important}
+
+/* Store */
+.v6c-route-store .storePage{gap:10px!important}
+.v6c-route-store .storeBaseFeature{
+  padding:16px!important;
+  grid-template-columns:1fr 220px!important;
+  gap:18px!important;
+}
+.v6c-route-store .storeBaseCopy h2{font-size:20px!important}
+.v6c-route-store .storeBaseCopy p{font-size:8px!important}
+.v6c-route-store .storeBasePoints span{padding:4px 6px!important;font-size:6px!important}
+.v6c-route-store .storeBaseAction strong{font-size:20px!important}
+.v6c-route-store .storeAddonList{gap:8px!important}
+.v6c-route-store .storeAddonCard{padding:13px!important}
+.v6c-route-store .storeCheckout{padding:14px!important;gap:10px!important}
+
+/* Billing */
+.v6c-billing{grid-template-columns:150px minmax(0,1fr)!important;gap:16px!important}
+.v6c-billing-nav{padding:6px!important}
+.v6c-billing-nav a{height:31px!important;padding:0 8px!important;font-size:8px!important}
+.v6c-billing-hero{
+  min-height:150px!important;
+  grid-template-columns:minmax(0,1.2fr) minmax(250px,.8fr)!important;
+  gap:18px!important;
+  padding:10px 8px 16px!important;
+}
+.v6c-billing-hero h1{margin:7px 0 6px!important;font-size:27px!important}
+.v6c-billing-hero p{font-size:8px!important}
+.v6c-billing-art{height:140px!important;transform:scale(.86);transform-origin:center}
+.v6c-billing-metrics{gap:8px!important;margin-bottom:11px!important}
+.v6c-billing-metrics article{min-height:72px!important;padding:10px!important;gap:9px!important}
+.v6c-billing-metrics i{width:29px!important;height:29px!important;font-size:12px!important}
+.v6c-billing-metrics b{font-size:18px!important}
+.v6c-billing-row{min-height:44px!important;padding:0 10px!important;font-size:8px!important}
+.v6c-billing-row.head{min-height:27px!important;font-size:6px!important}
+
+/* Support */
+.v6c-route-support .supportPageV3{gap:9px!important}
+.v6c-route-support .recordTabs button{height:27px!important;padding:0 8px!important;font-size:7px!important}
+.v6c-route-support .supportCreate,
+.v6c-route-support .supportPageV3>.panel{padding:13px!important}
+.v6c-route-support .ticketCard{min-height:48px!important;padding:0 9px!important}
+.v6c-route-support .ticketCard b{font-size:8px!important}
+.v6c-route-support .ticketCard span{font-size:7px!important}
+
+/* Account */
+.v6c-route-settings .accountSettingsV2{gap:9px!important}
+.v6c-route-settings .accountSettingsNav{padding:5px!important}
+.v6c-route-settings .accountSettingsNav button{height:27px!important;padding:0 8px!important;font-size:7px!important}
+.v6c-route-settings .accountSettingsCard{padding:13px!important}
+.v6c-route-settings .form{gap:8px!important}
+.v6c-route-settings .two{gap:8px!important}
+.v6c-route-settings label{font-size:7px!important}
+.v6c-route-settings .walletActionBox{padding:11px!important}
+
+/* My OrbitFS landing */
+.v6c-route-orbit-home{padding-top:20px!important}
+.v6c-orbit-home{gap:10px!important}
+.v6c-orbit-landing-hero{
+  min-height:190px!important;
+  padding:28px 330px 26px 26px!important;
+}
+.v6c-orbit-landing-hero h1{font-size:30px!important}
+.v6c-orbit-landing-hero p{font-size:8px!important}
+.v6c-orbit-landing-art{right:34px!important;top:17px!important;transform:scale(.84);transform-origin:center}
+.v6c-orbit-primary-grid,.v6c-orbit-secondary-grid{gap:9px!important}
+.v6c-orbit-destination.primary{min-height:170px!important;padding:18px!important}
+.v6c-orbit-destination.compact{min-height:112px!important;padding:14px!important}
+.v6c-orbit-destination h2{font-size:17px!important}
+.v6c-orbit-destination.primary>b{left:18px!important;bottom:16px!important}
+.v6c-system-status{padding:15px!important}
+.v6c-status-grid{gap:6px!important;margin-top:10px!important}
+.v6c-status-card{min-height:90px!important;padding:10px!important}
+
+/* Base + Updates */
+.v6c-route-base .orbitV5Hero{min-height:145px!important;padding:16px 255px 16px 6px!important}
+.v6c-route-base .orbitV5Hero h1{font-size:26px!important}
+.v6c-route-base .orbitV5Lead{font-size:8px!important}
+.v6c-route-base .orbitV5FlowCards{gap:4px!important;margin-bottom:10px!important}
+.v6c-route-base .orbitV5FlowCard{min-height:46px!important;padding:6px!important}
+.v6c-route-base .orbitV5Connections{gap:9px!important}
+.v6c-route-base .orbitInstallerWorkspace{padding:13px!important}
+.v6c-route-updates .orbitV5UpdateHero{min-height:145px!important;padding:18px 270px 18px 18px!important}
+.v6c-route-updates .orbitV5UpdateHero h1{font-size:27px!important}
+.v6c-route-updates .orbitV5UpdateJourney{padding:9px!important}
+.v6c-route-updates .orbitV5UpdateSteps{gap:4px!important}
+.v6c-route-updates .orbitV5UpdateStep{min-height:46px!important;padding:6px!important}
+.v6c-route-updates .orbitV5UpdatePanel{padding:13px!important}
+.v6c-route-updates .orbitV5UpdateFacts{gap:5px!important}
+
+/* Licence + channels */
+.v6c-route-license .portalOverviewGrid{gap:9px!important}
+.v6c-route-license .panel{padding:13px!important}
+.v6c-route-channels .orbitfsChannelsPage{gap:9px!important}
+.v6c-route-channels .channelIntroPanel{padding:11px!important}
+.v6c-route-channels .customerChannelGrid{gap:8px!important}
+.v6c-route-channels .customerChannelCard{padding:12px!important}
+.v6c-route-channels .customerChannelCard h2{font-size:14px!important}
