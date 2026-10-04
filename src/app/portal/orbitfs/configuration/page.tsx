@@ -78,7 +78,7 @@ export default function OrbitFSConfigurationPage(){
         <label>Vercel Engine project ID<input value={projectId} onChange={e=>setProjectId(e.target.value)} placeholder="prj_..." /></label>
         <label>Vercel Engine project name<input value={projectName} onChange={e=>setProjectName(e.target.value)} placeholder="orbitfs-engine-..." /></label>
         <div className="orbitV5UpdateHeroActions">
-          <button type="button" disabled={busy||!hostUrl||!projectId} onClick={()=>void save()}>{busy?"Saving…":"Link Updater"}</button>
+          <button type="button" disabled={busy||!hostUrl||!projectId||!projectName} onClick={()=>void save()}>{busy?"Saving…":"Link Updater"}</button>
           {install?.metadata?.updaterConnection?.linked&&<button type="button" className="secondary" disabled={busy} onClick={()=>void unlink()}>Unlink</button>}
         </div>
       </>}
