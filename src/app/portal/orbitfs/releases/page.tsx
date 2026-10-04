@@ -370,7 +370,7 @@ export default function OrbitFSUpdateReleaseSystem(){
       <div className="orbitV5UpdateHeroActions">
         <button type="button" className="secondary" disabled={!!busy} onClick={()=>void load(true)}>Refresh releases</button>
         <button type="button" className="secondary" disabled={!appliedVersion} onClick={()=>{setRecoveryOpen(true);setStage(5)}}>Recovery</button>
-        <Link className="buttonlink secondary" href="/portal/orbitfs">Base control panel ↗</Link>
+        <Link className="buttonlink secondary" href="/portal/orbitfs/base">Base control panel ↗</Link>
       </div>
     </header>
 
@@ -409,7 +409,7 @@ export default function OrbitFSUpdateReleaseSystem(){
         <div><small>CURRENT UPDATE</small><b>{appliedVersion?"v"+appliedVersion:"None installed"}</b></div>
       </div>
       {hasBase&&!baseReady&&<p className="orbitV5UpdateHint">Your Base is not currently in a ready state. Review its control panel before updating.</p>}
-      {!hasBase&&<Link className="buttonlink" href="/portal/orbitfs">Set up Base deployment →</Link>}
+      {!hasBase&&<Link className="buttonlink" href="/portal/orbitfs/base">Set up Base deployment →</Link>}
       <div className="orbitV5UpdateActions">
         <button type="button" disabled={!baseReady||updateUnavailable||blockingBaseOperation} onClick={()=>setStage(2)}>Continue to Update selection →</button>
       </div>
@@ -568,7 +568,7 @@ export default function OrbitFSUpdateReleaseSystem(){
       </details>
       <div className="orbitV5UpdateActions">
         {appliedVersion&&<button type="button" className="secondary" onClick={()=>setRecoveryOpen(value=>!value)}>{recoveryOpen?"Close Recovery":"Open Recovery"}</button>}
-        <Link className="buttonlink secondary" href="/portal/orbitfs">Base control panel ↗</Link>
+        <Link className="buttonlink secondary" href="/portal/orbitfs/base">Base control panel ↗</Link>
         <button type="button" onClick={()=>{setRecoveryOpen(false);setSelectedId("");setConfirmed(false);setStage(2);void load(true)}}>Browse further Updates →</button>
       </div>
     </section>}
