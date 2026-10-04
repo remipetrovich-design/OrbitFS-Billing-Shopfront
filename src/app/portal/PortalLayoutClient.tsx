@@ -109,7 +109,8 @@ export default function PortalLayoutClient({children}:{children:React.ReactNode}
   path.startsWith("/portal/orbitfs/license")?"Licence":
   path.startsWith("/portal/orbitfs/channels")?"Release Channels":
   path.startsWith("/portal/orbitfs/releases")?"Updates":
-  path==="/portal/orbitfs"?"Base Deployment":
+  path.startsWith("/portal/orbitfs/base")?"Base Deployment":
+  path==="/portal/orbitfs"?"My OrbitFS":
   path.startsWith("/portal/invoices")?"Invoices":
   path.startsWith("/portal/orders")||path.startsWith("/portal/checkout")?"Orders":
   path.startsWith("/portal/products")?"Store":
@@ -138,6 +139,8 @@ export default function PortalLayoutClient({children}:{children:React.ReactNode}
     loggingOut={loggingOut}
     onLogout={()=>void logout()}
     tools={<NotificationCenter surface="portal"/>}
+    accountName={d.p?.display_name||d.p?.first_name||"OrbitFS Customer"}
+    accountEmail={d.user?.email||""}
   >{portalBody}</V6CDesignShell>:<>
 
   <header className="portalTopbar">
