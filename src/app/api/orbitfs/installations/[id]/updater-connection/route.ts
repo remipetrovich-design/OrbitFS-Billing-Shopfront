@@ -52,7 +52,16 @@ export async function GET(req:Request,{params}:{params:Promise<{id:string}>}){
     const deploymentResponse:any=await vercelApi(user.id,
       "/v6/deployments?projectId="+encodeURIComponent(String(project.id))+"&target=production&limit=20");
     const deployments=Array.isArray(deploymentResponse?.deployments)?deploymentResponse.deployments:[];
-    const verified=deployments.find((row:any)=>isInnerDeployerDeployment(row,installationId));
+    let verified:any=null;
+    for(const row of deployments.slice(0,10)){
+      if(isInnerDeployerDeployment(row,installationId)){verified=row;break}
+      const deploymentId=String(row?.uid||row?.id||"").trim();
+      if(!deploymentId)continue;
+      try{
+        const detail=await vercelApi(user.id,"/v13/deployments/"+encodeURIComponent(deploymentId));
+        if(isInnerDeployerDeployment(detail,installationId)){verified=detail;break}
+      }catch{}
+    }
     if(!verified){
       await clearUnverifiedConnection(install);
       return Response.json({eligible:false,reason:"INNER_DEPLOYER_PROVENANCE_REQUIRED",connection:null},{headers:{"cache-control":"no-store"}});
