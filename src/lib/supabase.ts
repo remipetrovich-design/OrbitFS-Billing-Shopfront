@@ -1,7 +1,9 @@
 import { createBrowserClient } from "@supabase/ssr";
 
-function readPublicEnv(name: "NEXT_PUBLIC_SUPABASE_URL" | "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") {
-  const raw = process.env[name] || "";
+const RAW_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const RAW_SUPABASE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "";
+
+function normalizePublicEnv(raw: string) {
   const trimmed = raw.trim();
   if (
     trimmed.length >= 2 &&
@@ -14,8 +16,8 @@ function readPublicEnv(name: "NEXT_PUBLIC_SUPABASE_URL" | "NEXT_PUBLIC_SUPABASE_
 }
 
 function getSupabaseConfig() {
-  const url = readPublicEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const publishableKey = readPublicEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
+  const url = normalizePublicEnv(RAW_SUPABASE_URL);
+  const publishableKey = normalizePublicEnv(RAW_SUPABASE_PUBLISHABLE_KEY);
 
   if (!url || !publishableKey) {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are required");
