@@ -138,7 +138,7 @@ export default function PortalLayoutClient({children}:{children:React.ReactNode}
     canAccessAdmin={Boolean(d.staff?.is_staff)}
     loggingOut={loggingOut}
     onLogout={()=>void logout()}
-    tools={<NotificationCenter surface="portal"/>}
+    tools={<NotificationCenter surface="portal" compact/>}
     accountName={d.p?.display_name||d.p?.first_name||"OrbitFS Customer"}
     accountEmail={d.user?.email||""}
   >{portalBody}</V6CDesignShell>:<>
