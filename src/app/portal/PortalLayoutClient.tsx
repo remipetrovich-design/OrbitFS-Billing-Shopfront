@@ -105,8 +105,6 @@ export default function PortalLayoutClient({children}:{children:React.ReactNode}
  const pageName=
   path.startsWith("/portal/orbitfs/license")?"Licence":
   path.startsWith("/portal/orbitfs/channels")?"Release Channels":
-  path.startsWith("/portal/orbitfs/configuration")?"Configuration":
-  path.startsWith("/portal/orbitfs/recovery")?"Recovery":
   path.startsWith("/portal/orbitfs/releases")?"Updates":
   path==="/portal/orbitfs"?"Base Deployment":
   path.startsWith("/portal/invoices")?"Invoices":
@@ -151,8 +149,6 @@ export default function PortalLayoutClient({children}:{children:React.ReactNode}
       <Link onClick={()=>closeDropdowns()} className={path.startsWith("/portal/orbitfs/license")?"active":""} href="/portal/orbitfs/license">Licence</Link>
       <Link onClick={()=>closeDropdowns()} className={path.startsWith("/portal/orbitfs/channels")?"active":""} href="/portal/orbitfs/channels">Release Channels</Link>
       <Link onClick={()=>closeDropdowns()} className={path.startsWith("/portal/orbitfs/releases")?"active":""} href="/portal/orbitfs/releases">Updates</Link>
-      <Link onClick={()=>closeDropdowns()} className={path.startsWith("/portal/orbitfs/configuration")?"active":""} href="/portal/orbitfs/configuration">Configuration</Link>
-      <Link onClick={()=>closeDropdowns()} className={path.startsWith("/portal/orbitfs/recovery")?"active":""} href="/portal/orbitfs/recovery">Recovery</Link>
      </div>
     </details>}
    </nav>
