@@ -24,7 +24,60 @@ export default function OrdersAndInvoices() {
     })();
   }, []);
 
+  const invoiceRows=invoices.map(i=>({...i,balance:Math.max(0,Number(i.total_cents||0)-Number(i.paid_cents||0))}));
+  const paidCount=invoiceRows.filter(i=>i.balance===0||String(i.status).toLowerCase()==="paid").length;
+  const outstandingCount=invoiceRows.filter(i=>i.balance>0).length;
+  const overdueCount=invoiceRows.filter(i=>i.balance>0&&i.due_at&&new Date(i.due_at).getTime()<Date.now()).length;
+  const selectedInvoice=invoiceRows[0]||null;
+
   return <main className="portalPage recordsPage">
+    <section className="v6c-billing">
+      <aside className="v6c-billing-nav">
+        <Link className="is-active" href="/portal/orders"><span>▣</span>Client Billing</Link>
+        <Link href="/portal/invoices"><span>▤</span>Invoices</Link>
+        <Link href="/portal/orders"><span>◴</span>Payment History</Link>
+        <Link href="/portal/settings"><span>▰</span>Subscriptions</Link>
+        <Link href="/portal/settings"><span>⚙</span>Settings</Link>
+      </aside>
+      <div className="v6c-billing-main">
+        <header className="v6c-billing-hero">
+          <div>
+            <span className="v6c-badge">◆ Client Billing</span>
+            <h1>Manage invoices, resolve payments, keep your billing running.</h1>
+            <p>View your invoices, track due dates and payment history, and keep every OrbitFS purchase in one place.</p>
+          </div>
+          <div className="v6c-billing-art" aria-hidden="true"><i/><b>＄</b><span/><em/></div>
+        </header>
+
+        <div className="v6c-billing-metrics">
+          <article><i>▤</i><div><small>Total Invoices</small><b>{invoices.length}</b><span>{invoices.length?"Billing records loaded":"No invoices yet"}</span></div></article>
+          <article><i>◷</i><div><small>Overdue</small><b>{overdueCount}</b><span>{overdueCount?"requires attention":"nothing overdue"}</span></div></article>
+          <article><i>＄</i><div><small>Outstanding</small><b>{outstandingCount}</b><span>{outstandingCount?"awaiting payment":"all clear"}</span></div></article>
+          <article><i>✓</i><div><small>Paid</small><b>{paidCount}</b><span>{paidCount?"settled invoices":"no paid invoices"}</span></div></article>
+        </div>
+
+        <section className="v6c-billing-table">
+          <div className="v6c-billing-tabs"><b>All Invoices</b><span>Overdue</span><span>Unpaid</span></div>
+          <div className="v6c-billing-filters"><span>⌕ Search invoice...</span><span>▣ Last 30 days⌄</span></div>
+          <div className="v6c-billing-row head"><span>INVOICE</span><span>ORDER</span><span>AMOUNT</span><span>DUE DATE</span><span>STATUS</span><span>ACTIONS</span></div>
+          {invoiceRows.map(i=><Link href={"/portal/invoices/"+i.id} className="v6c-billing-row" key={i.id}>
+            <div><b>{i.invoice_number}</b><small>{new Date(i.created_at).toLocaleDateString()}</small></div>
+            <span>{orders.find(o=>String(o.id)===String(i.order_id))?.order_number||"OrbitFS"}</span>
+            <b>{money(i.total_cents,i.currency||"AUD")}</b>
+            <span>{i.due_at?new Date(i.due_at).toLocaleDateString():"—"}</span>
+            <span className={"v6c-bill-status "+(i.balance===0?"paid":i.due_at&&new Date(i.due_at).getTime()<Date.now()?"overdue":"unpaid")}>{i.balance===0?"Paid":i.due_at&&new Date(i.due_at).getTime()<Date.now()?"Overdue":"Unpaid"}</span>
+            <strong>View ↗</strong>
+          </Link>)}
+          {!invoiceRows.length&&<div className="v6c-billing-empty">No invoices yet.</div>}
+        </section>
+
+        {selectedInvoice&&<section className="v6c-billing-detail">
+          <div><span className="v6c-bill-status "+(selectedInvoice.balance===0?"paid":"unpaid")>{selectedInvoice.balance===0?"Paid":"Open"}</span><h2>{selectedInvoice.invoice_number}</h2><small>{new Date(selectedInvoice.created_at).toLocaleDateString()}</small></div>
+          <dl><dt>Invoice total</dt><dd>{money(selectedInvoice.total_cents,selectedInvoice.currency||"AUD")}</dd><dt>Balance</dt><dd>{money(selectedInvoice.balance,selectedInvoice.currency||"AUD")}</dd></dl>
+          <Link href={"/portal/invoices/"+selectedInvoice.id}>View invoice →</Link>
+        </section>}
+      </div>
+    </section>
     <header className="portalTop recordsHeader">
       <div>
         <p className="eyebrow">PURCHASES & BILLING</p>
