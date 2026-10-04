@@ -869,8 +869,8 @@ export async function rollbackCustomerUpdate(install:any,reason:string){
   let engineResult:any=null,panelResult:any=null;
   try{
     if(wantsEngine){
-      if(!baseUrl)fail("Installed OrbitFS Base URL is unavailable for Engine rollback",409);
-      engineResult=await rollbackEngineUpdatePayload(install,pseudoRelease,channel,baseUrl,components.filter(component=>component!=="base"));
+      const previousEngineDeploymentId=String(applied?.enginePreviousDeploymentId||"").trim()||null;
+      engineResult=await rollbackEngineUpdatePayload(install,previousEngineDeploymentId);
     }
     if(wantsPanel){
       if(!install.vercel_project_id)fail("Customer Vercel project is unavailable for Panel rollback",409);
@@ -880,7 +880,18 @@ export async function rollbackCustomerUpdate(install:any,reason:string){
     }
     const completedAt=new Date().toISOString();
     const rolledBackUpdate={...applied,rolledBackAt:completedAt,rollbackReason,engineCheckpointId:engineResult?.checkpointId||null,restoredEngineVersion:engineResult?.restoredVersion||null,panelDeploymentId:panelResult?.vercel_deployment_id||null,databaseMigrations:"retained-forward-compatible"};
-    const metadata={...(install.metadata&&typeof install.metadata==="object"?install.metadata:{}),appliedUpdate:null,rolledBackUpdate};
+    const metadata={
+      ...(install.metadata&&typeof install.metadata==="object"?install.metadata:{}),
+      appliedUpdate:null,
+      rolledBackUpdate,
+      ...(engineResult?{updaterConnection:{
+        ...((install.metadata?.updaterConnection&&typeof install.metadata.updaterConnection==="object")?install.metadata.updaterConnection:{}),
+        linked:true,
+        engineDeploymentId:engineResult.deploymentId||null,
+        engineHostUrl:engineResult.hostUrl||install.metadata?.updaterConnection?.engineHostUrl||null,
+        updatedAt:completedAt
+      }}:{})
+    };
     const patch:any={metadata,last_deployment_at:completedAt,last_error:null,state:"ready"};
     if(panelResult){patch.vercel_deployment_id=panelResult.vercel_deployment_id;patch.deployment_url=panelResult.deployment_url||install.deployment_url;}
     const {data,error}=await licenseDb().from("orbitfs_installations").update(patch).eq("id",install.id).select().single();
@@ -1049,7 +1060,7 @@ export async function runCustomerDeployer(install:any,action:DeployAction,versio
         components,releaseComponents:bundleComponents,skippedComponents,componentVersions,
         componentPlan:deploymentAuthorization?.componentPlan||null,appliedAt,
         panelDeploymentId:panelResult?.deploymentId||null,panelPreviousDeploymentId:previousPanelDeploymentId,
-        engineDeploymentId:engineResult?.deploymentId||null,databaseMigrations:databaseResult,
+        engineDeploymentId:engineResult?.deploymentId||null,enginePreviousDeploymentId:engineResult?.previousDeploymentId||null,databaseMigrations:databaseResult,
         executor:"orbitfs-updater-v2"
       };
       const patch:any={
