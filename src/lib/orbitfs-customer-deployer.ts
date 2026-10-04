@@ -629,7 +629,7 @@ function updaterConnection(install:any){
   const engineProjectName=String(connection.engineProjectName||"").trim();
   const engineHostUrl=String(connection.engineHostUrl||"").trim().replace(/\/$/,"");
   const engineDeploymentId=String(connection.engineDeploymentId||"").trim()||null;
-  if(connection.linked!==true||!engineProjectId||!/^https:\/\//i.test(engineHostUrl)){
+  if(connection.linked!==true||!engineProjectId||!engineProjectName||!/^https:\/\//i.test(engineHostUrl)){
     fail("Updater is not linked to this installation. Link the Shared Engine Host from My OrbitFS configuration before applying Engine/addon updates.",409,"UPDATER_NOT_LINKED");
   }
   return {engineProjectId,engineProjectName,engineHostUrl,engineDeploymentId};
@@ -647,7 +647,7 @@ async function applyEngineUpdatePayload(install:any,release:any,bundle:UpdateBun
   const files=validateFiles(engine.files,"Engine update payload");
   const uploadedFiles=await uploadVercelDeploymentFiles(String(install.auth_user_id),files);
   const body:any={
-    name:connection.engineProjectName||undefined,
+    name:connection.engineProjectName,
     project:connection.engineProjectId,
     target:"production",
     files:uploadedFiles,
