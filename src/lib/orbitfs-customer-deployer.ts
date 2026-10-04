@@ -912,8 +912,6 @@ export async function rollbackCustomerUpdate(install:any,reason:string){
   const authorityLicenseId=String(bindingResult.data?.license_id||"").trim();
   if(!authorityLicenseId)fail("This installation is not linked to an authoritative Billing licence",409,"LICENSE_BINDING_REQUIRED");
   const wantsPanel=components.includes("base"),wantsEngine=components.some((component:string)=>component!=="base");
-  const baseUrl=String(install.production_url||install.deployment_url||"").trim();
-  const pseudoRelease={id:releaseId};
   await masterExecuteDeployment({action:"rollback",rollbackScope:"update",releaseId,installationId:install.installation_id,userRef:install.auth_user_id,licenseId:authorityLicenseId,channel,productVersion:String(install.release_version||""),previousVersion:releaseVersion,components});
   await event(install,"update.rollback.started","info",`Rolling back OrbitFS Update ${releaseVersion}`,{releaseId,components,reason:rollbackReason});
   let engineResult:any=null,panelResult:any=null;
@@ -923,13 +921,14 @@ export async function rollbackCustomerUpdate(install:any,reason:string){
       engineResult=await rollbackEngineUpdatePayload(install,previousEngineDeploymentId);
     }
     if(wantsPanel){
-      if(!install.vercel_project_id)fail("Customer Vercel project is unavailable for Panel rollback",409);
-      const previous=await previousDeployment(install);
-      await vercelApi(install.auth_user_id,`/v9/projects/${encodeURIComponent(String(install.vercel_project_id))}/rollback/${encodeURIComponent(previous.vercel_deployment_id)}`,{method:"POST",body:JSON.stringify({})});
-      panelResult=previous;
+      if(!install.vercel_project_id)fail("Customer Vercel project is unavailable for Base patch rollback",409);
+      const previousDeploymentId=String(applied?.basePreviousDeploymentId||"").trim();
+      if(!previousDeploymentId)fail("No previous Base deployment was recorded for this Update",409,"UPDATE_BASE_ROLLBACK_TARGET_MISSING");
+      await vercelApi(install.auth_user_id,`/v9/projects/${encodeURIComponent(String(install.vercel_project_id))}/rollback/${encodeURIComponent(previousDeploymentId)}`,{method:"POST",body:JSON.stringify({})});
+      panelResult={vercel_deployment_id:previousDeploymentId,deployment_url:install.deployment_url||null};
     }
     const completedAt=new Date().toISOString();
-    const rolledBackUpdate={...applied,rolledBackAt:completedAt,rollbackReason,engineCheckpointId:engineResult?.checkpointId||null,restoredEngineVersion:engineResult?.restoredVersion||null,panelDeploymentId:panelResult?.vercel_deployment_id||null,databaseMigrations:"retained-forward-compatible"};
+    const rolledBackUpdate={...applied,rolledBackAt:completedAt,rollbackReason,restoredEngineDeploymentId:engineResult?.deploymentId||null,restoredBaseDeploymentId:panelResult?.vercel_deployment_id||null,databaseMigrations:"retained-forward-compatible"};
     const metadata={
       ...(install.metadata&&typeof install.metadata==="object"?install.metadata:{}),
       appliedUpdate:null,
@@ -950,7 +949,7 @@ export async function rollbackCustomerUpdate(install:any,reason:string){
     if(history.error)throw history.error;
     const restoredEngineVersions=engineResult?.componentVersions&&typeof engineResult.componentVersions==="object"?engineResult.componentVersions:{};
     const restoredComponentState=Object.fromEntries(components.map((component:string)=>[component,{version:String(component==="base"?install.release_version:(restoredEngineVersions?.[component]||engineResult?.restoredVersion||"")),status:"installed"}]));
-    await masterExecuteDeployment({action:"rollback",rollbackScope:"update",phase:"completed",releaseId,installationId:install.installation_id,userRef:install.auth_user_id,licenseId:authorityLicenseId,channel,productVersion:String(install.release_version||""),previousVersion:releaseVersion,deploymentId:panelResult?.vercel_deployment_id||engineResult?.host?.deploymentId||null,deploymentUrl:panelResult?.deployment_url||engineResult?.host?.hostUrl||null,projectId:install.vercel_project_id,projectName:install.vercel_project_name,componentState:restoredComponentState,components:restoredComponentState});
+    await masterExecuteDeployment({action:"rollback",rollbackScope:"update",phase:"completed",releaseId,installationId:install.installation_id,userRef:install.auth_user_id,licenseId:authorityLicenseId,channel,productVersion:String(install.release_version||""),previousVersion:releaseVersion,deploymentId:panelResult?.vercel_deployment_id||engineResult?.deploymentId||null,deploymentUrl:panelResult?.deployment_url||engineResult?.hostUrl||null,projectId:install.vercel_project_id,projectName:install.vercel_project_name,componentState:restoredComponentState,components:restoredComponentState});
     await event(data,"update.rollback.completed","ok",`OrbitFS Update ${releaseVersion} rolled back`,{releaseId,components,reason:rollbackReason,engine:engineResult,panel:panelResult,databaseMigrations:"retained-forward-compatible"});
     return data;
   }catch(error){
