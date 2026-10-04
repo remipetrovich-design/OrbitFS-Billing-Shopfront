@@ -12,7 +12,7 @@ const MAX_FILES=5000,MAX_FILE_BYTES=25*1024*1024,MAX_TOTAL_BYTES=70*1024*1024;
 const SAFE_PATH=/^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))(?!.*(?:^|\/)(?:\.git|\.vercel|node_modules)(?:\/|$))[A-Za-z0-9._@+\-\/\[\]()=]+$/;
 type ReleaseFile={file:string;data:string;encoding?:string;sha256?:string;size?:number;component?:string};
 type Package={format?:string;schemaVersion?:number;version:string;releaseId?:string;sourceCommit?:string;components?:string[];projectSettings?:Record<string,unknown>;files:ReleaseFile[];[key:string]:any};
-type UpdateBundle={format:"orbitfs-update-bundle-v3";schemaVersion:number;version:string;sourceCommit?:string;components:string[];minimumBaseVersion?:string;minimumEngineDeployerProtocol?:number;checkpointRequired?:boolean;updateScope?:string;executor?:string;baseBaseline?:unknown;payloads:{engine:Package|null;panel?:Package|null};[key:string]:any};
+type UpdateBundle={format:"orbitfs-update-bundle-v3";schemaVersion:number;version:string;sourceCommit?:string;components:string[];minimumBaseVersion?:string;minimumUpdaterProtocol?:number;minimumEngineDeployerProtocol?:number;checkpointRequired?:boolean;updateScope?:string;executor?:string;baseBaseline?:unknown;payloads:{engine:Package|null;panel?:Package|null};[key:string]:any};
 type ParsedArtifact={root:Package|UpdateBundle;artifactSha256:string};
 const fail=(message:string,status=400,code="ORBITFS_DEPLOYMENT_FAILED",retryable=status>=500):never=>{throw Object.assign(new Error(message),{status,code,retryable})};
 const checksum=(buf:Buffer)=>createHash("sha256").update(buf).digest("hex");
