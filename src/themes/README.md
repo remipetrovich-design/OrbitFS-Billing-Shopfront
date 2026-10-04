@@ -13,8 +13,9 @@ That suffix is part of the theme contract. Admin theme IDs must end in `A`; cust
 - `V5A` — current Admin redesign, extending `V3A`
 - `V3C` — stable Customer baseline
 - `V5C` — current Customer redesign, extending `V3C`
+- `V6C` — Customer Portal starter theme, extending `V3C`; intentionally minimal until V6 customer design work is added
 
-V5 is an overlay family. It keeps the V3 baseline underneath it and only owns the surfaces intentionally redesigned for V5.
+V5 is an overlay family. It keeps the V3 baseline underneath it and only owns the surfaces intentionally redesigned for V5. V6C also inherits V3C, but starts with no visual overrides so it can be developed independently without changing the active customer portal.
 
 ## Runtime switching
 
@@ -23,7 +24,7 @@ The application always bundles the built-in baseline and its built-in overlays:
 - `src/themes/active/admin.css`
 - `src/themes/active/customer.css`
 
-The database setting chooses which theme ID is active for each surface. `ThemeRuntime` sets `data-orbitfs-theme` and built-in V5 CSS is scoped to that exact ID, so Admin and Customer themes can be switched independently without moving files around.
+The database setting chooses which theme ID is active for each surface. `ThemeRuntime` sets `data-orbitfs-theme` and built-in overlay CSS is scoped to that exact ID, so Admin and Customer themes can be switched independently without moving files around.
 
 The Admin Theme Manager at `/admin/settings/themes` is the production switch. It has separate Admin and Customer selectors and broadcasts a change to other open OrbitFS tabs.
 
@@ -39,12 +40,12 @@ Example child theme:
 
 ```json
 {
-  "id": "V5C",
-  "name": "OrbitFS V5 Customer",
-  "version": "5.0.0",
+  "id": "V6C",
+  "name": "OrbitFS V6 Customer",
+  "version": "6.0.0",
   "surface": "customer",
   "entry": "theme.css",
-  "family": "V5",
+  "family": "V6",
   "extends": "V3C"
 }
 ```
@@ -53,10 +54,10 @@ An `.orbit-theme.zip` must contain exactly one theme root whose folder name matc
 
 ## Commands
 
-- `npm run theme:pack -- V5C` — create an `.orbit-theme.zip`
+- `npm run theme:pack -- V6C` — create an `.orbit-theme.zip`
 - `npm run theme:install -- <package.zip>` — validate/install a filesystem theme
 - `npm run theme:install-apply -- <package.zip>` — install and change the local fallback
-- `npm run theme:apply -- V5C` — change the local fallback only
+- `npm run theme:apply -- V6C` — change the local fallback only
 - `npm run theme:sync` — rebuild built-in CSS bundles
 - `npm run theme:validate` — validate IDs, surfaces, inheritance and entry files
 
@@ -70,3 +71,12 @@ V5C currently owns the customer Base Deployer redesign in:
 - `src/themes/V5C/base-deployer.css`
 
 Do not move V5C Base Deployer styling back into shared V3C portal CSS.
+
+## V6C starter
+
+V6C is intentionally a clean customer-theme starting point:
+
+- `src/themes/V6C/manifest.json` defines it as a built-in Customer Portal theme.
+- `src/themes/V6C/theme.css` is the V6-only design entry point.
+- It extends `V3C`, so unfinished V6 work can rely on the stable customer baseline.
+- It is registered without changing `themes.active_customer`; creating or migrating V6C does not activate it.
