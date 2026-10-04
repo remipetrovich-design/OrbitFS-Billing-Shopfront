@@ -1,0 +1,10 @@
+{
+  "id": "V6C",
+  "name": "OrbitFS V6 Customer",
+  "version": "6.0.0",
+  "surface": "customer",
+  "entry": "theme.css",
+  "family": "V6",
+  "extends": "V3C",
+  "description": "OrbitFS V6 customer portal starter theme. Intentionally contains only the V6C theme foundation so new customer portal designs can be built without changing the active customer theme."
+}
