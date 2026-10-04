@@ -16,8 +16,8 @@ const primaryNav=[
 
 function navActive(label:string,path:string){
   if(label==="Dashboard")return path==="/portal";
-  if(label==="Store")return path.startsWith("/portal/products")||path.startsWith("/portal/basket");
-  if(label==="Billing")return path.startsWith("/portal/invoices")||path.startsWith("/portal/orders")||path.startsWith("/portal/checkout");
+  if(label==="Store")return path.startsWith("/portal/products")||path.startsWith("/portal/basket")||path.startsWith("/portal/checkout");
+  if(label==="Billing")return path.startsWith("/portal/invoices")||path.startsWith("/portal/orders");
   if(label==="Support Centre")return path.startsWith("/portal/support");
   if(label==="My OrbitFS")return path.startsWith("/portal/orbitfs");
   if(label==="Account Settings")return path.startsWith("/portal/settings");
