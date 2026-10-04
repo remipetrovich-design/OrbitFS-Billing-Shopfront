@@ -600,8 +600,10 @@ async function deployPanelUpdatePayload(install:any,release:any,bundle:UpdateBun
     const comparison=compareOrbitReleaseVersions(installedBase,minimumBase);
     if(comparison===null||comparison<0)fail(`Panel update ${release.version} requires Base ${minimumBase} or newer; this installation is Base ${installedBase}.`,409);
   }
-  const files=validateFiles(panel.files,"Panel update payload");
-  const uploadedFiles=await uploadVercelDeploymentFiles(String(install.auth_user_id),files);
+  const files=validateFiles(panel.files,"Base update payload");
+  validateDeployableBaseFiles(files);
+  const deploymentFiles=baseVercelDeploymentFiles(files);
+  const uploadedFiles=await uploadVercelDeploymentFiles(String(install.auth_user_id),deploymentFiles);
   await configureVercelUpdateIdentity(install,{version:String(release.version),releaseId:String(release.id),sha256:artifactSha256,sourceCommit:bundle.sourceCommit||expectedSource(release),channel,components:bundle.components});
   const body:any={
     name:install.vercel_project_name||`orbitfs-${String(install.installation_id||"").slice(-8)}`.toLowerCase(),
@@ -618,7 +620,7 @@ async function deployPanelUpdatePayload(install:any,release:any,bundle:UpdateBun
   const state=String(ready?.readyState||ready?.state||"");
   if(state!=="READY")fail("Panel update deployment did not become ready within the deployment window",504);
   const deploymentUrl=ready?.url?`https://${String(ready.url).replace(/^https?:\/\//,"")}`:install.deployment_url;
-  return {deploymentId,deploymentUrl,fileCount:files.length};
+  return {deploymentId,deploymentUrl,fileCount:deploymentFiles.length,artifactFileCount:files.length};
 }
 async function engineUpdateRequest(baseUrl:string,install:any,release:any,channel:string,mode:"plan"|"apply"|"refresh"|"rollback",components:string[]=[]){
   const [secret,vercel]=await Promise.all([
