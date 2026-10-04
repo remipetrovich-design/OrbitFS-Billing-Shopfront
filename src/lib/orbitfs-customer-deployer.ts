@@ -622,77 +622,70 @@ async function deployPanelUpdatePayload(install:any,release:any,bundle:UpdateBun
   const deploymentUrl=ready?.url?`https://${String(ready.url).replace(/^https?:\/\//,"")}`:install.deployment_url;
   return {deploymentId,deploymentUrl,fileCount:deploymentFiles.length,artifactFileCount:files.length};
 }
-async function engineUpdateRequest(baseUrl:string,install:any,release:any,channel:string,mode:"plan"|"apply"|"refresh"|"rollback",components:string[]=[]){
-  const [secret,vercel]=await Promise.all([
-    customerInstallationDbSecret(String(install.id)),
-    customerVercelCredentials(String(install.auth_user_id))
-  ]);
-  const response=await fetch(`${baseUrl.replace(/\/$/,"")}/api/store/update-engine`,{
-    method:"POST",
-    headers:{"content-type":"application/json","x-orbitfs-db-secret":secret,"x-orbitfs-installation-id":String(install.installation_id||"")},
-    body:JSON.stringify({mode,releaseId:String(release.id),releaseChannel:channel,components,vercelToken:String(vercel?.token||""),teamId:String(vercel?.teamId||install.vercel_team_id||"")}),
-    cache:"no-store",
-    signal:AbortSignal.timeout(mode==='plan'||mode==='refresh'?30000:180000)
-  });
-  const body:any=await response.json().catch(()=>({}));
-  if(!response.ok&&response.status!==202)fail(errorMessage(body?.error??body?.message??body?.detail??body,`Installed Base Engine updater returned ${response.status}`),response.status<500?response.status:502);
-  return {status:response.status,body};
+function updaterConnection(install:any){
+  const metadata=install?.metadata&&typeof install.metadata==="object"?install.metadata:{};
+  const connection=metadata.updaterConnection&&typeof metadata.updaterConnection==="object"?metadata.updaterConnection:{};
+  const engineProjectId=String(connection.engineProjectId||"").trim();
+  const engineProjectName=String(connection.engineProjectName||"").trim();
+  const engineHostUrl=String(connection.engineHostUrl||"").trim().replace(/\/$/,"");
+  const engineDeploymentId=String(connection.engineDeploymentId||"").trim()||null;
+  if(connection.linked!==true||!engineProjectId||!/^https:\/\//i.test(engineHostUrl)){
+    fail("Updater is not linked to this installation. Link the Shared Engine Host from My OrbitFS configuration before applying Engine/addon updates.",409,"UPDATER_NOT_LINKED");
+  }
+  return {engineProjectId,engineProjectName,engineHostUrl,engineDeploymentId};
 }
 async function sharedEngineHostHealthy(hostUrl:string){
   const url=String(hostUrl||"").trim();
   if(!/^https?:\/\//i.test(url))return false;
   try{
     const response=await fetch(url,{method:"GET",cache:"no-store",redirect:"follow",signal:AbortSignal.timeout(15000)});
-    // Authentication/client errors still prove the deployment is serving requests.
-    // A 5xx response means the freshly provisioned Shared Engine is not usable yet.
     return response.status<500;
   }catch{return false}
 }
-async function applyEngineUpdatePayload(install:any,release:any,channel:string,baseUrl:string,components:string[]){
-  const waitUntilSettled=async(initial:{status:number;body:any})=>{
-    let current=initial;
-    const deadline=Date.now()+120000;
-    while((current.status===202||current.body?.waiting===true)&&Date.now()<deadline){
-      await new Promise(resolve=>setTimeout(resolve,10000));
-      current=await engineUpdateRequest(baseUrl,install,release,channel,"refresh",components);
+async function applyEngineUpdatePayload(install:any,release:any,bundle:UpdateBundle,engine:Package,channel:string,components:string[]){
+  const connection=updaterConnection(install);
+  const files=validateFiles(engine.files,"Engine update payload");
+  const uploadedFiles=await uploadVercelDeploymentFiles(String(install.auth_user_id),files);
+  const body:any={
+    name:connection.engineProjectName||undefined,
+    project:connection.engineProjectId,
+    target:"production",
+    files:uploadedFiles,
+    projectSettings:{framework:"sveltekit",installCommand:"npm ci",buildCommand:"npm run build",...(engine.projectSettings||{})},
+    meta:{
+      orbitfsReleaseId:String(release.id),
+      orbitfsVersion:String(release.version),
+      orbitfsAction:"update",
+      orbitfsChannel:channel,
+      orbitfsSourceCommit:String(bundle.sourceCommit||expectedSource(release)),
+      orbitfsInstallationRoute:"billing_store_updater",
+      orbitfsUpdateTargets:components.join(",")
     }
-    if(current.status===202||current.body?.waiting===true)fail("Engine Host update did not become ready within the deployment window",504);
-    return current;
   };
-
-  let result=await waitUntilSettled(await engineUpdateRequest(baseUrl,install,release,channel,"apply",components));
-  let hostUrl=String(result.body?.host?.hostUrl||"").trim();
-
-  // A normal addon install must leave the shared host usable. Some first-time
-  // provisions can return a host record before the deployment/runtime linkage
-  // has settled; previously Billing recorded the addon as installed and left
-  // the customer to run Repair manually. Treat that as an incomplete install
-  // and let the inner deployer immediately reconcile it once.
-  if(!hostUrl||!await sharedEngineHostHealthy(hostUrl)){
-    await event(install,"update.engine.bootstrap_retry","warning","Fresh Shared Engine Host was not healthy; retrying the Base-owned inner deployer automatically",{releaseId:release.id,releaseVersion:release.version,hostUrl:hostUrl||null,components});
-    result=await waitUntilSettled(await engineUpdateRequest(baseUrl,install,release,channel,"apply",components));
-    hostUrl=String(result.body?.host?.hostUrl||"").trim();
-    if(!hostUrl||!await sharedEngineHostHealthy(hostUrl)){
-      fail("Shared Engine Host was provisioned but remained unhealthy after the automatic bootstrap retry",502,"ENGINE_HOST_UNHEALTHY",true);
-    }
-  }
-
-  const databaseMigrations=Array.isArray(result.body?.databaseMigrations)?result.body.databaseMigrations:[];
-  const updatePlan=result.body?.updatePlan||null;
-  return {deploymentId:String(result.body?.host?.deploymentId||""),hostUrl,state:String(result.body?.host?.state||"ready"),databaseMigrations,updatePlan};
+  const created=await vercelApi(String(install.auth_user_id),"/v13/deployments",{method:"POST",body:JSON.stringify(body)});
+  if(!created?.id&&!created?.uid)fail("Vercel did not return an Engine Host update deployment id",502);
+  const deploymentId=String(created.id||created.uid);
+  const ready=await waitForReady(String(install.auth_user_id),deploymentId);
+  const state=String(ready?.readyState||ready?.state||"").toUpperCase();
+  if(state!=="READY")fail("Engine Host update deployment did not become ready within the deployment window",504);
+  const deploymentUrl=ready?.url?`https://${String(ready.url).replace(/^https?:\/\//,"")}`:connection.engineHostUrl;
+  const hostUrl=connection.engineHostUrl||deploymentUrl;
+  if(!hostUrl||!await sharedEngineHostHealthy(hostUrl))fail("Updated Shared Engine Host is not healthy",502,"ENGINE_HOST_UNHEALTHY",true);
+  return {
+    deploymentId,
+    deploymentUrl,
+    hostUrl,
+    state:"ready",
+    previousDeploymentId:connection.engineDeploymentId,
+    componentVersions:engine.componentVersions||{},
+    updatePlan:{executor:"orbitfs-updater-v2",components,projectId:connection.engineProjectId}
+  };
 }
-async function rollbackEngineUpdatePayload(install:any,release:any,channel:string,baseUrl:string,components:string[]=[]){
-  let result=await engineUpdateRequest(baseUrl,install,release,channel,"rollback",components);
-  const checkpointId=String(result.body?.checkpointId||"")||null;
-  const restoredVersion=String(result.body?.restoredVersion||"")||null;
-  const componentVersions=result.body?.componentVersions&&typeof result.body.componentVersions==="object"?result.body.componentVersions:{};
-  const deadline=Date.now()+120000;
-  while((result.status===202||result.body?.waiting===true)&&Date.now()<deadline){
-    await new Promise(resolve=>setTimeout(resolve,10000));
-    result=await engineUpdateRequest(baseUrl,install,release,channel,"refresh",components);
-  }
-  if(result.status===202||result.body?.waiting===true)fail("Engine Host rollback did not become ready within the deployment window",504);
-  return {...(result.body||{}),checkpointId,restoredVersion:restoredVersion||String(result.body?.host?.releaseVersion||""),componentVersions};
+async function rollbackEngineUpdatePayload(install:any,previousDeploymentId:string|null){
+  const connection=updaterConnection(install);
+  if(!previousDeploymentId)fail("No previous Engine Host deployment is recorded for rollback",409,"ENGINE_ROLLBACK_TARGET_MISSING");
+  await vercelApi(String(install.auth_user_id),`/v9/projects/${encodeURIComponent(connection.engineProjectId)}/rollback/${encodeURIComponent(previousDeploymentId)}`,{method:"POST",body:JSON.stringify({})});
+  return {deploymentId:previousDeploymentId,hostUrl:connection.engineHostUrl,state:"ready"};
 }
 async function previousDeployment(install:any):Promise<{vercel_deployment_id:string;deployment_url:string|null;release_version:string;release_id:string;created_at:string}>{const {data,error}=await licenseDb().from("orbitfs_installation_releases").select("vercel_deployment_id,deployment_url,release_version,release_id,created_at,action").eq("installation_id",install.id).eq("status","ready").neq("action","update").not("vercel_deployment_id","is",null).order("created_at",{ascending:false}).limit(5);if(error)throw error;const previous=(data||[]).find((r:any)=>String(r.release_id||"")!==String(install.release_id||""));if(!previous)throw Object.assign(new Error("No previous successful Base deployment is available for rollback"),{status:409});if(!previous.vercel_deployment_id||!previous.release_id||!previous.release_version)throw Object.assign(new Error("Previous Base deployment record is incomplete and cannot be rolled back"),{status:409});return {vercel_deployment_id:String(previous.vercel_deployment_id),deployment_url:previous.deployment_url?String(previous.deployment_url):null,release_version:String(previous.release_version),release_id:String(previous.release_id),created_at:String(previous.created_at||"")}}
 
