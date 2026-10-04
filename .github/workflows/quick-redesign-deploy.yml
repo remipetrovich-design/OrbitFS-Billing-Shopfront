@@ -24,6 +24,11 @@ jobs:
       VERCEL_ORG_ID: team_W3fS0X03YCjNkD2BoqRj6Uld
       VERCEL_PROJECT_ID: prj_3ARdg4cRikU2OiMeZjZDvQ3JuEZd
       VERCEL_CLI_VERSION: 59.6.2
+      # Local prebuilt Vercel builds cannot recover sensitive project env values:
+      # `vercel pull` writes "[SENSITIVE]" for them. Supply the public Supabase
+      # build inputs from the GitHub production environment instead.
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
 
     steps:
       - name: Check active GitHub profile
@@ -150,6 +155,20 @@ jobs:
       - name: Pull production configuration without deploying
         if: ${{ steps.profile.outputs.deploy == 'true' && (steps.existing.outputs.reuse != 'true') }}
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID"
+
+      - name: Verify local production build environment
+        if: ${{ steps.profile.outputs.deploy == 'true' && (steps.existing.outputs.reuse != 'true') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const url=String(process.env.NEXT_PUBLIC_SUPABASE_URL||'').trim();
+          const key=String(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'').trim();
+          if(!url||url==='[SENSITIVE]') throw new Error('NEXT_PUBLIC_SUPABASE_URL is not configured in the GitHub production environment');
+          if(!key||key==='[SENSITIVE]') throw new Error('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is not configured in the GitHub production environment');
+          const parsed=new URL(url);
+          if(!['http:','https:'].includes(parsed.protocol)) throw new Error('NEXT_PUBLIC_SUPABASE_URL must use HTTP or HTTPS');
+          NODE
 
       - name: Verify pulled production project identity
         if: ${{ steps.profile.outputs.deploy == 'true' && (steps.existing.outputs.reuse != 'true') }}
