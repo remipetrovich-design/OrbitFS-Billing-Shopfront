@@ -1,6 +1,6 @@
 "use client";
 
-type Props={path:string};
+type Props={path:string;canAccessAdmin?:boolean};
 
 const primaryNav=[
   ["Dashboard","/portal"],
@@ -21,14 +21,14 @@ function navActive(label:string,path:string){
   return false;
 }
 
-function Frame({path,children}:{path:string;children:React.ReactNode}){
+function Frame({path,children,canAccessAdmin=false}:{path:string;children:React.ReactNode;canAccessAdmin?:boolean}){
   return <div className="v6c-screen">
     <aside className="v6c-side">
       <div className="v6c-logo">OrbitFS</div>
       <nav>
         {primaryNav.map(([label,href])=><a key={href} href={href} className={"v6c-nav-item "+(navActive(label,path)?"is-active":"")}>{label}<span>⌄</span></a>)}
       </nav>
-      <div className="v6c-online"><i/>System Online<span>⌄</span></div>
+      <div className="v6c-side-bottom">{canAccessAdmin&&<a className="v6c-admin-button" href="/admin"><span>Admin Portal</span><b>↗</b></a>}<div className="v6c-online"><i/>System Online<span>⌄</span></div></div>
     </aside>
     <div className="v6c-main">
       <header className="v6c-top">
@@ -318,7 +318,7 @@ function Placeholder({path,title,section}:{path:string;title:string;section:stri
   return <Frame path={path}><section className="v6c-title"><span>● {section.toUpperCase()}</span><h1>{title}</h1><p>V6C desktop surface ready for the next design pass.</p></section><section className="v6c-card v6c-empty"><div/></section></Frame>;
 }
 
-export default function V6CDesignShell({path}:Props){
+export default function V6CDesignShell({path,canAccessAdmin=false}:Props){
   if(path==="/portal")return <Dashboard path={path}/>;
   if(/^\/portal\/products\/[^/]+$/.test(path))return <ProductDetail path={path}/>;
   if(path.startsWith("/portal/basket")||path.startsWith("/portal/checkout"))return <CheckoutFlow path={path}/>;
