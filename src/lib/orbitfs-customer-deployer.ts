@@ -9,6 +9,7 @@ import {reportDevPanelReleaseEvent} from "@/lib/dev-panel-events";
 import {errorMessage} from "@/lib/error-message";
 
 const MAX_FILES=5000,MAX_FILE_BYTES=25*1024*1024,MAX_TOTAL_BYTES=70*1024*1024;
+const ORBITFS_UPDATER_PROTOCOL=2;
 const SAFE_PATH=/^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))(?!.*(?:^|\/)(?:\.git|\.vercel|node_modules)(?:\/|$))[A-Za-z0-9._@+\-\/\[\]()=]+$/;
 type ReleaseFile={file:string;data:string;encoding?:string;sha256?:string;size?:number;component?:string};
 type Package={format?:string;schemaVersion?:number;version:string;releaseId?:string;sourceCommit?:string;components?:string[];projectSettings?:Record<string,unknown>;files:ReleaseFile[];[key:string]:any};
@@ -986,6 +987,11 @@ export async function runCustomerDeployer(install:any,action:DeployAction,versio
     if(!updaterScope)fail("Update Bundle scope does not match its deployed-system targets",422,"UPDATE_SCOPE_INVALID");
     const legacyExecutor=bundle.executor==="orbitfs-base-inner-deployer-v1";
     if(bundle.executor!=="orbitfs-updater-v2"&&!legacyExecutor)fail("Update Bundle is not assigned to the OrbitFS Updater",422,"UPDATE_EXECUTOR_INVALID");
+    if(!legacyExecutor){
+      const requiredUpdaterProtocol=Number(bundle.minimumUpdaterProtocol||0);
+      if(!Number.isInteger(requiredUpdaterProtocol)||requiredUpdaterProtocol<1)fail("Update Bundle is missing a valid minimum Updater protocol",422,"UPDATE_UPDATER_PROTOCOL_INVALID");
+      if(requiredUpdaterProtocol>ORBITFS_UPDATER_PROTOCOL)fail(`Update ${release.version} requires Updater protocol ${requiredUpdaterProtocol}, but this Updater provides protocol ${ORBITFS_UPDATER_PROTOCOL}.`,409,"UPDATE_UPDATER_PROTOCOL_UNSUPPORTED");
+    }
     if(bundle.baseBaseline!==undefined&&bundle.baseBaseline!==null)fail("Update Bundle contains unsupported Base baseline data",422,"UPDATE_SCOPE_INVALID");
 
     const releaseComponents=(Array.isArray(release?.manifest?.components)?release.manifest.components:[]).map(normalizeComponent).filter(Boolean).sort();
