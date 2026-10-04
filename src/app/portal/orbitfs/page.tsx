@@ -8,6 +8,8 @@ import {trackCustomerActivity} from "@/lib/customer-activity";
 import {errorMessage} from "@/lib/error-message";
 
 const hasBase=(b:any)=>b?.license_product_key==="orbitfs_base"||!!b?.components?.orbitfs_base||!!b?.components?.orbitfs_panel;
+const usableLicence=(b:any)=>!["revoked","expired","suspended"].includes(String(b?.authoritative_status||b?.status||"").toLowerCase());
+const pluginLabel=(b:any)=>String(b?.label||b?.license_product_key||"OrbitFS plugin").replaceAll("_"," ");
 const label=(state:any)=>String(state||"waiting").replaceAll("_"," ");
 const sectionGap={display:"grid",gap:12} as const;
 const summaryStyle={cursor:"pointer"} as const;
@@ -61,7 +63,7 @@ export default function MyOrbitFS(){
     });
   },[]);
 
-  const bases=(d?.bindings||[]).filter(hasBase),binding=bases.find((candidate:any)=>(d?.installations||[]).some((x:any)=>String(x.license_binding_id)===String(candidate.id)))||bases[0],install=(d?.installations||[]).find((x:any)=>String(x.license_binding_id)===String(binding?.id)),supabase=(d?.connections||[]).find((x:any)=>x.provider==="supabase"&&x.status==="connected"),vercelConnection=(d?.connections||[]).find((x:any)=>x.provider==="vercel"&&x.status==="connected"),vercelApiReady=vercelConnection?.metadata?.api_ready===true,vercelTeams=Array.isArray(vercelConnection?.metadata?.teams)?vercelConnection.metadata.teams:[],settings=d?.settings||{},history=(d?.releases||[]).filter((x:any)=>x.installation_id===install?.id),events=(d?.events||[]).filter((x:any)=>x.installation_id===install?.id);
+  const eligibleBindings=(d?.bindings||[]).filter(usableLicence),bases=eligibleBindings.filter(hasBase),existingInstallation=(d?.installations||[]).find((x:any)=>eligibleBindings.some((candidate:any)=>String(candidate.id)===String(x.license_binding_id))),binding=(existingInstallation?eligibleBindings.find((candidate:any)=>String(candidate.id)===String(existingInstallation.license_binding_id)):null)||bases[0]||eligibleBindings[0],install=(d?.installations||[]).find((x:any)=>String(x.license_binding_id)===String(binding?.id)),licensedPlugins=eligibleBindings.filter((candidate:any)=>!hasBase(candidate)),supabase=(d?.connections||[]).find((x:any)=>x.provider==="supabase"&&x.status==="connected"),vercelConnection=(d?.connections||[]).find((x:any)=>x.provider==="vercel"&&x.status==="connected"),vercelApiReady=vercelConnection?.metadata?.api_ready===true,vercelTeams=Array.isArray(vercelConnection?.metadata?.teams)?vercelConnection.metadata.teams:[],settings=d?.settings||{},history=(d?.releases||[]).filter((x:any)=>x.installation_id===install?.id),events=(d?.events||[]).filter((x:any)=>x.installation_id===install?.id);
   const baseHistory=history.filter((x:any)=>x.action!=="update"&&x.status==="ready").sort((a:any,b:any)=>new Date(b.ready_at||b.created_at||0).getTime()-new Date(a.ready_at||a.created_at||0).getTime());
   const distinctBaseHistory=baseHistory.filter((row:any,index:number,rows:any[])=>rows.findIndex((candidate:any)=>String(candidate.release_id||"")===String(row.release_id||""))===index);
   const visibleBaseHistory=distinctBaseHistory.slice(0,2),olderBaseHistory=distinctBaseHistory.slice(2),previousBaseDeployment=visibleBaseHistory.find((x:any)=>String(x.release_id||"")!==String(install?.release_id||""))||null;
@@ -355,10 +357,10 @@ export default function MyOrbitFS(){
   const journey=[
     {id:1,title:"Connections",text:"Connect Supabase and Vercel.",done:connectionsReady},
     {id:2,title:"Database",text:"Choose the Supabase project.",done:supabaseReady},
-    {id:3,title:"Channel / Release",text:"Choose the channel and published Base release.",done:releaseReady},
-    {id:4,title:"Configuration",text:"Initialize the Base schema. Licence activation happens after deployment inside the Base first-time installer.",done:configurationReady},
-    {id:5,title:"Live Progress",text:"Deploy and follow the actual installation progress.",done:panelReady},
-    {id:6,title:"Finished",text:"Manage the installed Base in the control panel.",done:panelReady}
+    {id:3,title:"Inner deployment",text:"Choose the approved runtime release used to create your OrbitFS environment.",done:releaseReady},
+    {id:4,title:"Shared Engine",text:"Initialize the shared runtime and customer database before any plugin is installed.",done:configurationReady},
+    {id:5,title:"Live Progress",text:"Deploy the Inner environment and Shared Engine, then follow the actual installation progress.",done:panelReady},
+    {id:6,title:"Plugins",text:"Open the Inner deployment and install only plugins covered by an active licence.",done:panelReady}
   ];
   const journeyCurrent=pendingBaseForceReinstall?4:journey.find(x=>!x.done)?.id||5;
   const activeSiteStep=siteStep??journeyCurrent;
@@ -368,21 +370,21 @@ export default function MyOrbitFS(){
     if(n>=1&&n<=5)setSiteStep(n);
   }
 
-  return <main className={"portalOverviewV2 orbitfsBaseV3 orbitZipDeployer "+websiteState+" "+(panelReady?"orbitZipDeployed":"orbitZipInstalling")} aria-label="OrbitFS Base Deployer">
+  return <main className={"portalOverviewV2 orbitfsBaseV3 orbitZipDeployer "+websiteState+" "+(panelReady?"orbitZipDeployed":"orbitZipInstalling")} aria-label="OrbitFS Inner Deployer">
     {!panelReady&&<header className="orbitV5Hero">
       <div><p className="eyebrow">DEPLOYMENT CENTER</p>
-        <h1>{deploymentNeedsAttention?"Deployment needs attention":activeOperation?"Deployment progress":activeSiteStep===5?"Review deployment":"Base System Deployer"}</h1>
-        <p className="orbitV5Lead">{deploymentNeedsAttention?"A deployment step needs attention. Review the recorded error and continue from the relevant stage.":activeOperation?"Your Base operation is running. Progress and recent activity below use your actual deployment records.":activeSiteStep===5?"Confirm the selected release and customer infrastructure before deploying.":"Deploy and manage your own OrbitFS Base instance with a guided setup."}</p>
-        <p className="orbitV5Note">Follow each step, review the exact published Base release, monitor progress and manage your installation in one place.</p>
+        <h1>{deploymentNeedsAttention?"Deployment needs attention":activeOperation?"Deployment progress":activeSiteStep===5?"Review deployment":"Inner Deployment"}</h1>
+        <p className="orbitV5Lead">{deploymentNeedsAttention?"A deployment step needs attention. Review the recorded error and continue from the relevant stage.":activeOperation?"Your Inner deployment is running. Progress and recent activity below use your actual deployment records.":activeSiteStep===5?"Confirm the selected runtime release and customer infrastructure before deploying.":"Create your OrbitFS Inner environment first, bring up the Shared Engine, then install only the plugins your account is licensed to use."}</p>
+        <p className="orbitV5Note">Required order: Inner Deploy → Shared Engine → licensed plugin. At least one active OrbitFS licence is required to begin.</p>
       </div>
       <div className="orbitV5HeroState"><span className={"state "+(deploymentNeedsAttention?"waiting":activeOperation?"current":binding?"ready":"waiting")}>{deploymentNeedsAttention?"ATTENTION":activeOperation?"IN PROGRESS":binding?"ENTITLEMENT ATTACHED":"LICENCE REQUIRED"}</span>{install?.installation_id&&<small>Installation {String(install.installation_id).slice(0,13)}…</small>}</div>
     </header>}
     {!panelReady&&!install&&binding&&<section className="orbitV5Start">
       <span className="orbitV5StartGlyph" aria-hidden="true">↗</span>
-      <div><p className="eyebrow">READY TO DEPLOY</p><h2>Start your deployment</h2><p>Begin the guided setup for your Base System instance. No infrastructure action runs until you explicitly confirm it.</p></div>
+      <div><p className="eyebrow">READY TO DEPLOY</p><h2>Start Inner deployment</h2><p>Any active OrbitFS licence can unlock this step. The Inner environment and Shared Engine are created before a licensed plugin is installed.</p></div>
       <div className="orbitV5StartControls"><button className="orbitHeroAction" disabled={providerSetupUnavailable||busy!==""} onClick={()=>void start()}>{busy==="start"?"Starting…":"Begin Deployment →"}</button><small>Customer-owned infrastructure · Manual deployment</small></div>
     </section>}
-    {deploymentUnavailable&&<section className="panel orbitAuthorityNotice" style={{marginBottom:14,borderColor:"rgba(245,158,11,.55)"}}><div className="panelTitle"><div><p className="eyebrow">{settings.maintenance_mode?"MAINTENANCE":"LICENSE MANAGER CONTROL"}</p><h2>{settings.maintenance_mode?"OrbitFS deployment maintenance is active":"Base deployment is currently restricted"}</h2><p className="muted">{authorityNotice}</p></div><span className="state waiting">{settings.maintenance_mode?"MAINTENANCE":"BLOCKED"}</span></div></section>}
+    {deploymentUnavailable&&<section className="panel orbitAuthorityNotice" style={{marginBottom:14,borderColor:"rgba(245,158,11,.55)"}}><div className="panelTitle"><div><p className="eyebrow">{settings.maintenance_mode?"MAINTENANCE":"LICENSE MANAGER CONTROL"}</p><h2>{settings.maintenance_mode?"OrbitFS deployment maintenance is active":"Inner deployment is currently restricted"}</h2><p className="muted">{authorityNotice}</p></div><span className="state waiting">{settings.maintenance_mode?"MAINTENANCE":"BLOCKED"}</span></div></section>}
     {msg&&<p className="inlineStatus orbitInstallerMessage" role="status">{msg}</p>}
     {deploymentNeedsAttention&&!activeOperation&&!panelReady&&<section className="panel orbitV5Failure">
       <div><p className="eyebrow">DEPLOYMENT NEEDS ATTENTION</p><h2>{latestOperation?.error_code?"Deployment error · "+latestOperation.error_code:"Your Base deployment needs attention"}</h2>
@@ -577,6 +579,12 @@ export default function MyOrbitFS(){
 
 
       </div>}
+
+      {install&&panelReady&&<section className="panel" style={{marginBottom:14}}>
+        <div className="panelTitle"><div><p className="eyebrow">NEXT STEP</p><h2>Install a licensed plugin</h2><p className="muted">Your Inner deployment and Shared Engine are ready. Plugin installation happens inside this deployed environment and is limited to active License Manager entitlements.</p></div><span className="state ready">ENGINE READY</span></div>
+        {licensedPlugins.length?<div style={{display:"grid",gap:8,marginBottom:12}}>{licensedPlugins.map((plugin:any)=><div className="listrow" key={plugin.id}><div><b>{pluginLabel(plugin)}</b><span>{plugin.license_product_key} · active licence</span></div><span className="state ready">LICENSED</span></div>)}</div>:<p className="muted">No separately licensed plugins are attached to this account yet. A Base licence can still be used to create and manage the Inner environment.</p>}
+        {install.production_url?<a className="buttonlink" href={install.production_url} target="_blank" rel="noreferrer">Open Inner Deployment →</a>:<p className="muted">The production URL is not available yet. Refresh deployment status before installing a plugin.</p>}
+      </section>}
 
       {install&&panelReady&&<div className="portalOverviewBottom"><details className="panel" open><summary className="panelTitle" style={summaryStyle}><div><p className="eyebrow">BASE DEPLOYMENT HISTORY</p><h2>Installed & rollback history</h2></div><span>{visibleBaseHistory.length}</span></summary>{visibleBaseHistory.length?visibleBaseHistory.map((r:any,index:number)=><div className="listrow" key={r.id}><div><b>{r.release_version} · {index===0?"Installed current":"Previous deployment"}</b><span>{r.deployment_url||"deployment record"} · release {String(r.release_id||"").slice(0,8)}…</span></div><span className={"state "+(index===0?"ready":"waiting")}>{index===0?"INSTALLED":"ROLLBACK"}</span></div>):<p className="muted">No successful Base deployments yet.</p>}{olderBaseHistory.length>0&&<details style={{marginTop:10}}><summary style={summaryStyle}>Older Base history · {olderBaseHistory.length}</summary><div style={{marginTop:8}}>{olderBaseHistory.map((r:any)=><div className="listrow" key={r.id}><div><b>{r.release_version}</b><span>{r.action} · retained for audit</span></div><span>{new Date(r.created_at).toLocaleString()}</span></div>)}</div></details>}</details><details className="panel"><summary className="panelTitle" style={summaryStyle}><div><p className="eyebrow">ACTIVITY</p><h2>Setup activity</h2></div><span>{events.length}</span></summary>{events.length?events.slice(0,20).map((e:any)=><div className="listrow" key={e.id}><div><b>{label(e.event_type)}</b><span>{e.message||e.status}</span></div><span>{new Date(e.created_at).toLocaleString()}</span></div>):<p className="muted">No setup activity yet.</p>}</details></div>}
     </>:<section className="panel"><div className="panelTitle"><div><p className="eyebrow">MY ORBITFS</p><h2>OrbitFS access pending</h2><p className="muted">Licensing and release access are provided by the Master service.</p></div></div></section>}
