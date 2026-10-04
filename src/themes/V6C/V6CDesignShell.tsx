@@ -59,7 +59,17 @@ export default function V6CDesignShell({path,children,canAccessAdmin=false,loggi
     <header className="v6c-appbar">
       <Link className="v6c-mark" href="/portal" aria-label="OrbitFS home"><span/><b>OrbitFS</b></Link>
       <nav className="v6c-globalnav" aria-label="Customer Portal">
-        {nav.map(([label,href])=><Link key={href} href={href} className={active(label,path)?"is-active":""}>{label}</Link>)}
+        {nav.filter(([label])=>label!=="My OrbitFS").map(([label,href])=><Link key={href} href={href} className={active(label,path)?"is-active":""}>{label}</Link>)}
+        <details className={"v6c-orbitfs-nav "+(path.startsWith("/portal/orbitfs")?"is-active":"")}>
+          <summary>My OrbitFS <span>⌄</span></summary>
+          <div className="v6c-orbitfs-menu">
+            <Link href="/portal/orbitfs">Overview</Link>
+            <Link href="/portal/orbitfs/base">Base Deployment</Link>
+            <Link href="/portal/orbitfs/releases">Update Release System</Link>
+            <Link href="/portal/orbitfs/license">License Controller</Link>
+            <Link href="/portal/orbitfs/channels">Release Channels</Link>
+          </div>
+        </details>
       </nav>
       <div className="v6c-appbar-spacer"/>
       <div className="v6c-app-search">⌕ <span>Search anything...</span></div>
