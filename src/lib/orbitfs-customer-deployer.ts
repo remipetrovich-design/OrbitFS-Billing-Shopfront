@@ -655,8 +655,9 @@ async function applyEngineUpdatePayload(install:any,release:any,bundle:UpdateBun
 async function rollbackEngineUpdatePayload(install:any,previousDeploymentId:string|null){
   const connection=updaterConnection(install);
   if(!previousDeploymentId)fail("No previous Engine Host deployment is recorded for rollback",409,"ENGINE_ROLLBACK_TARGET_MISSING");
-  await vercelApi(String(install.auth_user_id),`/v9/projects/${encodeURIComponent(connection.engineProjectId)}/rollback/${encodeURIComponent(previousDeploymentId)}`,{method:"POST",body:JSON.stringify({})});
-  return {deploymentId:previousDeploymentId,hostUrl:connection.engineHostUrl,state:"ready"};
+  const rollbackDeploymentId=String(previousDeploymentId);
+  await vercelApi(String(install.auth_user_id),`/v9/projects/${encodeURIComponent(connection.engineProjectId)}/rollback/${encodeURIComponent(rollbackDeploymentId)}`,{method:"POST",body:JSON.stringify({})});
+  return {deploymentId:rollbackDeploymentId,hostUrl:connection.engineHostUrl,state:"ready"};
 }
 async function previousDeployment(install:any):Promise<{vercel_deployment_id:string;deployment_url:string|null;release_version:string;release_id:string;created_at:string}>{const {data,error}=await licenseDb().from("orbitfs_installation_releases").select("vercel_deployment_id,deployment_url,release_version,release_id,created_at,action").eq("installation_id",install.id).eq("status","ready").neq("action","update").not("vercel_deployment_id","is",null).order("created_at",{ascending:false}).limit(5);if(error)throw error;const previous=(data||[]).find((r:any)=>String(r.release_id||"")!==String(install.release_id||""));if(!previous)throw Object.assign(new Error("No previous successful Base deployment is available for rollback"),{status:409});if(!previous.vercel_deployment_id||!previous.release_id||!previous.release_version)throw Object.assign(new Error("Previous Base deployment record is incomplete and cannot be rolled back"),{status:409});return {vercel_deployment_id:String(previous.vercel_deployment_id),deployment_url:previous.deployment_url?String(previous.deployment_url):null,release_version:String(previous.release_version),release_id:String(previous.release_id),created_at:String(previous.created_at||"")}}
 
@@ -988,7 +989,8 @@ export async function runCustomerDeployer(install:any,action:DeployAction,versio
     const engineComponents=components;
     if(panel)fail("Base payloads belong to Base Deployer/Base Updater, not the Update Release System.",422,"UPDATE_SCOPE_INVALID");
     if(!engine)fail("Update targets Engine/addons but has no Engine payload",422,"UPDATE_ENGINE_PAYLOAD_REQUIRED");
-    validateFiles(engine.files,"Engine update payload");
+    const enginePayload=engine as Package;
+    validateFiles(enginePayload.files,"Engine update payload");
 
     const declaredMigrations=validateDatabaseContract(bundle);
     const applicableMigrations=declaredMigrations.filter(migration=>String(migration.component||"shared")==="shared"||components.includes(String(migration.component||"").toLowerCase()));
