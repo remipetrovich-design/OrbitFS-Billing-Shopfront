@@ -1,7 +1,5 @@
 -- Register the V6C customer portal starter theme without activating it.
--- V6C remains on the stable V3C customer baseline until explicitly selected
--- in the Billing Theme Manager. This migration does not change
--- themes.active_customer.
+-- V6C is a standalone customer visual system and does not inherit V3C/V5C.\n-- This migration registers it without changing themes.active_customer.
 
 insert into public.orbitfs_themes(
   id,name,surface,version,description,manifest,css_text,is_builtin,updated_at
@@ -11,8 +9,8 @@ values (
   'OrbitFS V6 Customer',
   'customer',
   '6.0.0',
-  'OrbitFS V6 customer portal starter theme. Intentionally contains only the V6C theme foundation so new customer portal designs can be built without changing the active customer theme.',
-  '{"id":"V6C","name":"OrbitFS V6 Customer","entry":"theme.css","family":"V6","surface":"customer","version":"6.0.0","extends":"V3C"}'::jsonb,
+  'Standalone OrbitFS V6 customer portal visual system based on the supplied 12ui design. V6C does not inherit V3C or V5C.',
+  '{"id":"V6C","name":"OrbitFS V6 Customer","entry":"theme.css","family":"V6","surface":"customer","version":"6.0.0","standalone":true}'::jsonb,
   null,
   true,
   now()
