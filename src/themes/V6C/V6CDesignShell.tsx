@@ -10,6 +10,8 @@ type Props={
   loggingOut?:boolean;
   onLogout?:()=>void;
   tools?:ReactNode;
+  accountName?:string;
+  accountEmail?:string;
 };
 
 const nav=[
@@ -17,7 +19,7 @@ const nav=[
   ["Store","/portal/products"],
   ["Billing","/portal/orders"],
   ["Support","/portal/support"],
-  ["Settings","/portal/settings"],
+  ["My OrbitFS","/portal/orbitfs"],
 ] as const;
 
 type RouteInfo={key:string;eyebrow:string;title:string;description:string};
@@ -37,46 +39,46 @@ function active(label:string,path:string){
   if(label==="Billing")return path.startsWith("/portal/orders")||path.startsWith("/portal/invoices");
   if(label==="Support")return path.startsWith("/portal/support");
   if(label==="My OrbitFS")return path.startsWith("/portal/orbitfs");
-  if(label==="Settings")return path.startsWith("/portal/settings");
   return false;
 }
 
-export default function V6CDesignShell({path,children,canAccessAdmin=false,loggingOut=false,onLogout,tools}:Props){
+function initials(name?:string,email?:string){
+  const clean=String(name||"").trim();
+  if(clean){
+    const parts=clean.split(/\s+/).filter(Boolean);
+    return (parts.length>1?parts[0][0]+parts[parts.length-1][0]:parts[0].slice(0,2)).toUpperCase();
+  }
+  const local=String(email||"").split("@")[0]||"OF";
+  return local.slice(0,2).toUpperCase();
+}
+
+export default function V6CDesignShell({path,children,canAccessAdmin=false,loggingOut=false,onLogout,tools,accountName,accountEmail}:Props){
   const info=routeInfo(path);
-  const orbitfs=path.startsWith("/portal/orbitfs");
-  const routeKey=info?.key ?? ((path.startsWith("/portal/orders")||path.startsWith("/portal/invoices"))?"billing":path.startsWith("/portal/orbitfs/releases")?"updates":path==="/portal/orbitfs"?"base":"page");
+  const routeKey=info?.key ?? ((path.startsWith("/portal/orders")||path.startsWith("/portal/invoices"))?"billing":path.startsWith("/portal/orbitfs/releases")?"updates":path.startsWith("/portal/orbitfs/base")?"base":path==="/portal/orbitfs"?"orbit-home":"page");
   return <div className="v6c-screen">
     <header className="v6c-appbar">
       <Link className="v6c-mark" href="/portal" aria-label="OrbitFS home"><span/><b>OrbitFS</b></Link>
       <nav className="v6c-globalnav" aria-label="Customer Portal">
-        {nav.map(([label,href])=><Link key={href} href={href} className={active(label,path)?"is-active":""}>{label}{(label==="Store"||label==="Billing")&&<span>⌄</span>}</Link>)}
-        <details className={"v6c-nav-dropdown "+(path.startsWith("/portal/orbitfs")?"is-active":"")}>
-          <summary>My OrbitFS <span>⌄</span></summary>
-          <div className="v6c-nav-menu">
-            <Link href="/portal/orbitfs">Base Deployment</Link>
-            <Link href="/portal/orbitfs/releases">Update Release System</Link>
-            <Link href="/portal/orbitfs/license">License Controller</Link>
-            <Link href="/portal/orbitfs/channels">Release Channels</Link>
-          </div>
-        </details>
+        {nav.map(([label,href])=><Link key={href} href={href} className={active(label,path)?"is-active":""}>{label}</Link>)}
       </nav>
       <div className="v6c-appbar-spacer"/>
       <div className="v6c-app-search">⌕ <span>Search anything...</span></div>
-      <div className="v6c-app-tools">
-        {tools}
-        <Link className="v6c-system" href="/portal"><i/>System Online <span>⌄</span></Link>
-        {canAccessAdmin&&<Link className="v6c-admin-button" href="/admin">Admin ↗</Link>}
-        <Link className="v6c-account-button" href="/portal/settings">Account</Link>
-        {onLogout&&<button className="v6c-logout-button" type="button" onClick={onLogout} disabled={loggingOut}>{loggingOut?"…":"Logout"}</button>}
-      </div>
+      <div className="v6c-notification-compact">{tools}</div>
+      <details className="v6c-account-menu">
+        <summary aria-label="Open account menu">
+          <span className="v6c-avatar">{initials(accountName,accountEmail)}</span>
+        </summary>
+        <div className="v6c-account-popover">
+          <div className="v6c-account-identity"><span className="v6c-avatar large">{initials(accountName,accountEmail)}</span><div><b>{accountName||"OrbitFS Customer"}</b><small>{accountEmail||"Customer account"}</small></div></div>
+          <Link href="/portal/settings"><span>Account Settings</span><b>›</b></Link>
+          {canAccessAdmin&&<Link href="/admin"><span>Admin</span><b>↗</b></Link>}
+          <Link href="/portal/support"><span>Help</span><b>›</b></Link>
+          <div className="v6c-account-future"><span>More coming soon</span><small>Future account tools will appear here.</small></div>
+          {onLogout&&<button type="button" onClick={onLogout} disabled={loggingOut}><span>{loggingOut?"Logging out…":"Logout"}</span><b>↗</b></button>}
+        </div>
+      </details>
     </header>
     <main className={"v6c-content v6c-route-"+routeKey}>
-      {orbitfs&&<nav className="v6c-orbit-subnav" aria-label="My OrbitFS sections">
-        <Link className={path==="/portal/orbitfs"?"is-active":""} href="/portal/orbitfs">Base Deployment</Link>
-        <Link className={path.startsWith("/portal/orbitfs/releases")?"is-active":""} href="/portal/orbitfs/releases">Update Release System</Link>
-        <Link className={path.startsWith("/portal/orbitfs/license")?"is-active":""} href="/portal/orbitfs/license">License Controller</Link>
-        <Link className={path.startsWith("/portal/orbitfs/channels")?"is-active":""} href="/portal/orbitfs/channels">Release Channels</Link>
-      </nav>}
       {info&&<section className="v6c-context-hero">
         <div>
           <span className="v6c-context-badge">{info.eyebrow}</span>
