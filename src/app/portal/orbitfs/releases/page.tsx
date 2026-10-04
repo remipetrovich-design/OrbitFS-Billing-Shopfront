@@ -138,8 +138,10 @@ export default function OrbitFSUpdateReleaseSystem(){
   const compatible=Boolean(!selected||!requiredBase||
     (baseVersion&&compareOrbitReleaseVersions(baseVersion,requiredBase)!==null&&
       (compareOrbitReleaseVersions(baseVersion,requiredBase)??-1)>=0));
+  const updaterLinked=install?.metadata?.updaterConnection?.linked===true;
+  const selectedNeedsEngine=Boolean(selected&&Array.isArray(selected.components)&&selected.components.some((component:string)=>component!=="base"));
   const canInstall=Boolean(selected&&baseReady&&compatible&&!isPrevious&&!alreadyInstalled&&
-    !updateUnavailable&&!blockingBaseOperation&&!busy&&updateDiscoveryReady);
+    (!selectedNeedsEngine||updaterLinked)&&!updateUnavailable&&!blockingBaseOperation&&!busy&&updateDiscoveryReady);
   const canRepairAppliedUpdate=Boolean(appliedPublishedRelease&&appliedId&&appliedVersion&&baseReady&&
     !updateUnavailable&&!blockingBaseOperation&&!busy&&updateDiscoveryReady);
 
@@ -282,7 +284,7 @@ export default function OrbitFSUpdateReleaseSystem(){
 
   async function repairAppliedUpdate(){
     if(!install||!appliedPublishedRelease||!canRepairAppliedUpdate)return;
-    if(!window.confirm("Repair the installed Engine/addon Update v"+appliedVersion+"? This re-applies the same verified Update through the Base-owned inner updater. It does not redeploy OrbitFS Base."))return;
+    if(!window.confirm("Repair installed Update v"+appliedVersion+"? This re-applies the same verified Update through the standalone Updater and does not invoke the Inner Deployer."))return;
     const releaseId=idOf(appliedPublishedRelease);
     setProgressTarget(releaseId);setProgressMode("update");setProgress(null);setAttemptStartedAt(Date.now());
     completionReported.current="";setStage(4);setBusy("repair-update");setMessage("");
@@ -296,7 +298,7 @@ export default function OrbitFSUpdateReleaseSystem(){
       const response=await res.json().catch(()=>({}));
       if(!res.ok)throw Error(response.error||"The Engine Update repair request was not completed.");
       await refreshProgress(String(install.id));
-      setMessage("Engine/addon Update v"+appliedVersion+" was re-applied through the updater.");
+      setMessage("Update v"+appliedVersion+" was re-applied through the standalone Updater.");
       setStage(5);
       await load(true);
     }catch(error:any){
@@ -368,6 +370,7 @@ export default function OrbitFSUpdateReleaseSystem(){
         <p>Choose an authorized Update, review exactly what changes and follow deployment in one place.</p></div>
       <div className="orbitV5UpdateHeroActions">
         <button type="button" className="secondary" disabled={!!busy} onClick={()=>void load(true)}>Refresh releases</button>
+        <Link className="buttonlink secondary" href="/portal/orbitfs/configuration">Updater configuration</Link>
         <Link className="buttonlink secondary" href="/portal/orbitfs">Base control panel ↗</Link>
       </div>
     </header>
@@ -379,6 +382,11 @@ export default function OrbitFSUpdateReleaseSystem(){
       <p>{settings.maintenance_mode?(settings.maintenance_message||"Update installation is temporarily unavailable."):
         authorityUnavailable?(settings.license_authority_notice||"License Manager has not authorized Update installation."):
         "Published releases remain visible, but customer Update execution is disabled."}</p>
+    </section>}
+    {!updaterLinked&&<section className="orbitV5UpdateWarning" role="status">
+      <b>Updater connection not linked</b>
+      <p>Engine/addon Updates require a one-time link to the already-deployed Shared Engine Host. The Inner Deployer is not run by the Update Release System.</p>
+      <Link className="buttonlink secondary" href="/portal/orbitfs/configuration">Open Updater configuration</Link>
     </section>}
 
     <section className="orbitV5UpdateJourney" aria-label="Update installation stages">
@@ -546,8 +554,8 @@ export default function OrbitFSUpdateReleaseSystem(){
         <div><small>CHANNEL</small><b>{applied?.channel||channel||"—"}</b></div>
         <div><small>APPLIED</small><b>{dateLabel(applied?.appliedAt)||"Not recorded"}</b></div>
       </div>
-      {appliedVersion&&<details className="orbitV5UpdateRecovery"><summary>Repair / reapply installed Engine Update</summary>
-        <p>Use this when the Shared Engine Host or an addon is deployed but unhealthy (for example, returning HTTP 500). It re-applies the same published, verified Update through the Base-owned inner updater and does not redeploy OrbitFS Base.</p>
+      {appliedVersion&&<details className="orbitV5UpdateRecovery"><summary>Repair / reapply installed Update</summary>
+        <p>Use this when an updated deployed component is unhealthy. It re-applies the same published, verified Update through the standalone Updater and does not invoke the Inner Deployer.</p>
         <button type="button" disabled={!canRepairAppliedUpdate} onClick={()=>void repairAppliedUpdate()}>{busy==="repair-update"?"Repairing Engine Update…":"Repair / reapply Update v"+appliedVersion}</button>
         {!appliedPublishedRelease&&<p className="orbitV5UpdateHint">The installed Update release is no longer published in this authorized channel, so it cannot be re-applied. Publish/restore an authorized Update release first.</p>}
         {appliedPublishedRelease&&!canRepairAppliedUpdate&&<p className="orbitV5UpdateHint">Repair is blocked until Base, Update authority and release discovery are ready.</p>}
