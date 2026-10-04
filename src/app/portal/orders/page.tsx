@@ -72,7 +72,7 @@ export default function OrdersAndInvoices() {
         </section>
 
         {selectedInvoice&&<section className="v6c-billing-detail">
-          <div><span className="v6c-bill-status "+(selectedInvoice.balance===0?"paid":"unpaid")>{selectedInvoice.balance===0?"Paid":"Open"}</span><h2>{selectedInvoice.invoice_number}</h2><small>{new Date(selectedInvoice.created_at).toLocaleDateString()}</small></div>
+          <div><span className={"v6c-bill-status "+(selectedInvoice.balance===0?"paid":"unpaid")}>{selectedInvoice.balance===0?"Paid":"Open"}</span><h2>{selectedInvoice.invoice_number}</h2><small>{new Date(selectedInvoice.created_at).toLocaleDateString()}</small></div>
           <dl><dt>Invoice total</dt><dd>{money(selectedInvoice.total_cents,selectedInvoice.currency||"AUD")}</dd><dt>Balance</dt><dd>{money(selectedInvoice.balance,selectedInvoice.currency||"AUD")}</dd></dl>
           <Link href={"/portal/invoices/"+selectedInvoice.id}>View invoice →</Link>
         </section>}
