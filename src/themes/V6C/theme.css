@@ -195,3 +195,12 @@ html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .state.rea
 html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .orbitHeroAction{background:linear-gradient(90deg,#9714ff,#3949ff)!important;border-color:#7441ff!important;box-shadow:0 0 20px rgba(92,46,255,.25)!important}
 
 /* Keep the basic pass desktop-first, matching the supplied ZIP. */
+
+.v6c-nav-dropdown{position:relative}
+.v6c-nav-dropdown>summary{list-style:none;display:flex;align-items:center;gap:4px;height:30px;padding:0 9px;border-radius:5px;color:#90a9c4;cursor:pointer;font-size:9px;font-weight:600}
+.v6c-nav-dropdown>summary::-webkit-details-marker{display:none}
+.v6c-nav-dropdown>summary span{font-size:7px;color:#597997}
+.v6c-nav-dropdown[open]>summary,.v6c-nav-dropdown.is-active>summary{color:#fff;background:#082138}
+.v6c-nav-menu{position:absolute;top:35px;left:0;z-index:80;width:190px;padding:6px;border:1px solid #173a58;border-radius:7px;background:#031522;box-shadow:0 16px 40px rgba(0,0,0,.38)}
+.v6c-nav-menu a{display:flex!important;align-items:center!important;height:32px!important;padding:0 9px!important;border-radius:5px!important;background:transparent!important;color:#8eabc4!important;text-decoration:none!important;font-size:9px!important}
+.v6c-nav-menu a:hover{background:#082238!important;color:#fff!important}
