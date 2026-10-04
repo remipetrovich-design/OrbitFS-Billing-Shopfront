@@ -411,11 +411,6 @@ export default function OrbitFSUpdateReleaseSystem(){
         authorityUnavailable?(settings.license_authority_notice||"License Manager has not authorized Update installation."):
         "Published releases remain visible, but customer Update execution is disabled."}</p>
     </section>}
-    {updaterLinkState==="checking"&&<p className="orbitV5UpdateHint" role="status">Verifying the Inner-Deployer-created Shared Engine Host for automatic Updates…</p>}
-    {updaterLinkState==="ineligible"&&<section className="orbitV5UpdateWarning" role="status">
-      <b>Automatic Updates unavailable for this Engine Host</b>
-      <p>{updaterLinkReason}</p>
-    </section>}
 
     <section className="orbitV5UpdateJourney" aria-label="Update installation stages">
       <div className="orbitV5UpdateSectionTitle">
