@@ -1,6 +1,6 @@
 -- Inner deployment is the shared customer environment used by all OrbitFS products.
--- Any active OrbitFS licence may authorize creation of the single shared environment.
--- The API verifies the authoritative licence with License Manager before invoking this RPC.
+-- An active Engine add-on licence (MCP, APEX or Studio) may authorize creation of the single shared environment.
+-- The API verifies that authoritative add-on entitlement with License Manager before invoking this RPC.
 -- Keep component_key='orbitfs_base' for compatibility with the existing deployment/runtime
 -- tables and Base release execution path; it is a storage/runtime key, not the entitlement gate.
 
