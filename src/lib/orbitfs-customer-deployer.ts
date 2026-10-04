@@ -666,7 +666,16 @@ async function updaterConnection(install:any){
   }
   const deploymentResponse:any=await vercelApi(String(install.auth_user_id),"/v6/deployments?projectId="+encodeURIComponent(String(project.id))+"&target=production&limit=20");
   const deployments=Array.isArray(deploymentResponse?.deployments)?deploymentResponse.deployments:[];
-  const verified=deployments.find((row:any)=>verifiedInnerDeployment(row,installationId));
+  let verified:any=null;
+  for(const row of deployments.slice(0,10)){
+    if(verifiedInnerDeployment(row,installationId)){verified=row;break}
+    const id=String(row?.uid||row?.id||"").trim();
+    if(!id)continue;
+    try{
+      const detail=await vercelApi(String(install.auth_user_id),"/v13/deployments/"+encodeURIComponent(id));
+      if(verifiedInnerDeployment(detail,installationId)){verified=detail;break}
+    }catch{}
+  }
   if(!verified)fail("The Shared Engine Host was not created by the Inner Deployer, so this installation cannot use the OrbitFS Updater.",409,"UPDATER_INNER_DEPLOYER_REQUIRED");
   const aliases=Array.isArray(verified.alias)?verified.alias:[];
   const engineHostUrl="https://"+String(aliases[0]||project.alias?.[0]||name+".vercel.app").replace(/^https?:\/\//i,"").replace(/\/$/,"");
