@@ -204,3 +204,106 @@ html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .orbitHero
 .v6c-nav-menu{position:absolute;top:35px;left:0;z-index:80;width:190px;padding:6px;border:1px solid #173a58;border-radius:7px;background:#031522;box-shadow:0 16px 40px rgba(0,0,0,.38)}
 .v6c-nav-menu a{display:flex!important;align-items:center!important;height:32px!important;padding:0 9px!important;border-radius:5px!important;background:transparent!important;color:#8eabc4!important;text-decoration:none!important;font-size:9px!important}
 .v6c-nav-menu a:hover{background:#082238!important;color:#fff!important}
+
+
+/* --------------------------------------------------------------------------
+   V6C FULL PORTAL VISUAL COHERENCE PASS
+   Every customer route uses the supplied ZIP's dark navy / violet / cyan
+   presentation. Existing route data and actions remain intact.
+   -------------------------------------------------------------------------- */
+
+.v6c-orbit-subnav{display:flex;align-items:center;gap:5px;margin:-12px 0 18px;padding:7px;border:1px solid #123650;border-radius:8px;background:#031522}
+.v6c-orbit-subnav a{height:31px;padding:0 11px;display:flex;align-items:center;border:1px solid transparent;border-radius:5px;color:#6f91ad;text-decoration:none;font-size:8px;font-weight:700}
+.v6c-orbit-subnav a:hover{color:#dff3ff;background:#08243a}.v6c-orbit-subnav a.is-active{border-color:#5432bd;background:linear-gradient(90deg,#6f22dd,#3048db);color:#fff;box-shadow:0 0 18px rgba(91,50,215,.22)}
+
+.v6c-context-hero{position:relative;min-height:208px;margin:0 0 16px;padding:30px 390px 28px 28px;display:flex;align-items:center;border:1px solid #123650;border-radius:10px;overflow:hidden;background:
+ radial-gradient(540px 240px at 80% 35%,rgba(70,57,255,.17),transparent 67%),
+ radial-gradient(460px 200px at 42% -20%,rgba(0,191,255,.08),transparent 65%),
+ linear-gradient(125deg,#041425 0%,#07192d 58%,#031320 100%)}
+.v6c-context-hero:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(110deg,transparent 0 63%,rgba(108,30,255,.06) 63% 100%)}
+.v6c-context-hero>div:first-child{position:relative;z-index:2}.v6c-context-badge{display:inline-flex;height:25px;padding:0 9px;align-items:center;border:1px solid #0d6466;border-radius:999px;background:#073739;color:#65e3d2;font-size:7px;font-weight:800;letter-spacing:.08em}
+.v6c-context-hero h1{max-width:610px;margin:12px 0 9px;color:#fff;font-size:36px;line-height:1.02;letter-spacing:-.045em}.v6c-context-hero p{max-width:590px;margin:0;color:#7592aa;font-size:10px;line-height:1.6}
+.v6c-context-art{position:absolute;right:35px;top:17px;width:300px;height:175px;z-index:1}
+.v6c-context-art:before,.v6c-context-art:after,.v6c-context-art i,.v6c-context-art b,.v6c-context-art span{content:"";position:absolute;display:block}
+.v6c-context-art:before{right:52px;top:35px;width:155px;height:110px;border-radius:16px;transform:rotate(-7deg) skewY(-7deg);background:linear-gradient(145deg,#7314ff,#3149f8 47%,#07265f);box-shadow:0 0 40px rgba(92,43,255,.42),inset 0 0 0 1px rgba(111,220,255,.28)}
+.v6c-context-art:after{right:76px;top:56px;width:105px;height:66px;border:1px solid rgba(96,211,255,.5);border-radius:8px}
+.v6c-context-art i{left:30px;top:96px;width:22px;height:22px;transform:rotate(45deg);border:1px solid #4d4eff;background:#151147;box-shadow:0 0 16px rgba(80,48,255,.45)}
+.v6c-context-art b{right:24px;top:65px;width:51px;height:51px;border-radius:50%;border:2px solid #37d9ff;background:#052e72;box-shadow:0 0 26px rgba(51,204,255,.46)}
+.v6c-context-art span{right:9px;top:27px;width:16px;height:16px;transform:rotate(45deg);border:1px solid #694aff;background:#1e154d}
+.v6c-context-art.art-dashboard:before{border-radius:50%;width:125px;height:125px;right:77px;top:26px;transform:none;background:radial-gradient(circle at 35% 30%,#66e3ff 0,#2c77d9 18%,#17205f 45%,#4b1fd0 69%,#090d2a 100%)}
+.v6c-context-art.art-dashboard:after{width:220px;height:76px;right:27px;top:52px;border-radius:50%;transform:rotate(-17deg);border-color:rgba(116,90,255,.5)}
+.v6c-context-art.art-store:before{clip-path:polygon(50% 0,90% 22%,90% 75%,50% 100%,10% 75%,10% 22%);border-radius:0}
+.v6c-context-art.art-support:before{transform:rotate(4deg);background:linear-gradient(145deg,#5117ad,#2167df 55%,#05314f)}
+.v6c-context-art.art-license b{border-radius:9px;width:66px;height:82px;right:29px;top:47px}
+.v6c-context-art.art-channels:after{width:190px;height:95px;right:38px;top:40px;border-radius:50%;transform:rotate(-14deg)}
+
+/* Hide legacy page headers where V6C now supplies the ZIP-style hero. */
+.v6c-route-dashboard .portalOverviewHero,
+.v6c-route-store .storeHero,
+.v6c-route-support .portalTop,
+.v6c-route-settings .accountSettingsHero,
+.v6c-route-license .portalOverviewHero,
+.v6c-route-channels .portalReleaseHeader{display:none!important}
+
+/* Global V6C component language */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(.panel,.portalCompactPanel,.accountSettingsCard,.customerChannelCard,.storeBaseFeature,.storeAddonCard,.storeCheckout,.portalStatCard,.portalOrbitfsHub,.portalActivityPanel,.portalQuickActions){
+  border:1px solid #123750!important;border-radius:8px!important;background:linear-gradient(180deg,#061e32,#031523)!important;box-shadow:none!important;color:#dce9f4
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(h1,h2,h3,strong,b){color:#eef6ff}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(.muted,p,small){color:#6f8ea8}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content .eyebrow{color:#5bd2ff!important;font-size:7px!important;letter-spacing:.12em!important}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(button,.buttonlink,.ghostbtn){
+  border:1px solid #235e83!important;border-radius:6px!important;background:#0a405e!important;color:#d8f1ff!important;box-shadow:none!important;font-size:8px!important;text-decoration:none
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(button:not(.secondary),.buttonlink:not(.secondary)){background:linear-gradient(90deg,#711ee1,#334af4)!important;border-color:#6139d5!important}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(input,select,textarea){
+  border:1px solid #153a58!important;border-radius:6px!important;background:#031522!important;color:#b9ccdc!important;box-shadow:none!important
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(input,select){min-height:34px}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content textarea{padding:10px}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(.state,.pill,.recordBadge,.channelPolicyBadge){border-radius:999px!important;font-size:7px!important}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content .state.ready{background:#073c37!important;border-color:#0d645c!important;color:#5ce1c9!important}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content .state.current{background:#17134a!important;border-color:#5535bc!important;color:#bdb1ff!important}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content :where(.panelTitle,.settingsSectionHead,.portalActivityHeader,.storeSectionHead){border-color:#0f314a!important}
+
+/* Dashboard */
+.v6c-route-dashboard .portalOverviewV2{display:grid;gap:13px}
+.v6c-route-dashboard .portalOverviewStats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.v6c-route-dashboard .portalStatCard{min-height:88px;padding:14px!important;display:flex;gap:12px;text-decoration:none}.v6c-route-dashboard .portalStatIcon{width:34px;height:34px;display:grid;place-items:center;border-radius:7px;background:#22134f;color:#a468ff}
+.v6c-route-dashboard .portalStatCard small,.v6c-route-dashboard .portalStatCard strong,.v6c-route-dashboard .portalStatCard span{display:block}.v6c-route-dashboard .portalStatCard strong{font-size:20px}.v6c-route-dashboard .portalStatCard span{font-size:8px;color:#5d809b}
+.v6c-route-dashboard .portalOrbitfsHub{padding:18px!important}.v6c-route-dashboard .portalOrbitfsGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}.v6c-route-dashboard .portalOrbitfsGrid>a{min-height:112px;padding:13px;border:1px solid #12364f;border-radius:7px;background:#041827;text-decoration:none}.v6c-route-dashboard .portalOrbitfsStep{color:#6d59ff;font-size:9px}.v6c-route-dashboard .portalOrbitfsGrid b{display:block;margin-top:12px;font-size:11px}.v6c-route-dashboard .portalOrbitfsGrid span{display:block;margin-top:4px;color:#6686a1;font-size:8px;line-height:1.4}
+.v6c-route-dashboard .portalOverviewGrid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:12px}.v6c-route-dashboard .portalActivityPanel,.v6c-route-dashboard .portalQuickActions{padding:16px!important}
+.v6c-route-dashboard .portalActivityTabs,.v6c-route-dashboard .recordTabs{display:flex;gap:5px}.v6c-route-dashboard .portalActivityTabs button{min-height:28px;padding:0 10px;background:#041827!important}.v6c-route-dashboard .portalActivityTabs button.active{background:linear-gradient(90deg,#6c22dd,#3449ef)!important}
+.v6c-route-dashboard .listrow{border-color:#0e3049!important;color:#a9bfd1!important}.v6c-route-dashboard .portalQuickActions>a{display:block;padding:11px 0;border-bottom:1px solid #0e3049;text-decoration:none}.v6c-route-dashboard .portalQuickActions>a span{display:block;margin-top:3px;color:#6687a1;font-size:8px}
+
+/* Store */
+.v6c-route-store .storePage{display:grid;gap:13px}.v6c-route-store .storeBaseFeature{padding:22px!important;display:grid;grid-template-columns:1fr 250px;gap:24px;background:
+ radial-gradient(420px 180px at 8% 0%,rgba(86,45,255,.18),transparent 66%),linear-gradient(180deg,#071c31,#031523)!important}
+.v6c-route-store .storeBaseCopy h2{font-size:25px;margin:9px 0}.v6c-route-store .storeBaseCopy p{font-size:10px;line-height:1.55}.v6c-route-store .storeBasePoints{display:flex;gap:6px;flex-wrap:wrap}.v6c-route-store .storeBasePoints span{padding:5px 7px;border:1px solid #173c58;border-radius:999px;background:#041827;color:#77a0bc;font-size:7px}
+.v6c-route-store .storeBaseAction{padding-left:20px;border-left:1px solid #12364f}.v6c-route-store .storeBaseAction strong{display:block;font-size:24px;margin:5px 0 12px}.v6c-route-store .storeAddonList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.v6c-route-store .storeAddonCard{padding:17px!important}.v6c-route-store .storeAddonCard h3{font-size:15px}.v6c-route-store .storeCheckout{padding:18px!important;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(290px,.7fr);gap:12px}
+.v6c-route-store .storeBasketPanel,.v6c-route-store .storeCheckoutPanel{background:#041827!important;border-color:#12364f!important}
+
+/* Support */
+.v6c-route-support .supportPageV3{display:grid;gap:12px}.v6c-route-support .recordTabs{display:flex;gap:6px;margin:0}.v6c-route-support .recordTabs button{height:31px;padding:0 11px;background:#041827!important}.v6c-route-support .recordTabs button.active{background:linear-gradient(90deg,#6d21df,#3548ed)!important}
+.v6c-route-support .supportCreate,.v6c-route-support .supportPageV3>.panel{padding:18px!important}.v6c-route-support .ticketCard{min-height:58px;padding:0 12px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #103149;color:#a9bed0;text-decoration:none}.v6c-route-support .ticketCard b{font-size:9px}.v6c-route-support .ticketCard span{font-size:8px;color:#64849e}
+.v6c-route-support .editorToolbar{display:flex;gap:5px}.v6c-route-support .editorToolbar button{min-height:26px!important;background:#061f33!important}
+
+/* Settings */
+.v6c-route-settings .accountSettingsV2{display:grid;gap:12px}.v6c-route-settings .accountSettingsNav{display:flex;gap:5px;padding:7px;border:1px solid #12364f;border-radius:8px;background:#031522}.v6c-route-settings .accountSettingsNav button{height:30px;padding:0 11px;background:transparent!important;border-color:transparent!important;color:#7594ad!important}.v6c-route-settings .accountSettingsNav button.active{background:linear-gradient(90deg,#6c22dc,#3548eb)!important;border-color:#5537c3!important;color:#fff!important}
+.v6c-route-settings .accountSettingsSections{display:grid;gap:12px}.v6c-route-settings .accountSettingsCard{padding:18px!important}.v6c-route-settings .form{display:grid;gap:10px}.v6c-route-settings .two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.v6c-route-settings label{color:#9fb4c6;font-size:8px}.v6c-route-settings .settingsSaveBar{padding:11px 0;display:flex;align-items:center;justify-content:space-between}.v6c-route-settings .walletSettingsActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.v6c-route-settings .walletActionBox{padding:14px;border:1px solid #12364f;border-radius:7px;background:#041827}
+
+/* Licence */
+.v6c-route-license .orbitfsLicenseController{display:grid;gap:12px}.v6c-route-license .portalOverviewGrid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(290px,.8fr);gap:12px}.v6c-route-license .panel{padding:18px!important}.v6c-route-license .listrow{border-color:#103149!important}.v6c-route-license code{color:#8fbcda}
+
+/* Release channels */
+.v6c-route-channels .orbitfsChannelsPage{display:grid;gap:12px}.v6c-route-channels .channelIntroPanel{padding:14px!important}.v6c-route-channels .channelIntroCopy{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.v6c-route-channels .channelIntroCopy>div{padding:10px;border:1px solid #12364f;border-radius:6px;background:#041827}.v6c-route-channels .channelIntroCopy b,.v6c-route-channels .channelIntroCopy small{display:block}.v6c-route-channels .channelIntroCopy small{margin-top:4px;font-size:7px}
+.v6c-route-channels .customerChannelGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.v6c-route-channels .customerChannelCard{padding:16px!important}.v6c-route-channels .customerChannelCard.active{border-color:#4b3bb2!important;background:radial-gradient(320px 160px at 0 0,rgba(83,48,203,.16),transparent 68%),linear-gradient(180deg,#071d32,#031523)!important}.v6c-route-channels .customerChannelCard h2{font-size:16px}.v6c-route-channels .customerChannelPolicy{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:12px 0}.v6c-route-channels .customerChannelPolicy>div{padding:9px;border:1px solid #12364f;border-radius:6px;background:#041827}.v6c-route-channels .customerChannelPolicy span,.v6c-route-channels .customerChannelPolicy b{display:block}.v6c-route-channels .customerChannelPolicy span{font-size:7px;color:#5c7e99}.v6c-route-channels .customerChannelPolicy b{margin-top:4px;font-size:8px}
+.v6c-route-channels .channelRequestForm{margin-top:12px;padding-top:12px;border-top:1px solid #103149}
+
+/* Update Release: align the existing working flow to the ZIP release-update screen. */
+.v6c-route-updates .orbitV5UpdateHero{min-height:188px!important;padding:26px 320px 26px 24px!important;border:1px solid #123650!important;border-radius:10px!important;background:radial-gradient(440px 190px at 84% 40%,rgba(91,42,255,.2),transparent 68%),linear-gradient(120deg,#06172a,#031522)!important}
+.v6c-route-updates .orbitV5UpdateHero h1{font-size:32px!important;color:#fff!important;letter-spacing:-.04em}.v6c-route-updates .orbitV5UpdateHero p{font-size:9px!important;color:#7492ab!important}.v6c-route-updates .orbitV5UpdateJourney{border:1px solid #12364f!important;border-radius:8px!important;background:#031522!important;padding:12px!important}.v6c-route-updates .orbitV5UpdateSteps{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:5px!important}.v6c-route-updates .orbitV5UpdateStep{min-height:56px!important;border:1px solid #153a58!important;border-radius:6px!important;background:#041827!important}.v6c-route-updates .orbitV5UpdateStep.active{background:linear-gradient(90deg,#281353,#102243)!important;border-color:#5c3ec4!important}.v6c-route-updates .orbitV5UpdatePanel{padding:18px!important;border-color:#12364f!important;background:linear-gradient(180deg,#061f33,#031523)!important}.v6c-route-updates .orbitV5UpdateFacts{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:7px!important}.v6c-route-updates .orbitV5UpdateFacts>div{padding:10px!important;border:1px solid #12364f!important;border-radius:6px!important;background:#041827!important}
+.v6c-route-updates .orbitV5UpdateRelease{border:1px solid #12364f!important;border-radius:7px!important;background:#041827!important}.v6c-route-updates .orbitV5UpdateRelease.selected{border-color:#593ac5!important;background:linear-gradient(120deg,#15133f,#041827)!important}
+
+/* Base Deployment keeps its real workflow, but follows the same ZIP card language. */
+.v6c-route-base .orbitZipDeployer{display:grid;gap:12px}.v6c-route-base .orbitV5Connections>.panel,.v6c-route-base .orbitInstallerWorkspace{padding:17px!important}.v6c-route-base .orbitZipControlGrid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}.v6c-route-base .orbitV5Start{border:1px solid #12364f!important;border-radius:9px!important;background:radial-gradient(420px 170px at 85% 40%,rgba(91,42,255,.16),transparent 68%),linear-gradient(180deg,#061e32,#031523)!important}
