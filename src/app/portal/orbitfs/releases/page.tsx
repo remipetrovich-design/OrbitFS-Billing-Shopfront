@@ -55,8 +55,6 @@ export default function OrbitFSUpdateReleaseSystem(){
   const [progressMode,setProgressMode]=useState<UpdateMode>("update");
   const [progressIssue,setProgressIssue]=useState("");
   const [rollbackReason,setRollbackReason]=useState("");
-  const [updaterLinkState,setUpdaterLinkState]=useState<"idle"|"checking"|"linked"|"ineligible">("idle");
-  const [updaterLinkReason,setUpdaterLinkReason]=useState("");
   const [recoveryOpen,setRecoveryOpen]=useState(false);
   const requestInFlight=useRef(false);
   const completionReported=useRef("");
@@ -141,10 +139,9 @@ export default function OrbitFSUpdateReleaseSystem(){
   const compatible=Boolean(!selected||!requiredBase||
     (baseVersion&&compareOrbitReleaseVersions(baseVersion,requiredBase)!==null&&
       (compareOrbitReleaseVersions(baseVersion,requiredBase)??-1)>=0));
-  const updaterLinked=updaterLinkState==="linked"||install?.metadata?.updaterConnection?.autoVerified===true;
   const selectedNeedsEngine=Boolean(selected&&Array.isArray(selected.components)&&selected.components.some((component:string)=>component!=="base"));
   const canInstall=Boolean(selected&&baseReady&&compatible&&!isPrevious&&!alreadyInstalled&&
-    (!selectedNeedsEngine||updaterLinked)&&!updateUnavailable&&!blockingBaseOperation&&!busy&&updateDiscoveryReady);
+    !updateUnavailable&&!blockingBaseOperation&&!busy&&updateDiscoveryReady);
   const canRepairAppliedUpdate=Boolean(appliedPublishedRelease&&appliedId&&appliedVersion&&baseReady&&
     !updateUnavailable&&!blockingBaseOperation&&!busy&&updateDiscoveryReady);
 
@@ -184,31 +181,6 @@ export default function OrbitFSUpdateReleaseSystem(){
     if(!install?.id)return;
     void refreshProgress(String(install.id));
   },[install?.id,refreshProgress]);
-
-  useEffect(()=>{
-    if(!install?.id)return;
-    let active=true;
-    setUpdaterLinkState("checking");
-    void (async()=>{
-      try{
-        const res=await fetch("/api/orbitfs/installations/"+encodeURIComponent(String(install.id))+"/updater-connection",{headers:await headers(),cache:"no-store"});
-        const body=await res.json().catch(()=>({}));
-        if(!active)return;
-        if(res.ok&&body?.eligible===true){
-          setUpdaterLinkState("linked");setUpdaterLinkReason("");
-          if(!install?.metadata?.updaterConnection?.autoVerified)void load(true,true);
-        }else{
-          setUpdaterLinkState("ineligible");
-          setUpdaterLinkReason(body?.reason==="INNER_DEPLOYER_PROVENANCE_REQUIRED"
-            ?"This Engine Host was not created by the Inner Deployer and cannot use automatic Updates."
-            :"No Inner-Deployer-created Shared Engine Host is available for this installation.");
-        }
-      }catch(error:any){
-        if(active){setUpdaterLinkState("ineligible");setUpdaterLinkReason(error?.message||"Could not verify the Shared Engine Host for Updates.");}
-      }
-    })();
-    return()=>{active=false};
-  },[install?.id,headers]);
 
   useEffect(()=>{
     if(stage!==4||!install?.id)return;
@@ -520,7 +492,7 @@ export default function OrbitFSUpdateReleaseSystem(){
           <div><span className={compatible?"ok":"blocked"}>{compatible?"✓":"!"}</span><p>{requiredBase?"Requires Base v"+requiredBase: "No minimum Base version specified"}{!compatible?" · incompatible":""}</p></div>
           <div><span className={!updateUnavailable?"ok":"blocked"}>{!updateUnavailable?"✓":"!"}</span><p>{updateUnavailable?"Update execution currently disabled":"Update authority available"}</p></div>
           <div><span className={updateDiscoveryReady?"ok":"blocked"}>{updateDiscoveryReady?"✓":"!"}</span><p>{updateDiscoveryReady?"Published Update discovery available":`Update discovery failed: ${updateDiscoveryError}`}</p></div>
-          {selectedNeedsEngine&&<div><span className={updaterLinked?"ok":"blocked"}>{updaterLinked?"✓":"!"}</span><p>{updaterLinked?"Shared Engine Host verified for automatic Updates":updaterLinkState==="checking"?"Checking Shared Engine Host…":updaterLinkReason||"Inner-Deployer-created Shared Engine Host required"}</p></div>}
+          {selectedNeedsEngine&&<div><span className="ok">✓</span><p>Shared Engine Host will be auto-verified from the Inner Deployer deployment when this Update starts.</p></div>}
           {blockingBaseOperation&&<p className="orbitV5UpdateHint">Finish the active Base operation before installing an Update.</p>}
           {busy&&<p className="orbitV5UpdateHint">Please wait for the current request to finish.</p>}
           {(alreadyInstalled||isPrevious)&&<p className="orbitV5UpdateHint">{alreadyInstalled?"This Update is already installed.":"This version is not newer than your recorded installed Update."}</p>}
