@@ -182,6 +182,39 @@ function SupportCentre({path}:{path:string}){
   </Frame>;
 }
 
+
+function SupportTicket({path}:{path:string}){
+  return <Frame path={path}>
+    <section className="v6c-title row-title"><div><span>← SUPPORT CENTRE · TICKET #4821</span><h1>Update installation failed<br/>after validation.</h1><p>Technical Support · High priority · Waiting on Support</p></div><em>Waiting on Support</em></section>
+    <section className="v6c-ticket-meta"><article><small>STATUS</small><b>Waiting on Support</b></article><article><small>PRIORITY</small><b>High</b></article><article><small>DEPARTMENT</small><b>Technical Support</b></article><article><small>UPDATED</small><b>Today, 9:42 PM</b></article></section>
+    <section className="v6c-ticket-layout">
+      <article className="v6c-card v6c-conversation"><div className="v6c-card-head"><div><span className="v6c-kicker">CONVERSATION</span><h2>Ticket activity</h2></div></div>
+        <div className="v6c-message customer"><div><b>You</b><small>Today · 8:58 PM</small></div><p>The update completed validation but stopped before deployment. The installation is still on the previous release.</p></div>
+        <div className="v6c-message support"><div><b>OrbitFS Support</b><small>Today · 9:18 PM</small></div><p>We can see the failed deployment attempt. The validation result itself is healthy; we are reviewing the deployment authorization record.</p></div>
+        <div className="v6c-message customer"><div><b>You</b><small>Today · 9:31 PM</small></div><p>Thanks. No manual changes have been made since the failed attempt.</p></div>
+        <div className="v6c-reply-box"><small>REPLY</small><div>Write your reply...</div><span>Add attachment</span><button>Send reply</button></div>
+      </article>
+      <aside className="v6c-card v6c-ticket-side"><span className="v6c-kicker">TICKET DETAILS</span><div><small>RELATED SERVICE</small><b>Update Release System</b></div><div><small>INSTALLATION</small><b>Production</b></div><div><small>RELEASE</small><b>v2.5.0</b></div><div><small>OPENED</small><b>Today, 8:58 PM</b></div><button>Close ticket</button></aside>
+    </section>
+  </Frame>;
+}
+
+function KnowledgeBase({path}:{path:string}){
+  const articles=[
+    ["Updates","Preparing an OrbitFS update","What to check before applying an approved update."],
+    ["Deployments","Connecting your Base deployment","Understand the required customer deployment connection details."],
+    ["Licensing","How licence validation works","Customer-facing explanation of licence state and validation."],
+    ["Billing","Understanding invoice status","Paid, unpaid, overdue and processing invoice states."],
+    ["Release Channels","Stable, Staging and Canary","How OrbitFS customer release channels differ."],
+    ["Support","What to include in a support ticket","Information that helps Support resolve an issue faster."],
+  ];
+  return <Frame path={path}>
+    <section className="v6c-title"><span>● SUPPORT CENTRE · KNOWLEDGE BASE</span><h1>Find the answer<br/>before you need a ticket.</h1><p>Customer guidance for OrbitFS billing, deployments, licences, updates and support.</p></section>
+    <section className="v6c-kb-search"><div>Search setup, billing, licences, troubleshooting...</div><span>All categories ⌄</span></section>
+    <section className="v6c-kb-grid">{articles.map(a=><article className="v6c-card" key={a[1]}><small>{a[0]}</small><h2>{a[1]}</h2><p>{a[2]}</p><span>Read article →</span></article>)}</section>
+  </Frame>;
+}
+
 function LicenseController({path}:{path:string}){
   return <Frame path={path}>
     <section className="v6c-title row-title"><div><span>● MY ORBITFS · LICENSE CONTROLLER</span><h1>Licence control,<br/>without the noise.</h1><p>See the licence attached to your OrbitFS environment, current entitlements and runtime validation state.</p></div><em>● Licence Active</em></section>
@@ -232,6 +265,8 @@ export default function V6CDesignShell({path}:Props){
   if(path==="/portal/orbitfs"||path.startsWith("/portal/orbitfs/deployer"))return <Deployment path={path}/>;
   if(path.startsWith("/portal/invoices"))return <Billing path={path} view="Invoices"/>;
   if(path.startsWith("/portal/orders")||path.startsWith("/portal/checkout"))return <Billing path={path} view="Payment History"/>;
+  if(path.startsWith("/portal/support/knowledge-base"))return <KnowledgeBase path={path}/>;
+  if(/^\/portal\/support\/[^/]+$/.test(path))return <SupportTicket path={path}/>;
   if(path.startsWith("/portal/support"))return <SupportCentre path={path}/>;
   if(path.startsWith("/portal/orbitfs/license"))return <LicenseController path={path}/>;
   if(path.startsWith("/portal/orbitfs/channels"))return <ReleaseChannels path={path}/>;
