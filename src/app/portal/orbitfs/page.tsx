@@ -65,7 +65,7 @@ export default function MyOrbitFS(){
   const baseHistory=history.filter((x:any)=>x.action!=="update"&&x.status==="ready").sort((a:any,b:any)=>new Date(b.ready_at||b.created_at||0).getTime()-new Date(a.ready_at||a.created_at||0).getTime());
   const distinctBaseHistory=baseHistory.filter((row:any,index:number,rows:any[])=>rows.findIndex((candidate:any)=>String(candidate.release_id||"")===String(row.release_id||""))===index);
   const visibleBaseHistory=distinctBaseHistory.slice(0,2),olderBaseHistory=distinctBaseHistory.slice(2),previousBaseDeployment=visibleBaseHistory.find((x:any)=>String(x.release_id||"")!==String(install?.release_id||""))||null;
-  const operations=Array.isArray(d?.operations)?d.operations:[];
+  const operations=(Array.isArray(d?.operations)?d.operations:[]).filter((operation:any)=>String(operation?.action||"").toLowerCase()!=="update");
   const setupResetAtRaw=String(install?.metadata?.setupResetAt||"").trim();
   const setupResetAt=setupResetAtRaw?Date.parse(setupResetAtRaw):0;
   const operationBelongsToCurrentSetup=(operation:any)=>{
@@ -75,7 +75,7 @@ export default function MyOrbitFS(){
     return Number.isFinite(createdAt)&&createdAt>=setupResetAt;
   };
   const currentSetupOperations=operations.filter(operationBelongsToCurrentSetup);
-  const activeOperation=operationBelongsToCurrentSetup(d?.activeOperation)?d.activeOperation:null;
+  const activeOperation=operationBelongsToCurrentSetup(d?.activeOperation)&&String(d?.activeOperation?.action||"").toLowerCase()!=="update"?d.activeOperation:null;
   const latestOperation=currentSetupOperations[0]||null;
     const baseInstalled=!!(install?.release_version&&install?.release_id&&install?.vercel_project_id&&(install?.vercel_deployment_id||install?.production_url));
     const operationWorking=!!activeOperation;
@@ -112,22 +112,8 @@ export default function MyOrbitFS(){
   const selectedBaseUpdateRelease=baseUpdateCandidates.find((r:any)=>String(r.id)===selectedReleaseId)||baseUpdateCandidates[0]||null;
   const selectedBaseUpdateAvailable=Boolean(selectedBaseUpdateRelease?.id);
   const baseUpdateAvailable=selectedBaseUpdateAvailable;
-  const latestPublishedUpdate=(d?.publishedReleases||[]).filter((release:any)=>String(release.release_type||release.releaseType||"").toLowerCase()==="update"&&String(release.status||"").toLowerCase()==="published"&&String(release.channel||"stable").toLowerCase()===selectedChannel).sort((a:any,b:any)=>String(b.published_at||b.publishedAt||"").localeCompare(String(a.published_at||a.publishedAt||""))||((compareOrbitReleaseVersions(b.version,a.version))??0))[0]||null;
-  const latestUpdate=String(latestPublishedUpdate?.version||"");
-  const appliedUpdate=d?.normalUpdate?.applied||install?.metadata?.appliedUpdate||null;
-  const appliedUpdateVersion=String(appliedUpdate?.version||"");
-  const appliedUpdateId=String(appliedUpdate?.releaseId||appliedUpdate?.release_id||"");
-  const appliedUpdateChannel=String(appliedUpdate?.channel||selectedChannel).toLowerCase();
-  const updateVersionComparison=appliedUpdateVersion&&latestUpdate?compareOrbitReleaseVersions(latestUpdate,appliedUpdateVersion):null;
-  const updateAlreadyApplied=Boolean(latestPublishedUpdate&&(
-    (appliedUpdateId&&appliedUpdateId===String(latestPublishedUpdate.id))||
-    (appliedUpdateVersion&&updateVersionComparison===0&&appliedUpdateChannel===selectedChannel)
-  ));
-  const updateDiscoveryReady=d?.updateReleaseDiscoveryByChannel?.[selectedChannel]?.available===true;
-  const updateAvailable=Boolean(baseInstalled&&latestPublishedUpdate&&!updateAlreadyApplied&&
-    (!appliedUpdateVersion||(updateVersionComparison!==null&&updateVersionComparison>0))&&updateDiscoveryReady);
   const components=binding?Object.entries(binding.components||{}).filter(([,v])=>v).map(([k])=>k):[];
-  const deploymentRequestActive=["deploy","base_update","update","rollback","redeploy"].includes(busy);
+  const deploymentRequestActive=["deploy","base_update","rollback","redeploy"].includes(busy);
   const selectedVercelScopeId=String(install?.vercel_team_id||vercelConnection?.team_id||"").trim();
   const selectedVercelTeam=vercelTeams.find((team:any)=>String(team?.id||"")===selectedVercelScopeId)||null;
   const personalVercelScopeCandidate=String(vercelConnection?.provider_account_name||"").trim();
@@ -228,15 +214,15 @@ export default function MyOrbitFS(){
     }
   }
   async function selectVercelTeam(){setBusy("vercel-team");const r=await fetch("/api/orbitfs/providers/vercel",{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({action:"select_team",teamId:vercelTeamId||null})}),j=await r.json().catch(()=>({}));setBusy("");setMsg(r.ok?"Vercel deployment account updated.":apiError(j,"Could not select that Vercel team."));if(r.ok)await load()}
-  async function deploy(action:"deploy"|"base_update"|"update"|"rollback"|"redeploy",version?:string,releaseId?:string){
+  async function deploy(action:"deploy"|"base_update"|"rollback"|"redeploy",version?:string,releaseId?:string){
     if(!install)return;
     if(activeOperation){setMsg(label(activeOperation.action)+" is already "+label(activeOperation.state)+". Deployment status below will update automatically.");return}
     let reason="";
     if(action==="rollback"){version=undefined;reason=prompt("Why are you rolling this Base deployment back?","")?.trim()||"";if(!reason)return}
-    const actionLabel=action==="base_update"?"Update Base":action==="redeploy"?"Redeploy published Base":action==="update"?"Install normal update":action==="rollback"?"Rollback Base":"Install Base";
+    const actionLabel=action==="base_update"?"Update Base":action==="redeploy"?"Redeploy published Base":action==="rollback"?"Rollback Base":"Install Base";
     if(!confirm(actionLabel+(version?" to "+version:"")+"?"))return;
     if(action==="deploy")setSiteStep(5);
-    const isBase=action!=="update";
+    const isBase=true;
     const baseAction=action==="deploy"?"install":action==="base_update"?"update":action;
     const endpoint=isBase
       ?`/api/orbitfs/installations/${install.id}/base/${baseAction}`
@@ -282,7 +268,6 @@ export default function MyOrbitFS(){
     }catch(e:any){setMsg(e?.message||"Force Base reinstall failed.")}
     finally{setBusy("")}
   }
-  async function rollbackUpdate(){if(!install||!appliedUpdateVersion)return;const reason=prompt(`Why are you rolling back Update ${appliedUpdateVersion}?`,"")?.trim()||"";if(!reason)return;if(!confirm(`Roll back OrbitFS Update ${appliedUpdateVersion}? Inner Engine targets will restore their pre-update checkpoint first. Forward-compatible database migrations remain applied.`))return;setBusy("rollback-update");const r=await fetch(`/api/orbitfs/installations/${install.id}/rollback-update`,{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({reason})}),j=await r.json().catch(()=>({}));setBusy("");setMsg(r.ok?`OrbitFS Update ${appliedUpdateVersion} rolled back.`:apiError(j,"Update rollback failed."));if(r.ok){pollCount.current=0;await load()}}
 
   async function sync(auto=false){if(!install)return;const r=await fetch(`/api/orbitfs/installations/${install.id}/status`,{headers:await authHeaders(),cache:"no-store"}),j=await r.json().catch(()=>({}));if(!r.ok){if(!auto)setMsg(apiError(j,"Could not refresh Panel status."));return}const updated=j.installation;if(updated){setD((current:any)=>current?({...current,installations:(current.installations||[]).map((x:any)=>x.id===updated.id?updated:x)}):current);setLiveCheckedAt(new Date().toISOString())}if(updated&&!workingStates.has(String(updated.state))&&!auto)await load()}
   async function refreshLiveBase(){
@@ -446,13 +431,13 @@ export default function MyOrbitFS(){
           <div className="portalStatCard"><span className="portalStatIcon">B</span><div><small>BASE</small><strong>{install.release_version}</strong><span>{selectedChannel} channel</span></div></div>
           <div className="portalStatCard"><span className="portalStatIcon">D</span><div><small>DATABASE</small><strong>{install.schema_version||"ready"}</strong><span>{install.supabase_project_name||install.supabase_project_ref||"Supabase connected"}</span></div></div>
           <div className="portalStatCard"><span className="portalStatIcon">V</span><div><small>VERCEL</small><strong>{install.vercel_project_name||"Connected"}</strong><span>{install.vercel_team_id||"Personal/default"}</span></div></div>
-          <div className="portalStatCard"><span className="portalStatIcon">U</span><div><small>UPDATE STATUS</small><strong>{selectedBaseUpdateAvailable?"Base "+selectedBaseUpdateRelease.version:sameVersionBaseRevisionAvailable?"Base "+latestBase+" repackage":updateAvailable?"Update "+latestUpdate:appliedUpdateVersion?"Update "+appliedUpdateVersion+" installed":updateDiscoveryReady?"No Update installed":"Update status unavailable"}</strong><span>{selectedBaseUpdateAvailable?"Published in "+selectedChannel:sameVersionBaseRevisionAvailable?"Current published package differs from the installed package":updateAvailable?"New published Engine/add-on update":appliedUpdateVersion?"Recorded applied Update · "+appliedUpdateChannel:updateDiscoveryReady?"No newer approved Update":"Cannot verify published Updates"}</span></div></div>
+          <div className="portalStatCard"><span className="portalStatIcon">B</span><div><small>BASE RELEASE STATUS</small><strong>{selectedBaseUpdateAvailable?"Base "+selectedBaseUpdateRelease.version:sameVersionBaseRevisionAvailable?"Base "+latestBase+" repackage":"Base "+String(install.release_version||"current")}</strong><span>{selectedBaseUpdateAvailable?"Published in "+selectedChannel:sameVersionBaseRevisionAvailable?"Current published Base package differs from the installed package":"No newer published Base release"}</span></div></div>
         </div>
 
         <div className="orbitPrimaryActionBar">
-          <div className="orbitPrimaryActionCopy"><small>NEXT ACTION</small><b>{selectedBaseUpdateAvailable&&settings.customer_base_updates_enabled?"Update Base "+install.release_version+" → "+selectedBaseUpdateRelease.version:sameVersionBaseRevisionAvailable&&settings.customer_deploy_enabled?"Redeploy current Base "+latestBase:updateAvailable&&settings.customer_updates_enabled?"Install Update "+latestUpdate:d?.releaseCatalogLoading?"Checking published releases…":d?.baseReleaseDiscoveryByChannel?.[selectedChannel]?.available!==true?"Release availability unverified":"OrbitFS Base is current"}</b><span>{selectedBaseUpdateAvailable&&settings.customer_base_updates_enabled?"The selected published Base release will update this existing Vercel project after its database migration chain is verified.":sameVersionBaseRevisionAvailable&&settings.customer_deploy_enabled?"License Manager has a newly published package for the same Base version. Redeploy installs the current authoritative package without inventing a second active release.":updateAvailable&&settings.customer_updates_enabled?"An approved Engine/add-on update is available for this channel.":appliedUpdateVersion?"Update "+appliedUpdateVersion+" is already recorded as installed. Base "+String(install.release_version||"")+" has its own version.":d?.releaseCatalogLoading?"Your installed Base is available while License Manager loads the release catalog.":d?.baseReleaseDiscoveryByChannel?.[selectedChannel]?.available!==true?"License Manager release discovery is unavailable. Existing installation status is shown, but new releases cannot be confirmed.":"Refresh releases at any time to check License Manager for newly published versions."}</span></div>
+          <div className="orbitPrimaryActionCopy"><small>NEXT ACTION</small><b>{selectedBaseUpdateAvailable&&settings.customer_base_updates_enabled?"Update Base "+install.release_version+" → "+selectedBaseUpdateRelease.version:sameVersionBaseRevisionAvailable&&settings.customer_deploy_enabled?"Redeploy current Base "+latestBase:d?.releaseCatalogLoading?"Checking published Base releases…":d?.baseReleaseDiscoveryByChannel?.[selectedChannel]?.available!==true?"Base release availability unverified":"OrbitFS Base is current"}</b><span>{selectedBaseUpdateAvailable&&settings.customer_base_updates_enabled?"The selected published Base release will update this existing Vercel project after its database migration chain is verified.":sameVersionBaseRevisionAvailable&&settings.customer_deploy_enabled?"License Manager has a newly published package for the same Base version. Redeploy installs the current authoritative package without inventing a second active release.":d?.releaseCatalogLoading?"Your installed Base is available while License Manager loads the Base release catalog.":d?.baseReleaseDiscoveryByChannel?.[selectedChannel]?.available!==true?"License Manager Base release discovery is unavailable. Existing installation status is shown, but new Base releases cannot be confirmed.":"Refresh Base releases at any time to check License Manager for newly published Base versions."}</span></div>
           <div className="orbitPrimaryActionControls">
-            {selectedBaseUpdateAvailable&&settings.customer_base_updates_enabled?<button className="orbitHeroAction" disabled={busy!==""||deploymentUnavailable||!infrastructureReady} onClick={()=>void deploy("base_update",String(selectedBaseUpdateRelease.version),String(selectedBaseUpdateRelease.id))}>{busy==="base_update"?"Updating Base…":"Update Base to "+selectedBaseUpdateRelease.version}</button>:sameVersionBaseRevisionAvailable&&settings.customer_deploy_enabled?<button className="orbitHeroAction" disabled={busy!==""||deploymentUnavailable||!infrastructureReady} onClick={()=>void deploy("redeploy")}>{busy==="redeploy"?"Redeploying…":"Redeploy current Base "+latestBase}</button>:updateAvailable&&settings.customer_updates_enabled?<button className="orbitHeroAction" disabled={busy!==""||deploymentUnavailable||!infrastructureReady} onClick={()=>void deploy("update",String(latestPublishedUpdate?.version||""),String(latestPublishedUpdate?.id||""))}>{busy==="update"?"Installing…":"Install Update "+latestUpdate}</button>:<button className="orbitHeroAction" disabled={busy!==""} onClick={()=>void refreshReleases()}>{busy==="refresh-releases"?"Refreshing…":"Check for updates"}</button>}
+            {selectedBaseUpdateAvailable&&settings.customer_base_updates_enabled?<button className="orbitHeroAction" disabled={busy!==""||deploymentUnavailable||!infrastructureReady} onClick={()=>void deploy("base_update",String(selectedBaseUpdateRelease.version),String(selectedBaseUpdateRelease.id))}>{busy==="base_update"?"Updating Base…":"Update Base to "+selectedBaseUpdateRelease.version}</button>:sameVersionBaseRevisionAvailable&&settings.customer_deploy_enabled?<button className="orbitHeroAction" disabled={busy!==""||deploymentUnavailable||!infrastructureReady} onClick={()=>void deploy("redeploy")}>{busy==="redeploy"?"Redeploying…":"Redeploy current Base "+latestBase}</button>:<button className="orbitHeroAction" disabled={busy!==""} onClick={()=>void refreshReleases()}>{busy==="refresh-releases"?"Refreshing…":"Check Base releases"}</button>}
             <details className="orbitActionMenu"><summary>More</summary><div>{install.production_url&&<a className="buttonlink secondary" href={install.production_url} target="_blank" rel="noreferrer">Open Panel</a>}<button className="secondary" disabled={busy!==""||deploymentUnavailable||!infrastructureReady||!settings.customer_deploy_enabled} onClick={()=>void deploy("redeploy")}>Redeploy current Base {latestBase||install.release_version}</button><button className="secondary" disabled={busy!==""} onClick={()=>void sync(false)}>Refresh runtime status</button><button className="secondary" disabled={busy!==""} onClick={()=>void repairPublicUrl()}>{busy==="public-url-repair"?"Repairing…":"Repair / rescan public domain"}</button></div></details>
           </div>
         </div>
