@@ -13,9 +13,9 @@ That suffix is part of the theme contract. Admin theme IDs must end in `A`; cust
 - `V5A` — current Admin redesign, extending `V3A`
 - `V3C` — stable Customer baseline
 - `V5C` — current Customer redesign, extending `V3C`
-- `V6C` — Customer Portal starter theme, extending `V3C`; intentionally minimal until V6 customer design work is added
+- `V6C` — standalone Customer Portal redesign based on the supplied 12ui visual system; it does not inherit `V3C` or `V5C`
 
-V5 is an overlay family. It keeps the V3 baseline underneath it and only owns the surfaces intentionally redesigned for V5. V6C also inherits V3C, but starts with no visual overrides so it can be developed independently without changing the active customer portal.
+V5 is an overlay family. It keeps the V3 baseline underneath it and only owns the surfaces intentionally redesigned for V5. V6C is different: it is a standalone customer visual system and does not use the V3C/V5C portal design when selected.
 
 ## Runtime switching
 
@@ -46,7 +46,7 @@ Example child theme:
   "surface": "customer",
   "entry": "theme.css",
   "family": "V6",
-  "extends": "V3C"
+  "standalone": true
 }
 ```
 
@@ -74,9 +74,9 @@ Do not move V5C Base Deployer styling back into shared V3C portal CSS.
 
 ## V6C starter
 
-V6C is intentionally a clean customer-theme starting point:
+V6C is a standalone customer-theme redesign:
 
 - `src/themes/V6C/manifest.json` defines it as a built-in Customer Portal theme.
 - `src/themes/V6C/theme.css` is the V6-only design entry point.
-- It extends `V3C`, so unfinished V6 work can rely on the stable customer baseline.
+- It does not extend `V3C` or `V5C`; unfinished V6 pages use the V6C shell rather than legacy portal layouts.
 - It is registered without changing `themes.active_customer`; creating or migrating V6C does not activate it.
