@@ -857,11 +857,10 @@ export async function rollbackCustomerUpdate(install:any,reason:string){
   const components:string[]=[...new Set<string>((Array.isArray(applied?.components)?applied.components:[]).map((value:any)=>String(value||"").trim().toLowerCase()).filter(Boolean))];
   if(!components.length)fail("Applied Update component history is incomplete",409);
   const channel=String(applied?.channel||install.release_channel||"stable").trim().toLowerCase();
-  const bindingResult=await licenseDb().from("license_bindings").select("license_id,desired_state,remote_state").eq("id",String(install.license_binding_id||"")).eq("auth_user_id",String(install.auth_user_id||"")).is("archived_at",null).maybeSingle();
+  const bindingResult=await licenseDb().from("license_bindings").select("license_id").eq("id",String(install.license_binding_id||"")).eq("auth_user_id",String(install.auth_user_id||"")).is("archived_at",null).maybeSingle();
   if(bindingResult.error)throw bindingResult.error;
   const authorityLicenseId=String(bindingResult.data?.license_id||"").trim();
   if(!authorityLicenseId)fail("This installation is not linked to an authoritative Billing licence",409,"LICENSE_BINDING_REQUIRED");
-  if(["revoked","expired"].includes(String(bindingResult.data?.desired_state||bindingResult.data?.remote_state||"").toLowerCase()))fail("The installation's Billing licence is not active",403,"LICENSE_BINDING_INACTIVE");
   const wantsPanel=components.includes("base"),wantsEngine=components.some((component:string)=>component!=="base");
   const baseUrl=String(install.production_url||install.deployment_url||"").trim();
   const pseudoRelease={id:releaseId};
@@ -923,11 +922,10 @@ export async function runCustomerDeployer(install:any,action:DeployAction,versio
   const allowedChannels=await customerReleaseChannels(String(install.auth_user_id),install.license_binding_id||null);
   if(!allowedChannels.includes(requestedChannel))fail(`Release channel "${requestedChannel}" is not available for this installation's licence`,403);
   await requireSystem(action==="rollback"?"rollback":action==="base_update"?"base_update":action==="update"?"update":"deploy");
-  const bindingResult=await licenseDb().from("license_bindings").select("license_id,desired_state,remote_state").eq("id",String(install.license_binding_id||"")).eq("auth_user_id",String(install.auth_user_id||"")).is("archived_at",null).maybeSingle();
+  const bindingResult=await licenseDb().from("license_bindings").select("license_id").eq("id",String(install.license_binding_id||"")).eq("auth_user_id",String(install.auth_user_id||"")).is("archived_at",null).maybeSingle();
   if(bindingResult.error)throw bindingResult.error;
   const authorityLicenseId=String(bindingResult.data?.license_id||"").trim();
   if(!authorityLicenseId)fail("This installation is not linked to an authoritative Billing licence",409,"LICENSE_BINDING_REQUIRED");
-  if(["revoked","expired"].includes(String(bindingResult.data?.desired_state||bindingResult.data?.remote_state||"").toLowerCase()))fail("The installation's Billing licence is not active",403,"LICENSE_BINDING_INACTIVE");
 
   let rollbackTarget:any=null;
   let rollbackReason="";
