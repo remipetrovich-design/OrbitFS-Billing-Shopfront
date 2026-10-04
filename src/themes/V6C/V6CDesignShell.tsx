@@ -1,6 +1,6 @@
 "use client";
 
-import {createContext,useContext} from "react";
+import {createContext,useContext,type ReactNode} from "react";
 
 type Props={path:string;canAccessAdmin?:boolean};
 const V6CAdminAccess=createContext(false);
@@ -24,7 +24,7 @@ function navActive(label:string,path:string){
   return false;
 }
 
-function Frame({path,children}:{path:string;children:React.ReactNode}){
+function Frame({path,children}:{path:string;children:ReactNode}){
   const canAccessAdmin=useContext(V6CAdminAccess);
   return <div className="v6c-screen">
     <aside className="v6c-side">
@@ -322,25 +322,24 @@ function Placeholder({path,title,section}:{path:string;title:string;section:stri
   return <Frame path={path}><section className="v6c-title"><span>● {section.toUpperCase()}</span><h1>{title}</h1><p>V6C desktop surface ready for the next design pass.</p></section><section className="v6c-card v6c-empty"><div/></section></Frame>;
 }
 
-export default function V6CDesignShell({
-  let content:React.ReactNode;
-path,canAccessAdmin=false}:Props){
+export default function V6CDesignShell({path,canAccessAdmin=false}:Props){
+  let content:ReactNode;
   if(path==="/portal") content=<Dashboard path={path}/>;
-  else   if(/^\/portal\/products\/[^/]+$/.test(path)) content=<ProductDetail path={path}/>;
-  else   if(path.startsWith("/portal/basket")||path.startsWith("/portal/checkout")) content=<CheckoutFlow path={path}/>;
-  else   if(path.startsWith("/portal/products")) content=<Store path={path}/>;
-  else   if(path.startsWith("/portal/orbitfs/releases")) content=<Release path={path}/>;
-  else   if(path==="/portal/orbitfs") content=<MyOrbitFSHome path={path}/>;
-  else   if(path.startsWith("/portal/orbitfs/deployer")) content=<Deployment path={path}/>;
-  else   if(/^\/portal\/invoices\/[^/]+$/.test(path)) content=<InvoiceDetail path={path}/>;
-  else   if(path.startsWith("/portal/invoices")) content=<Billing path={path} view="Invoices"/>;
-  else   if(path.startsWith("/portal/orders")) content=<Billing path={path} view="Payment History"/>;
-  else   if(path.startsWith("/portal/support/knowledge-base")) content=<KnowledgeBase path={path}/>;
-  else   if(/^\/portal\/support\/[^/]+$/.test(path)) content=<SupportTicket path={path}/>;
-  else   if(path.startsWith("/portal/support")) content=<SupportCentre path={path}/>;
-  else   if(path.startsWith("/portal/orbitfs/license")) content=<LicenseController path={path}/>;
-  else   if(path.startsWith("/portal/orbitfs/channels")) content=<ReleaseChannels path={path}/>;
-  else   if(path.startsWith("/portal/settings")) content=<AccountSettings path={path}/>;
+  else if(/^\/portal\/products\/[^/]+$/.test(path)) content=<ProductDetail path={path}/>;
+  else if(path.startsWith("/portal/basket")||path.startsWith("/portal/checkout")) content=<CheckoutFlow path={path}/>;
+  else if(path.startsWith("/portal/products")) content=<Store path={path}/>;
+  else if(path.startsWith("/portal/orbitfs/releases")) content=<Release path={path}/>;
+  else if(path==="/portal/orbitfs") content=<MyOrbitFSHome path={path}/>;
+  else if(path.startsWith("/portal/orbitfs/deployer")) content=<Deployment path={path}/>;
+  else if(/^\/portal\/invoices\/[^/]+$/.test(path)) content=<InvoiceDetail path={path}/>;
+  else if(path.startsWith("/portal/invoices")) content=<Billing path={path} view="Invoices"/>;
+  else if(path.startsWith("/portal/orders")) content=<Billing path={path} view="Payment History"/>;
+  else if(path.startsWith("/portal/support/knowledge-base")) content=<KnowledgeBase path={path}/>;
+  else if(/^\/portal\/support\/[^/]+$/.test(path)) content=<SupportTicket path={path}/>;
+  else if(path.startsWith("/portal/support")) content=<SupportCentre path={path}/>;
+  else if(path.startsWith("/portal/orbitfs/license")) content=<LicenseController path={path}/>;
+  else if(path.startsWith("/portal/orbitfs/channels")) content=<ReleaseChannels path={path}/>;
+  else if(path.startsWith("/portal/settings")) content=<AccountSettings path={path}/>;
   else content=<Placeholder path={path} title="Customer Portal" section="OrbitFS"/>;
   return <V6CAdminAccess.Provider value={canAccessAdmin}>{content}</V6CAdminAccess.Provider>;
 }
