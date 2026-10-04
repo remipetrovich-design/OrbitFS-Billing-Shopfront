@@ -208,7 +208,7 @@ export default function OrbitFSUpdateReleaseSystem(){
       }
     };
     void tick();
-    const timer=setInterval(()=>{if(document.visibilityState==="visible")void tick()},10000);
+    const timer=setInterval(()=>{if(document.visibilityState==="visible")void tick()},60000);
     return()=>{active=false;clearInterval(timer)};
   },[stage,install?.id,progressTarget,progressMode,attemptStartedAt,refreshProgress,load]);
 
@@ -508,7 +508,7 @@ export default function OrbitFSUpdateReleaseSystem(){
       <div className="orbitV5UpdatePanelHeading"><div><p className="eyebrow">STEP 4 · LIVE PROGRESS</p>
         <h2>{progressMode==="rollback"?"Rolling back installed Update":"Installing OrbitFS Update"}</h2>
         <p>{progressMode==="rollback"?"Using the existing authorized rollback workflow. Database migrations remain applied.":"The steps below reflect actual execution events, not estimated percentages."}</p>
-        <small className="muted">LIVE · refreshes every 3 seconds{progress?.lastCheckedAt?" · last checked "+dateLabel(progress.lastCheckedAt):""}</small>
+        <small className="muted">LIVE · refreshes every 60 seconds{progress?.lastCheckedAt?" · last checked "+dateLabel(progress.lastCheckedAt):""}</small>
         </div><span className={"state "+(failedEvent?"waiting":completedEvent?"ready":"current")}>{failedEvent?"NEEDS ATTENTION":completedEvent?"COMPLETE":"IN PROGRESS"}</span></div>
       <div className="orbitV5UpdateTimeline">
         {phases.map((phase,index)=>{
