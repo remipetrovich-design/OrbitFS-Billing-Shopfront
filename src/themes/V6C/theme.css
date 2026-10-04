@@ -307,3 +307,88 @@ html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-conte
 
 /* Base Deployment keeps its real workflow, but follows the same ZIP card language. */
 .v6c-route-base .orbitZipDeployer{display:grid;gap:12px}.v6c-route-base .orbitV5Connections>.panel,.v6c-route-base .orbitInstallerWorkspace{padding:17px!important}.v6c-route-base .orbitZipControlGrid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}.v6c-route-base .orbitV5Start{border:1px solid #12364f!important;border-radius:9px!important;background:radial-gradient(420px 170px at 85% 40%,rgba(91,42,255,.16),transparent 68%),linear-gradient(180deg,#061e32,#031523)!important}
+
+
+/* --------------------------------------------------------------------------
+   12ui-derived global shell hardening + My OrbitFS hub
+   -------------------------------------------------------------------------- */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-appbar{
+  height:58px!important;
+  max-width:1180px;
+  margin:0 auto!important;
+  padding:0 16px!important;
+  gap:16px!important;
+  border:1px solid #123650!important;
+  border-top:0!important;
+  border-radius:0 0 9px 9px!important;
+  background:#031522f2!important;
+  box-shadow:0 10px 32px rgba(0,0,0,.16)!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-mark{
+  min-width:110px!important;
+  gap:9px!important;
+  font-size:11px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-mark>span{
+  width:24px!important;height:24px!important;border-radius:7px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-globalnav{
+  gap:4px!important;
+  flex:0 0 auto!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-globalnav>a{
+  height:31px!important;
+  padding:0 10px!important;
+  border-radius:6px!important;
+  font-size:8px!important;
+  letter-spacing:.01em!important;
+  color:#b5c9da!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-globalnav>a:hover{
+  background:#071d31!important;color:#fff!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-globalnav>a.is-active{
+  background:linear-gradient(180deg,#152051,#4821a9)!important;
+  border-bottom:1px solid #823dff!important;
+  color:#fff!important;
+  box-shadow:0 0 14px rgba(94,46,210,.18)!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-appbar-spacer{min-width:14px!important}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-app-search{
+  width:172px!important;height:31px!important;
+  flex:0 0 172px!important;
+  border-color:#103550!important;
+  background:#041827!important;
+  border-radius:6px!important;
+  color:#7293af!important;
+}
+.v6c-notification-compact{display:flex;align-items:center;justify-content:center;flex:0 0 32px}
+.v6c-account-menu{position:relative;flex:0 0 auto}
+.v6c-account-menu>summary{list-style:none;cursor:pointer;display:grid;place-items:center;width:34px;height:34px;border:1px solid #244a6a;border-radius:50%;background:linear-gradient(145deg,#17395a,#311d72);box-shadow:0 0 18px rgba(69,59,190,.2)}
+.v6c-account-menu>summary::-webkit-details-marker{display:none}
+.v6c-account-menu[open]>summary{border-color:#7a55e9;box-shadow:0 0 0 2px rgba(122,85,233,.16),0 0 20px rgba(89,53,200,.25)}
+.v6c-avatar{width:26px;height:26px;display:grid;place-items:center;border-radius:50%;background:linear-gradient(135deg,#6a26e8,#168bc8);color:#fff;font-size:8px;font-weight:800;letter-spacing:.03em}
+.v6c-avatar.large{width:34px;height:34px;font-size:10px;flex:0 0 34px}
+.v6c-account-popover{position:absolute;top:43px;right:0;z-index:100;width:220px;padding:7px;border:1px solid #173d59;border-radius:8px;background:#031522;box-shadow:0 22px 55px rgba(0,0,0,.55)}
+.v6c-account-identity{display:flex;align-items:center;gap:9px;padding:9px 8px 11px;margin-bottom:4px;border-bottom:1px solid #0e3048}.v6c-account-identity div{min-width:0}.v6c-account-identity b,.v6c-account-identity small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.v6c-account-identity b{font-size:9px;color:#eff7ff}.v6c-account-identity small{margin-top:2px;font-size:7px;color:#6687a1}
+.v6c-account-popover>a,.v6c-account-popover>button{width:100%;height:34px;padding:0 9px;display:flex;align-items:center;justify-content:space-between;border:0!important;border-radius:5px!important;background:transparent!important;color:#9eb7cb!important;text-decoration:none;font-size:8px!important;text-align:left}.v6c-account-popover>a:hover,.v6c-account-popover>button:hover{background:#082238!important;color:#fff!important}.v6c-account-popover>a>b,.v6c-account-popover>button>b{color:#5c82a1;font-size:10px}
+.v6c-account-future{padding:9px;margin:4px 0;border-top:1px solid #0e3048;border-bottom:1px solid #0e3048}.v6c-account-future span,.v6c-account-future small{display:block}.v6c-account-future span{font-size:8px;color:#7190aa}.v6c-account-future small{margin-top:3px;font-size:7px;color:#486981}
+
+/* My OrbitFS landing */
+.v6c-route-orbit-home{padding-top:28px!important}
+.v6c-orbit-home{display:grid;gap:14px}
+.v6c-orbit-landing-hero{position:relative;min-height:250px;padding:38px 410px 36px 34px;display:flex;align-items:center;border:1px solid #123650;border-radius:10px;overflow:hidden;background:
+ radial-gradient(520px 240px at 82% 42%,rgba(92,38,255,.24),transparent 70%),
+ radial-gradient(420px 220px at 58% -10%,rgba(0,179,255,.08),transparent 70%),
+ linear-gradient(120deg,#041424,#061a31 60%,#04121f)}
+.v6c-orbit-landing-hero h1{margin:13px 0 10px;color:#fff;font-size:38px;line-height:1.02;letter-spacing:-.045em}.v6c-orbit-landing-hero p{max-width:630px;margin:0;color:#7896af;font-size:10px;line-height:1.65}
+.v6c-orbit-landing-art{position:absolute;right:52px;top:30px;width:285px;height:180px}
+.v6c-orbit-landing-art:before,.v6c-orbit-landing-art:after,.v6c-orbit-landing-art i,.v6c-orbit-landing-art b,.v6c-orbit-landing-art span{content:"";position:absolute;display:block}
+.v6c-orbit-landing-art:before{right:55px;top:34px;width:150px;height:105px;clip-path:polygon(50% 0,92% 22%,92% 76%,50% 100%,8% 76%,8% 22%);background:linear-gradient(160deg,#8b18ff,#3a49ff 48%,#08245f);filter:drop-shadow(0 0 22px rgba(87,47,255,.5))}
+.v6c-orbit-landing-art:after{right:83px;top:60px;width:95px;height:48px;border:1px solid rgba(83,219,255,.52);border-radius:6px}.v6c-orbit-landing-art i,.v6c-orbit-landing-art span{width:20px;height:20px;transform:rotate(45deg);border:1px solid #6846ff;background:#171044}.v6c-orbit-landing-art i{left:35px;top:100px}.v6c-orbit-landing-art span{right:14px;top:36px}.v6c-orbit-landing-art b{right:38px;top:79px;width:46px;height:46px;border-radius:50%;border:2px solid #3ce0ff;background:#062a6c;box-shadow:0 0 22px rgba(57,204,255,.45)}
+.v6c-orbit-primary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.v6c-orbit-destination{position:relative;display:block;border:1px solid #123750;border-radius:9px;background:linear-gradient(180deg,#061e32,#031523);color:#dfeaf4;text-decoration:none;overflow:hidden}.v6c-orbit-destination.primary{min-height:215px;padding:24px}.v6c-orbit-destination.primary:after{content:"";position:absolute;right:-30px;bottom:-50px;width:170px;height:170px;border-radius:50%;background:radial-gradient(circle,#5834dc33,transparent 68%)}.v6c-orbit-destination.primary.update:after{background:radial-gradient(circle,#008dc833,transparent 68%)}.v6c-destination-number{display:inline-flex;width:29px;height:29px;align-items:center;justify-content:center;border:1px solid #5141b8;border-radius:7px;background:#161545;color:#b5a6ff;font-size:8px;font-weight:800}.v6c-orbit-destination small{display:block;margin-top:22px;color:#49bff1;font-size:7px;letter-spacing:.11em}.v6c-orbit-destination h2{margin:6px 0 8px;font-size:22px}.v6c-orbit-destination p{max-width:520px;color:#6e8ea8;font-size:9px;line-height:1.55}.v6c-orbit-destination.primary>b{position:absolute;left:24px;bottom:22px;color:#8dd9ff;font-size:8px}
+.v6c-orbit-secondary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.v6c-orbit-destination.compact{min-height:145px;padding:18px}.v6c-orbit-destination.compact small{margin-top:0}.v6c-orbit-destination.compact h3{margin:7px 0 6px;font-size:14px}.v6c-orbit-destination.compact p{max-width:530px}.v6c-orbit-destination.compact span{position:absolute;left:18px;bottom:16px;color:#72cff3;font-size:8px}
+.v6c-orbit-destination:hover{border-color:#365c88;transform:translateY(-1px)}
+.v6c-system-status{padding:20px;border:1px solid #123750;border-radius:9px;background:#041827}.v6c-system-status>header{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding-bottom:15px;border-bottom:1px solid #0f3049}.v6c-system-status h2{margin:9px 0 5px;font-size:18px}.v6c-system-status header p{margin:0;color:#6787a1;font-size:9px}.v6c-status-summary{min-width:185px;text-align:right}.v6c-status-summary b,.v6c-status-summary span{display:block}.v6c-status-summary b{font-size:22px;color:#fff}.v6c-status-summary span{margin:3px 0 8px;color:#6e8ea8;font-size:8px}.v6c-status-summary button{height:30px!important;padding:0 10px!important}
+.v6c-status-message{padding:10px;margin:12px 0 0;border:1px solid #75435a;border-radius:6px;background:#241522;color:#ffb2c1!important;font-size:8px!important}.v6c-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}.v6c-status-card{min-height:112px;padding:13px;border:1px solid #12364f;border-radius:7px;background:#031522}.v6c-status-card>div{display:flex;align-items:center;gap:7px}.v6c-status-card i{width:7px;height:7px;border-radius:50%;background:#55738c}.v6c-status-card small{color:#64849e!important;font-size:7px!important;letter-spacing:.06em}.v6c-status-card>b{display:block;margin-top:12px;font-size:11px}.v6c-status-card>p{margin:4px 0 0;color:#587994!important;font-size:7px!important;line-height:1.45}.v6c-status-card.tone-ready i{background:#20d2b4;box-shadow:0 0 10px rgba(32,210,180,.45)}.v6c-status-card.tone-ready>b{color:#63ddca}.v6c-status-card.tone-warning i{background:#f3b642}.v6c-status-card.tone-warning>b{color:#ffd27f}.v6c-status-card.tone-offline i{background:#ef6479}.v6c-status-card.tone-offline>b{color:#ff9eac}
+
