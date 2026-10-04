@@ -161,6 +161,66 @@ function Release({path}:{path:string}){
   </Frame>;
 }
 
+
+function SupportCentre({path}:{path:string}){
+  const tickets=[
+    ["#4821","Update installation failed after validation","Waiting on Support","High","Today, 9:42 PM"],
+    ["#4798","Billing receipt missing from account","Open","Normal","Yesterday"],
+    ["#4710","Release channel access request","Resolved","Normal","Sep 28"],
+  ];
+  return <Frame path={path}>
+    <section className="v6c-title row-title"><div><span>● SUPPORT CENTRE</span><h1>Help when you need it.</h1><p>Open a ticket, follow existing conversations, or find answers in the OrbitFS Knowledge Base.</p></div><em>Support Online ·</em></section>
+    <section className="v6c-support-actions">
+      <article className="v6c-card"><div className="v6c-feature-icon">＋</div><h2>Open a support ticket</h2><p>Send an issue directly to the appropriate OrbitFS support team.</p><button>New ticket</button></article>
+      <article className="v6c-card"><div className="v6c-feature-icon">?</div><h2>Knowledge Base</h2><p>Browse customer guidance for billing, deployments, licences and troubleshooting.</p><button>Browse articles</button></article>
+      <article className="v6c-card"><div className="v6c-feature-icon">◎</div><h2>Service status</h2><p>Current customer support and OrbitFS platform availability.</p><div className="v6c-status-line"><i/>All systems operational</div></article>
+    </section>
+    <section className="v6c-card v6c-support-table">
+      <div className="v6c-card-head"><div><span className="v6c-kicker">YOUR SUPPORT</span><h2>Recent tickets</h2></div><div className="v6c-filters"><span>Current</span><span>Closed</span><span>Search tickets...</span></div></div>
+      <div className="v6c-ticket-list">{tickets.map(t=><div className="v6c-ticket" key={t[0]}><div><b>{t[0]}</b><strong>{t[1]}</strong></div><span>{t[2]}</span><span>{t[3]}</span><small>{t[4]}</small><em>→</em></div>)}</div>
+    </section>
+  </Frame>;
+}
+
+function LicenseController({path}:{path:string}){
+  return <Frame path={path}>
+    <section className="v6c-title row-title"><div><span>● MY ORBITFS · LICENSE CONTROLLER</span><h1>Licence control,<br/>without the noise.</h1><p>See the licence attached to your OrbitFS environment, current entitlements and runtime validation state.</p></div><em>● Licence Active</em></section>
+    <section className="v6c-license-grid">
+      <article className="v6c-card v6c-license-primary">
+        <span className="v6c-kicker">CURRENT LICENCE</span><div className="v6c-license-name"><div><h2>OrbitFS Business</h2><p>Customer production licence</p></div><strong>ACTIVE</strong></div>
+        <div className="v6c-license-key"><small>LICENCE KEY</small><b>ORBIT-••••-••••-92AF</b></div>
+        <div className="v6c-license-meta"><div><small>VALIDATION</small><b>Healthy</b><span>Last validated 4 minutes ago</span></div><div><small>EXPIRES</small><b>12 Months</b><span>October 4, 2027</span></div><div><small>BOUND INSTALLATION</small><b>Production</b><span>1 active binding</span></div></div>
+      </article>
+      <article className="v6c-card v6c-entitlements"><span className="v6c-kicker">ENTITLEMENTS</span><h2>Included capabilities</h2>{["Base System","Update Engine","Stable Release Channel","Customer Support","Rollback Authorization"].map((x,i)=><div key={x}><i>✓</i><span>{x}</span><b>{i===1?"v2.x":"Enabled"}</b></div>)}</article>
+    </section>
+    <section className="v6c-card v6c-runtime"><div><span className="v6c-kicker">RUNTIME VALIDATION</span><h2>Validation & binding state</h2></div><div className="v6c-runtime-grid"><article><small>VALIDATION STATE</small><b>Healthy</b><span>Runtime checks passing</span></article><article><small>GRACE POLICY</small><b>Available</b><span>Per licence policy</span></article><article><small>PULSE</small><b>Connected</b><span>Last response 4m ago</span></article><article><small>ACTIVATIONS</small><b>1 / 1</b><span>Production bound</span></article></div></section>
+  </Frame>;
+}
+
+function ReleaseChannels({path}:{path:string}){
+  const channels=[
+    ["Stable","Production-ready releases for standard customer environments.","Current","v2.5.0","Open"],
+    ["Staging","Pre-production releases for validation before stable rollout.","Available","v2.6.0-rc2","Open"],
+    ["Canary","Early releases for controlled testing and rapid feedback.","Restricted","v2.6.0-canary.18","Request"],
+  ];
+  return <Frame path={path}>
+    <section className="v6c-title row-title"><div><span>● MY ORBITFS · RELEASE CHANNELS</span><h1>Choose how your OrbitFS<br/>receives releases.</h1><p>See your current channel, available channels and access state for preview releases.</p></div><em>Current · Stable</em></section>
+    <section className="v6c-channel-grid">{channels.map((x,i)=><article className={"v6c-card v6c-channel "+(i===0?"is-current":"")} key={x[0]}><div className="v6c-channel-top"><div><span className="v6c-kicker">{x[2]}</span><h2>{x[0]}</h2></div><b>{x[4]}</b></div><p>{x[1]}</p><dl><dt>Latest release</dt><dd>{x[3]}</dd><dt>Access</dt><dd>{i===2?"Approval required":"Customer eligible"}</dd><dt>Update policy</dt><dd>{i===0?"Recommended":"Optional"}</dd></dl><button>{i===0?"Current channel":i===2?"Request access":"Switch channel"}</button></article>)}</section>
+    <section className="v6c-card v6c-channel-note"><div><span className="v6c-kicker">CHANNEL AUTHORITY</span><h2>Access follows your OrbitFS licence.</h2><p>Channel eligibility and access are controlled by the License Manager. This page only presents your available customer choices.</p></div><span>Licence Controller →</span></section>
+  </Frame>;
+}
+
+function AccountSettings({path}:{path:string}){
+  return <Frame path={path}>
+    <section className="v6c-title"><span>● ACCOUNT SETTINGS</span><h1>Your account,<br/>your details.</h1><p>Manage customer details, billing information, Wallet preferences and account security.</p></section>
+    <nav className="v6c-subnav"><a className="is-active">Profile</a><a>Billing Details</a><a>Wallet</a><a>Preferences</a><a>Security</a></nav>
+    <section className="v6c-settings-grid">
+      <article className="v6c-card v6c-settings-form"><span className="v6c-kicker">PROFILE</span><h2>Personal details</h2><p>Used across your OrbitFS customer account and billing records.</p><div className="v6c-field-grid"><label><small>FIRST NAME</small><div>Lucas</div></label><label><small>LAST NAME</small><div>Kerim</div></label><label className="wide"><small>DISPLAY NAME</small><div>Lucas Kerim</div></label><label><small>COMPANY</small><div>—</div></label><label><small>PHONE</small><div>—</div></label><label className="wide"><small>EMAIL</small><div>customer@example.com</div></label></div><div className="v6c-settings-save"><span>Customer ID · ORB-CUST-001</span><button>Save changes</button></div></article>
+      <article className="v6c-card v6c-account-summary"><span className="v6c-kicker">ACCOUNT</span><h2>Customer summary</h2><div><small>STATUS</small><b className="good">Active</b></div><div><small>WALLET</small><b>$0.00 AUD</b></div><div><small>DEFAULT CURRENCY</small><b>AUD</b></div><div><small>SECURITY</small><b>Password protected</b></div></article>
+    </section>
+  </Frame>;
+}
+
 function Placeholder({path,title,section}:{path:string;title:string;section:string}){
   return <Frame path={path}><section className="v6c-title"><span>● {section.toUpperCase()}</span><h1>{title}</h1><p>V6C desktop surface ready for the next design pass.</p></section><section className="v6c-card v6c-empty"><div/></section></Frame>;
 }
@@ -172,9 +232,9 @@ export default function V6CDesignShell({path}:Props){
   if(path==="/portal/orbitfs"||path.startsWith("/portal/orbitfs/deployer"))return <Deployment path={path}/>;
   if(path.startsWith("/portal/invoices"))return <Billing path={path} view="Invoices"/>;
   if(path.startsWith("/portal/orders")||path.startsWith("/portal/checkout"))return <Billing path={path} view="Payment History"/>;
-  if(path.startsWith("/portal/support"))return <Placeholder path={path} title="Support Centre" section="Support Centre"/>;
-  if(path.startsWith("/portal/orbitfs/license"))return <Placeholder path={path} title="License Controller" section="My OrbitFS"/>;
-  if(path.startsWith("/portal/orbitfs/channels"))return <Placeholder path={path} title="Release Channels" section="My OrbitFS"/>;
-  if(path.startsWith("/portal/settings"))return <Placeholder path={path} title="Account Settings" section="Account"/>;
+  if(path.startsWith("/portal/support"))return <SupportCentre path={path}/>;
+  if(path.startsWith("/portal/orbitfs/license"))return <LicenseController path={path}/>;
+  if(path.startsWith("/portal/orbitfs/channels"))return <ReleaseChannels path={path}/>;
+  if(path.startsWith("/portal/settings"))return <AccountSettings path={path}/>;
   return <Placeholder path={path} title="Customer Portal" section="OrbitFS"/>;
 }
