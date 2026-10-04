@@ -1,0 +1,12 @@
+/* OrbitFS V6C customer portal starter theme.
+   This file is intentionally minimal. V6C inherits the stable V3C customer
+   baseline and is not activated by installing or bundling this theme.
+
+   Build V6C-only design work beneath the exact theme selector below so future
+   changes remain isolated from V3C/V5C and from the Admin surface.
+*/
+
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] {
+  /* V6C design tokens can be introduced here without changing the inherited UI. */
+  --orbitfs-v6c-theme-ready: 1;
+}
