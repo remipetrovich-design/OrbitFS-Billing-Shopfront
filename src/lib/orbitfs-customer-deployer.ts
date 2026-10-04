@@ -3,7 +3,7 @@ import {gunzipSync} from "node:zlib";
 import {createHash} from "node:crypto";
 import {licenseDb} from "@/lib/license-api";
 import {masterDownloadReleaseArtifact,masterExecuteDeployment,masterReleases,masterRequest,type MasterDeploymentResult} from "@/lib/master-api";
-import {billingOrbitfsConfig,configureVercel,configureVercelUpdateIdentity,resolveProductionUrl,checkPublicPanelHealth,ensureStandardPanelProtection,customerInstallationDbSecret,customerVercelCredentials,ensureVercelProject,ensureCustomerDatabaseRuntimeAccess,event,requireSystem,supabaseApi,vercelApi,type DeployAction} from "@/lib/orbitfs-deployment";
+import {billingOrbitfsConfig,configureVercel,resolveProductionUrl,checkPublicPanelHealth,ensureStandardPanelProtection,customerInstallationDbSecret,customerVercelCredentials,ensureVercelProject,ensureCustomerDatabaseRuntimeAccess,event,requireSystem,supabaseApi,vercelApi,type DeployAction} from "@/lib/orbitfs-deployment";
 import {customerReleaseChannels} from "@/lib/orbitfs-release-channels";
 import {reportDevPanelReleaseEvent} from "@/lib/dev-panel-events";
 import {errorMessage} from "@/lib/error-message";
@@ -592,36 +592,6 @@ async function registerInstalledBaseRoute(baseUrl:string,install:any,deploymentI
   if(!response.ok)fail(errorMessage(body?.error??body?.message??body,`Deployed Base setup registration returned ${response.status}`),response.status<500?response.status:502,"BASE_SETUP_ROUTE_REGISTRATION_FAILED",response.status>=500);
   if(body?.installation?.route!=="billing_store")fail("Deployed Base did not confirm the Billing Store installation route",502,"BASE_SETUP_ROUTE_REGISTRATION_FAILED",true);
   return body;
-}
-async function deployPanelUpdatePayload(install:any,release:any,bundle:UpdateBundle,panel:Package,artifactSha256:string,channel:string,executionComponents:string[]){
-  const installedBase=String(install.release_version||"").trim();
-  const minimumBase=String(bundle.minimumBaseVersion||(panel as any).baseVersion||"").trim();
-  if(!installedBase)fail("Deploy OrbitFS Base before applying a Panel update",409);
-  if(minimumBase){
-    const comparison=compareOrbitReleaseVersions(installedBase,minimumBase);
-    if(comparison===null||comparison<0)fail(`Panel update ${release.version} requires Base ${minimumBase} or newer; this installation is Base ${installedBase}.`,409);
-  }
-  const files=validateFiles(panel.files,"Base update payload");
-  validateDeployableBaseFiles(files);
-  const deploymentFiles=baseVercelDeploymentFiles(files);
-  const uploadedFiles=await uploadVercelDeploymentFiles(String(install.auth_user_id),deploymentFiles);
-  await configureVercelUpdateIdentity(install,{version:String(release.version),releaseId:String(release.id),sha256:artifactSha256,sourceCommit:bundle.sourceCommit||expectedSource(release),channel,components:bundle.components});
-  const body:any={
-    name:install.vercel_project_name||`orbitfs-${String(install.installation_id||"").slice(-8)}`.toLowerCase(),
-    project:install.vercel_project_id,
-    target:"production",
-    files:uploadedFiles,
-    projectSettings:{framework:"sveltekit",installCommand:"npm ci",buildCommand:"npm run build",...(panel.projectSettings||{})},
-    meta:{orbitfsReleaseId:String(release.id),orbitfsVersion:String(release.version),orbitfsAction:"update",orbitfsChannel:channel,orbitfsSourceCommit:String(bundle.sourceCommit||expectedSource(release)),orbitfsInstallationRoute:"billing_store",orbitfsUpdateTargets:executionComponents.join(",")}
-  };
-  const created=await vercelApi(install.auth_user_id,"/v13/deployments",{method:"POST",body:JSON.stringify(body)});
-  if(!created?.id&&!created?.uid)fail("Vercel did not return a Panel update deployment id",502);
-  const deploymentId=String(created.id||created.uid);
-  const ready=await waitForReady(install.auth_user_id,deploymentId);
-  const state=String(ready?.readyState||ready?.state||"");
-  if(state!=="READY")fail("Panel update deployment did not become ready within the deployment window",504);
-  const deploymentUrl=ready?.url?`https://${String(ready.url).replace(/^https?:\/\//,"")}`:install.deployment_url;
-  return {deploymentId,deploymentUrl,fileCount:deploymentFiles.length,artifactFileCount:files.length};
 }
 function updaterConnection(install:any){
   const metadata=install?.metadata&&typeof install.metadata==="object"?install.metadata:{};
