@@ -17,7 +17,6 @@ const nav=[
   ["Store","/portal/products"],
   ["Billing","/portal/orders"],
   ["Support","/portal/support"],
-  ["My OrbitFS","/portal/orbitfs"],
   ["Settings","/portal/settings"],
 ] as const;
 
@@ -36,7 +35,16 @@ export default function V6CDesignShell({path,children,canAccessAdmin=false,loggi
     <header className="v6c-appbar">
       <Link className="v6c-mark" href="/portal" aria-label="OrbitFS home"><span/><b>OrbitFS</b></Link>
       <nav className="v6c-globalnav" aria-label="Customer Portal">
-        {nav.map(([label,href])=><Link key={href} href={href} className={active(label,path)?"is-active":""}>{label}<span>⌄</span></Link>)}
+        {nav.map(([label,href])=><Link key={href} href={href} className={active(label,path)?"is-active":""}>{label}{(label==="Store"||label==="Billing")&&<span>⌄</span>}</Link>)}
+        <details className={"v6c-nav-dropdown "+(path.startsWith("/portal/orbitfs")?"is-active":"")}>
+          <summary>My OrbitFS <span>⌄</span></summary>
+          <div className="v6c-nav-menu">
+            <Link href="/portal/orbitfs">Base Deployment</Link>
+            <Link href="/portal/orbitfs/releases">Update Release System</Link>
+            <Link href="/portal/orbitfs/license">License Controller</Link>
+            <Link href="/portal/orbitfs/channels">Release Channels</Link>
+          </div>
+        </details>
       </nav>
       <div className="v6c-appbar-spacer"/>
       <div className="v6c-app-search">⌕ <span>Search anything...</span></div>
