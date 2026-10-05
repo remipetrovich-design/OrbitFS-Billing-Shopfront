@@ -76,6 +76,16 @@ export default function SettingsHub(){
    <article><small>Last refresh</small><strong>{live.refreshed?live.refreshed.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}):"—"}</strong><span>{live.error||"Read live from current Billing project"}</span></article>
   </section>
 
+  <section className="settingsQuickActions" aria-label="Live settings actions">
+   <div className="settingsQuickActionsIntro"><p className="eyebrow">LIVE ACTIONS</p><b>Common configuration controls</b><span>These open live administrative settings. Changes remain governed by each destination's save/test flow.</span></div>
+   <div className="settingsQuickActionGrid">
+    <Link href="/admin/settings/api-connections"><small>Authority</small><b>API Connections</b><span>Test or select the official License Manager endpoint.</span></Link>
+    <Link href="/admin/settings/themes"><small>Presentation</small><b>Theme Manager</b><span>Review installed themes and active Admin/Customer surfaces.</span></Link>
+    <Link href="/admin/settings/portal-banner"><small>Customer portal</small><b>Global banner</b><span>Publish or disable the persistent portal notice.</span></Link>
+    <Link href="/admin/settings/staff"><small>Access</small><b>Staff System</b><span>Manage staff, groups and inherited permission maps.</span></Link>
+   </div>
+  </section>
+
   <div className="settingsAccordion">{sections.map((section,index)=><details className="settingsSectionV2" key={section.title} open={index===0}>
    <summary className="settingsSectionSummary"><span className="settingsSectionIndex">0{index+1}</span><div><h2>{section.title}</h2><p>{section.description}</p></div><span className="settingsSectionCount">{section.cards.length}</span><span className="settingsChevron">⌄</span></summary>
    <div className="settingsAreaGrid">{section.cards.map(card=><Link className="settingsAreaCard" href={card.href} key={card.href}><div className="settingsAreaCopy"><div className="settingsAreaTitle"><b>{card.title}</b><span className="settingsAreaBadge">{card.badge}</span></div><p>{card.description}</p><div className="settingsAreaTags">{card.tags.map(tag=><span key={tag}>{tag}</span>)}</div></div><span className="settingsAreaGo">Open →</span></Link>)}</div>
