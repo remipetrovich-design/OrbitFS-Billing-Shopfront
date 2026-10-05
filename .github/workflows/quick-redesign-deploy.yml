@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: v2-billing-quick
@@ -102,6 +103,72 @@ jobs:
           echo "branch=$TARGET_BRANCH" >> "$GITHUB_OUTPUT"
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
           echo "Quick Deploy source: $TARGET_BRANCH @ $commit"
+
+      - name: Require successful Store Full Scan for exact commit
+        if: steps.profile.outputs.deploy == 'true'
+        shell: bash
+        env:
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test -n "$SOURCE_COMMIT"
+          test -n "$GH_TOKEN"
+
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&event=push&status=completed&per_page=50")"
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Could not verify Store Full Scan status (HTTP $status)."
+            cat "$response_file"
+            exit 1
+          fi
+
+          result="$(node - "$response_file" "$SOURCE_COMMIT" <<'NODE'
+          const fs=require('fs');
+          const [file,sha]=process.argv.slice(2);
+          const body=JSON.parse(fs.readFileSync(file,'utf8'));
+          const runs=Array.isArray(body.workflow_runs)?body.workflow_runs:[];
+          const exact=runs
+            .filter((run)=>String(run.head_sha||'')===sha)
+            .sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+          if(!exact.length){
+            process.stdout.write('missing');
+          }else if(exact.some((run)=>String(run.conclusion||'')==='success')){
+            process.stdout.write('success');
+          }else{
+            const latest=exact[0];
+            process.stdout.write('failed:'+String(latest.conclusion||latest.status||'unknown')+':'+String(latest.html_url||''));
+          }
+          NODE
+          )"
+
+          case "$result" in
+            success)
+              echo "Store Full Scan passed for $SOURCE_COMMIT."
+              ;;
+            missing)
+              echo "::error::No completed Store Full Scan push run exists for $SOURCE_COMMIT. Wait for the scan to finish before Quick Deploy."
+              exit 1
+              ;;
+            failed:*)
+              detail="${result#failed:}"
+              conclusion="${detail%%:*}"
+              url="${detail#*:}"
+              echo "::error::Store Full Scan did not pass for $SOURCE_COMMIT (conclusion: $conclusion)."
+              if [ -n "$url" ]; then echo "Run: $url"; fi
+              exit 1
+              ;;
+            *)
+              echo "::error::Unexpected Store Full Scan verification result: $result"
+              exit 1
+              ;;
+          esac
 
       - name: Reuse an existing production deployment for this commit
         if: steps.profile.outputs.deploy == 'true'
