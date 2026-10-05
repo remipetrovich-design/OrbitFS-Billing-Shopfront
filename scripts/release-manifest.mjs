@@ -76,7 +76,7 @@ const branch = process.env.GITHUB_REF_NAME || git(["branch", "--show-current"]) 
 
 const manifest = {
   schemaVersion: 2,
-  repository: process.env.GITHUB_REPOSITORY ?? "lucaskerim123/V2_Billing_Store",
+  repository: process.env.GITHUB_REPOSITORY ?? "remipetrovich-design/OrbitFS-Billing-Shopfront",
   branch,
   baseSha: baseSha || null,
   baseSource,
