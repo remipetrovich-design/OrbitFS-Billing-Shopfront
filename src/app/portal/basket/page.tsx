@@ -63,17 +63,17 @@ export default function BasketPage(){
 
     <section className="storeFlowHeader">
       <div><p className="eyebrow">YOUR BASKET</p><h1>Review your OrbitFS order.</h1><p className="muted">Check products, gifts and discounts before continuing to payment.</p></div>
-      <Link className="buttonlink secondary" href="/portal/products">← Continue shopping</Link>
+      <Link className="storeTextAction" href="/portal/products">← Continue shopping</Link>
     </section>
 
     <div className="storeFlowGrid">
       <section className="panel storeBasketPagePanel">
-        <div className="panelTitle"><div><h2>Basket</h2><p className="muted">{cart.item_count||0} item{cart.item_count===1?"":"s"}</p></div>{cart.item_count>0&&<button className="secondary small" onClick={()=>void clear()} disabled={!!busy}>Clear basket</button>}</div>
+        <div className="panelTitle"><div><h2>Basket</h2><p className="muted">{cart.item_count||0} item{cart.item_count===1?"":"s"}</p></div>{cart.item_count>0&&<button className="storeMinorButton" onClick={()=>void clear()} disabled={!!busy}>Clear basket</button>}</div>
         {cart.items?.length?cart.items.map((item:any)=><article className="storeBasketPageRow" key={item.id}>
           <div><b>{item.name}</b><span>Qty {item.quantity}{item.configuration?.gift_recipient_email?" · Gift for "+item.configuration.gift_recipient_email:""}</span></div>
           <strong>{money(item.line_total_cents,item.currency||currency)}</strong>
-          <button className="secondary small" disabled={!!busy} onClick={()=>void remove(item.id)}>{busy==="remove:"+item.id?"Removing…":"Remove"}</button>
-        </article>):<div className="storeEmpty"><b>Your basket is empty.</b><span>Add a product from the OrbitFS Store to continue.</span><Link className="buttonlink" href="/portal/products">Browse Store</Link></div>}
+          <button className="storeMinorButton" disabled={!!busy} onClick={()=>void remove(item.id)}>{busy==="remove:"+item.id?"Removing…":"Remove"}</button>
+        </article>):<div className="storeEmpty"><b>Your basket is empty.</b><span>Add a product from the OrbitFS Store to continue.</span><Link className="storePrimaryAction" href="/portal/products">Browse Store</Link></div>}
       </section>
 
       <aside className="panel storeBasketSummary">
@@ -84,8 +84,8 @@ export default function BasketPage(){
           {Number(cart.tax_cents||0)>0&&<div><span>Tax</span><b>{money(cart.tax_cents,currency)}</b></div>}
           <div className="storeTotal"><span>Total</span><strong>{money(cart.total_cents,currency)}</strong></div>
         </div>
-        {allowCoupons&&<div className="storeCheckoutBlock"><label>Coupon code</label><div className="couponApply"><input value={coupon} onChange={e=>setCoupon(e.target.value.toUpperCase())} placeholder="Coupon code"/><button className="secondary" onClick={()=>void applyCoupon()} disabled={!!busy}>{busy==="coupon"?"Applying…":"Apply"}</button></div></div>}
-        <Link className={"buttonlink storeFlowPrimary"+(!cart.item_count?" disabled":"")} aria-disabled={!cart.item_count} href={cart.item_count?"/portal/checkout":"/portal/basket"}>Continue to checkout →</Link>
+        {allowCoupons&&<div className="storeCheckoutBlock"><label>Coupon code</label><div className="couponApply"><input value={coupon} onChange={e=>setCoupon(e.target.value.toUpperCase())} placeholder="Coupon code"/><button className="storeMinorButton" onClick={()=>void applyCoupon()} disabled={!!busy}>{busy==="coupon"?"Applying…":"Apply"}</button></div></div>}
+        <Link className={"storePrimaryAction storeCheckoutAction"+(!cart.item_count?" disabled":"")} aria-disabled={!cart.item_count} href={cart.item_count?"/portal/checkout":"/portal/basket"}>Continue to checkout →</Link>
         {message&&<p className="storeMessage">{message}</p>}
       </aside>
     </div>
