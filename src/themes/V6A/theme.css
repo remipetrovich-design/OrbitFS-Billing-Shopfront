@@ -1,0 +1,133 @@
+/* OrbitFS V6A — starter admin visual layer.
+   V5A remains the functional/backend presentation foundation.
+   This file only changes presentation when V6A is active. */
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"]{
+  --bg:#020b15;
+  --panel:#051725;
+  --panel2:#071d2e;
+  --line:#17364f;
+  --text:#edf6ff;
+  --muted:#7895ac;
+  --accent:#6742e8;
+  --accent2:#38c7ef;
+  --ui-radius:8px;
+}
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] body{
+  background:
+    radial-gradient(780px 360px at 72% -6%,rgba(65,52,210,.10),transparent 65%),
+    #020b15!important;
+  color:var(--text);
+}
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Topbar{
+  min-height:56px!important;
+  padding:0 16px!important;
+  gap:12px!important;
+  border-color:#14344c!important;
+  background:rgba(3,18,31,.95)!important;
+  backdrop-filter:blur(16px);
+}
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Brand{
+  min-width:148px!important;
+  font-size:10px!important;
+}
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3BrandMark{
+  background:linear-gradient(145deg,#7d24ec,#1c7bd7)!important;
+  box-shadow:0 0 16px rgba(86,50,220,.28)!important;
+}
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Primary{
+  gap:3px!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Primary>a{
+  min-height:30px!important;
+  padding:0 9px!important;
+  border-radius:6px!important;
+  font-size:8px!important;
+  color:#9bb3c8!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Primary>a.active{
+  background:linear-gradient(180deg,#182050,#4720a4)!important;
+  color:#fff!important;
+  border-color:#583dc0!important;
+}
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Tools{
+  gap:6px!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Tool,
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Create>summary{
+  min-height:29px!important;
+  padding:0 8px!important;
+  border-radius:6px!important;
+  font-size:7px!important;
+}
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Subnav{
+  min-height:38px!important;
+  padding:5px 16px!important;
+  gap:4px!important;
+  border-color:#123149!important;
+  background:#031522!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Subnav>a{
+  min-height:27px!important;
+  padding:0 8px!important;
+  border-radius:5px!important;
+  font-size:7px!important;
+}
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .masterContent{
+  background:
+    radial-gradient(640px 260px at 75% 0,rgba(33,111,177,.06),transparent 68%),
+    #020b15!important;
+}
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminShell{
+  max-width:1320px!important;
+  padding:24px 26px 62px!important;
+}
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] :where(.panel,.settingModern,.settingsHubCard,.settingCard,.rolePermissionCard){
+  border-color:#17364f!important;
+  border-radius:8px!important;
+  background:linear-gradient(180deg,#061b2b,#041522)!important;
+  box-shadow:none!important;
+}
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .panel{
+  padding:14px!important;
+  margin:10px 0!important;
+}
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] :where(.adminTop h1,.settingsHubHeader h1){
+  font-size:25px!important;
+  letter-spacing:-.03em!important;
+}
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] :where(input,select,textarea){
+  border-color:#234c68!important;
+  border-radius:6px!important;
+  background:#061a2a!important;
+  color:#edf6ff!important;
+}
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] :where(button,.buttonlink){
+  min-height:31px;
+  border-radius:6px!important;
+}
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .stats{
+  gap:8px!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .stats article{
+  min-height:72px!important;
+  padding:12px!important;
+  border-color:#17364f!important;
+  border-radius:7px!important;
+  background:#061b2b!important;
+}
