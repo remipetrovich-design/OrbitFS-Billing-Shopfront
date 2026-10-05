@@ -1332,3 +1332,143 @@ html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-dashb
 .v6c-dashboard-actions>a div b{font-size:8px;color:#eaf4fc}
 .v6c-dashboard-actions>a div small{margin-top:3px;color:#5f7f98;font-size:6px}
 .v6c-dashboard-actions>a>strong{color:#75cbed;font-size:8px}
+
+
+/* Preserve functional header controls while avoiding duplicate oversized titles. */
+.v6c-route-store .storePage>.storeHero{
+  display:flex!important;
+  min-height:36px!important;
+  margin:0 0 9px!important;
+  padding:0!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  border:0!important;
+  background:transparent!important;
+}
+.v6c-route-store .storePage>.storeHero>div{display:none!important}
+.v6c-route-store .storeCartJump{min-width:92px!important}
+
+.v6c-route-store .productDetailV3>.portalTop{
+  display:flex!important;
+  min-height:42px!important;
+  margin:0 0 9px!important;
+  padding:8px 10px!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  border:1px solid #123650!important;
+  border-radius:7px!important;
+  background:#041827!important;
+}
+.v6c-route-store .productDetailV3>.portalTop>div{min-width:0}
+.v6c-route-store .productDetailV3>.portalTop h1{margin:2px 0!important;font-size:13px!important}
+.v6c-route-store .productDetailV3>.portalTop p{margin:0!important;font-size:7px!important}
+.v6c-route-store .productDetailV3>.portalTop>a{white-space:nowrap;font-size:7px!important}
+
+.v6c-route-support .supportPageV3>.portalTop{
+  display:flex!important;
+  min-height:34px!important;
+  margin:0 0 8px!important;
+  padding:0!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  border:0!important;
+  background:transparent!important;
+}
+.v6c-route-support .supportPageV3>.portalTop>div{display:none!important}
+.v6c-route-support .supportPageV3>.portalTop>a{font-size:7px!important}
+
+.v6c-route-support .supportTicketV3>.portalTop,
+.v6c-route-support .supportKbPortal>.portalTop,
+.v6c-route-support .supportKbArticlePage>.portalTop{
+  display:flex!important;
+  min-height:52px!important;
+  margin:0 0 9px!important;
+  padding:9px 11px!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  border:1px solid #123650!important;
+  border-radius:7px!important;
+  background:#041827!important;
+}
+.v6c-route-support .supportTicketV3>.portalTop h1,
+.v6c-route-support .supportKbPortal>.portalTop h1,
+.v6c-route-support .supportKbArticlePage>.portalTop h1{
+  margin:2px 0!important;
+  font-size:14px!important;
+}
+.v6c-route-support .supportTicketV3>.portalTop p,
+.v6c-route-support .supportKbPortal>.portalTop p,
+.v6c-route-support .supportKbArticlePage>.portalTop p{
+  margin:0!important;
+  font-size:7px!important;
+}
+.v6c-route-support .inlineActions{display:flex!important;align-items:center!important;gap:6px!important;flex-wrap:wrap!important}
+.v6c-route-support .inlineActions :where(a,button){white-space:nowrap!important}
+
+/* Account identity remains visible without duplicating the shell hero. */
+.v6c-route-settings .accountSettingsHero{
+  display:flex!important;
+  min-height:0!important;
+  margin:0 0 9px!important;
+  padding:9px 11px!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  border:1px solid #123650!important;
+  border-radius:7px!important;
+  background:#041827!important;
+}
+.v6c-route-settings .accountSettingsHero>div:first-child{display:none!important}
+.v6c-route-settings .accountIdentity{
+  width:100%;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:10px!important;
+}
+.v6c-route-settings .accountIdentity small,
+.v6c-route-settings .accountIdentity b,
+.v6c-route-settings .accountIdentity span{display:block}
+.v6c-route-settings .accountIdentity small{font-size:6px!important;color:#5f7f98!important}
+.v6c-route-settings .accountIdentity b{font-size:9px!important}
+.v6c-route-settings .accountIdentity span{font-size:7px!important;color:#7694aa!important}
+
+/* Dashboard notices/news retain useful content in the new composition. */
+.v6c-dashboard-bottom{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(260px,.7fr);
+  gap:9px;
+}
+.v6c-dashboard-bottom>*,.v6c-dashboard-news{
+  border:1px solid #123650!important;
+  border-radius:8px!important;
+  background:#041827!important;
+}
+.v6c-dashboard-news{padding:13px}
+.v6c-dashboard-news header span{color:#56bee8;font-size:6px;letter-spacing:.11em}
+.v6c-dashboard-news header h2{margin:4px 0 8px!important;font-size:14px!important}
+.v6c-dashboard-news article{
+  padding:8px 0;
+  border-top:1px solid #0e3048;
+}
+.v6c-dashboard-news article b,.v6c-dashboard-news article p,.v6c-dashboard-news article small{display:block}
+.v6c-dashboard-news article b{font-size:8px}
+.v6c-dashboard-news article p{margin:3px 0!important;color:#68869e!important;font-size:7px!important}
+.v6c-dashboard-news article small{color:#4f7189;font-size:6px}
+
+/* File/radio/checkbox controls should remain visible against dark surfaces. */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content input[type="checkbox"],
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content input[type="radio"]{
+  width:15px!important;
+  min-width:15px!important;
+  height:15px!important;
+  min-height:15px!important;
+  padding:0!important;
+  accent-color:#6f3be5;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-content input[type="file"]{
+  min-height:36px!important;
+  padding:6px!important;
+  border:1px dashed #315a76!important;
+  background:#071b2a!important;
+}
