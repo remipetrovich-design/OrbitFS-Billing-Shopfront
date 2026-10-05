@@ -1,4 +1,4 @@
-import {configureInstallationDomain,httpError,installationDomainStatus,loadInstallation,removeInstallationCustomDomain,requireOrbitUser} from "@/lib/orbitfs-deployment";
+import {checkInstallationVercelDomainAvailability,configureInstallationDomain,httpError,installationDomainStatus,loadInstallation,removeInstallationCustomDomain,requireOrbitUser} from "@/lib/orbitfs-deployment";
 
 export async function GET(req:Request,{params}:{params:Promise<{id:string}>}){
   try{
@@ -18,6 +18,9 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
     const action=String(body.action||"save").trim().toLowerCase();
     if(action==="remove"){
       return Response.json({domain:await removeInstallationCustomDomain(install,body.domain)},{headers:{"cache-control":"no-store"}});
+    }
+    if(action==="check-vercel"){
+      return Response.json({availability:await checkInstallationVercelDomainAvailability(install,body.domain)},{headers:{"cache-control":"no-store"}});
     }
     const result=await configureInstallationDomain(install,{mode:body.mode,domain:body.domain});
     return Response.json(result,{headers:{"cache-control":"no-store"}});
