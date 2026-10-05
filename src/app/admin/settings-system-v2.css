@@ -150,3 +150,66 @@
   .settingsRuntimeStrip{grid-template-columns:1fr 1fr}
   .settingsLiveBarV3{align-items:flex-start;flex-direction:column}
 }
+
+
+/* Settings hub live actions and editor change state. */
+.settingsQuickActions{
+  display:grid;
+  grid-template-columns:220px minmax(0,1fr);
+  gap:7px;
+  padding:8px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#091625;
+}
+.settingsQuickActionsIntro{
+  display:grid;
+  align-content:center;
+  gap:2px;
+  padding:4px 6px;
+}
+.settingsQuickActionsIntro>b{font-size:10px}
+.settingsQuickActionsIntro>span{color:var(--muted);font-size:7.5px;line-height:1.4}
+.settingsQuickActionGrid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:5px;
+}
+.settingsQuickActionGrid>a{
+  min-height:64px;
+  padding:8px 9px;
+  display:grid;
+  align-content:center;
+  gap:2px;
+  border:1px solid #203a51;
+  border-radius:6px;
+  background:#071523;
+  color:var(--text);
+  text-decoration:none;
+}
+.settingsQuickActionGrid>a:hover{border-color:#3a6785;background:#0a1d2e}
+.settingsQuickActionGrid small{color:#6c8ba5;font-size:6px;text-transform:uppercase;letter-spacing:.08em}
+.settingsQuickActionGrid b{font-size:9px}
+.settingsQuickActionGrid span{color:var(--muted);font-size:6.8px;line-height:1.35}
+.settingV3.changed{
+  background:#0c1c31;
+  box-shadow:inset 2px 0 #6548d7;
+}
+.settingChangedBadge{
+  padding:1px 4px;
+  border:1px solid #6046c5;
+  border-radius:999px;
+  background:#191540;
+  color:#c5b7ff;
+  font-size:6px;
+  font-weight:850;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+@media(max-width:1000px){
+  .settingsQuickActions{grid-template-columns:1fr}
+  .settingsQuickActionGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .settingsQuickActionGrid{grid-template-columns:1fr}
+}
