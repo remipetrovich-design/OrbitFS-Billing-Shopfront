@@ -38,6 +38,10 @@ export default function MyOrbitFS(){
   const [uninstallOptions,setUninstallOptions]=useState({removeDatabase:false,removeStorage:false,releaseLicense:false});
   const [lifecyclePlan,setLifecyclePlan]=useState<any>(null);
   const [liveCheckedAt,setLiveCheckedAt]=useState("");
+  const [domainState,setDomainState]=useState<any>(null);
+  const [domainMode,setDomainMode]=useState<"generated"|"custom">("generated");
+  const [customDomain,setCustomDomain]=useState("");
+  const [domainBusy,setDomainBusy]=useState("");
 
   async function authHeaders():Promise<Record<string,string>>{const {data:{session}}=await sb.auth.getSession();return session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{} }
   async function load(background=false,bootstrap=false){
@@ -177,6 +181,53 @@ export default function MyOrbitFS(){
       await load(true);
       setMsg(`Published releases refreshed for ${selectedChannel}.`);
     }finally{setBusy("")}
+  }
+  async function loadDomainState(force=false){
+    if(!install?.id||domainBusy==="load"||(!force&&domainState))return;
+    setDomainBusy("load");
+    try{
+      const r=await fetch(`/api/orbitfs/installations/${install.id}/domain`,{headers:await authHeaders(),cache:"no-store"}),j=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(apiError(j,"Could not load Base domain settings."));
+      const next=j.domain||null;
+      setDomainState(next);
+      setDomainMode(next?.mode==="custom"?"custom":"generated");
+      setCustomDomain(String(next?.customDomain||""));
+    }catch(e:any){setMsg(e?.message||"Could not load Base domain settings.")}
+    finally{setDomainBusy("")}
+  }
+  async function saveDomain(){
+    if(!install?.id||domainBusy)return;
+    setDomainBusy("save");
+    try{
+      const r=await fetch(`/api/orbitfs/installations/${install.id}/domain`,{
+        method:"POST",
+        headers:{...(await authHeaders()),"content-type":"application/json"},
+        body:JSON.stringify({action:"save",mode:domainMode,domain:domainMode==="custom"?customDomain.trim():null})
+      }),j=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(apiError(j,"Could not update the Base domain."));
+      setDomainState(j.domain||null);
+      if(j.installation)setD((current:any)=>current?({...current,installations:(current.installations||[]).map((x:any)=>x.id===install.id?j.installation:x)}):current);
+      setCustomDomain(String(j.domain?.customDomain||""));
+      setMsg(j.domain?.mode==="custom"&&!j.domain?.selectedVerified
+        ?`Custom domain ${j.domain?.customDomain||customDomain} was added to Vercel and is waiting for DNS verification.`
+        :`Base address updated to ${j.domain?.effectiveUrl||"the selected domain"}.`);
+    }catch(e:any){setMsg(e?.message||"Could not update the Base domain.")}
+    finally{setDomainBusy("")}
+  }
+  async function removeCustomDomain(name:string){
+    if(!install?.id||!name||domainBusy)return;
+    setDomainBusy("remove");
+    try{
+      const r=await fetch(`/api/orbitfs/installations/${install.id}/domain`,{
+        method:"POST",
+        headers:{...(await authHeaders()),"content-type":"application/json"},
+        body:JSON.stringify({action:"remove",domain:name})
+      }),j=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(apiError(j,"Could not remove the custom domain."));
+      setDomainState(j.domain||null);
+      setMsg(`Removed ${name} from the Base Vercel project.`);
+    }catch(e:any){setMsg(e?.message||"Could not remove the custom domain.")}
+    finally{setDomainBusy("")}
   }
   async function loadSupabase(){setBusy("resources");const r=await fetch("/api/orbitfs/providers/supabase",{headers:await authHeaders(),cache:"no-store"}),j=await r.json().catch(()=>({}));setBusy("");if(!r.ok)return setMsg(apiError(j,"Could not load your Supabase projects."));setResources(j);const first=j.organizations?.[0];if(!newProject.organizationSlug&&first)setNewProject(current=>({...current,organizationSlug:first.slug||first.id||""}))}
   async function supabaseAction(action:"select"|"create"){if(!install)return;setBusy(action);const body=action==="select"?{action,installationId:install.id,projectRef:selectedProject}:{action,installationId:install.id,...newProject},r=await fetch("/api/orbitfs/providers/supabase",{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify(body)}),j=await r.json().catch(()=>({}));setBusy("");setMsg(r.ok?`Your Supabase project was ${action==="select"?"selected":"created"}.`:apiError(j,"Supabase project action failed."));if(r.ok){setResources(undefined);setSiteStep(null);await load()}}
@@ -430,6 +481,37 @@ export default function MyOrbitFS(){
           </div>
           <div className="orbitZipReleaseMeta"><span>{baseUpdateCandidates.length?baseUpdateCandidates.length+" newer Base release"+(baseUpdateCandidates.length===1?"":"s")+" in "+selectedChannel:sameVersionBaseRevisionAvailable?"Current published Base "+latestBase+" has a newer package identity — redeploy required":d?.releaseCatalogLoading?"Checking published Base releases…":d?.baseReleaseDiscoveryByChannel?.[selectedChannel]?.available!==true?"Base release lookup unavailable":"No newer Base release in "+selectedChannel}</span><span>{d?.lastCheckedAt?"Checked "+new Date(d.lastCheckedAt).toLocaleString():"Release status not checked yet"}</span></div>
         </div>
+
+        <details className="orbitZipTechnicalDetails orbitZipDomainControl" onToggle={e=>{if(e.currentTarget.open)void loadDomainState(false)}}>
+          <summary><div><p className="eyebrow">DOMAIN & ADDRESS</p><b>Choose how this Base instance is reached</b></div><span>{domainState?.mode==="custom"?"Custom domain":"Generated domain"}</span></summary>
+          <div className="orbitZipControlGrid">
+            <div className="panel orbitZipControlSection">
+              <div className="panelTitle"><div><p className="eyebrow">CURRENT ADDRESS</p><h2>{domainState?.effectiveUrl||install.production_url||"Checking domain…"}</h2><p className="muted">Changing this does not create another Base deployment. It updates the address attached to this existing Vercel project.</p></div><span className={"state "+(domainState?.selectedVerified===false?"waiting":"ready")}>{domainBusy==="load"?"CHECKING":domainState?.selectedVerified===false?"DNS REQUIRED":"ACTIVE"}</span></div>
+              <div className="form">
+                <label>Address type
+                  <select value={domainMode} disabled={!!domainBusy} onChange={e=>setDomainMode(e.target.value==="custom"?"custom":"generated")}>
+                    <option value="generated">OrbitFS generated Vercel domain</option>
+                    <option value="custom">My own custom domain</option>
+                  </select>
+                </label>
+                {domainMode==="custom"&&<label>Custom domain
+                  <input value={customDomain} disabled={!!domainBusy} onChange={e=>setCustomDomain(e.target.value)} placeholder="panel.example.com" autoCapitalize="none" autoCorrect="off"/>
+                </label>}
+                <div className="inlineActions">
+                  <button type="button" disabled={!!domainBusy||(domainMode==="custom"&&!customDomain.trim())} onClick={()=>void saveDomain()}>{domainBusy==="save"?"Saving…":domainMode==="custom"?"Use custom domain":"Use generated domain"}</button>
+                  <button type="button" className="secondary" disabled={!!domainBusy} onClick={()=>void loadDomainState(true)}>{domainBusy==="load"?"Checking…":"Refresh domain status"}</button>
+                </div>
+              </div>
+            </div>
+            <div className="panel orbitZipControlSection">
+              <div className="panelTitle"><div><p className="eyebrow">VERCEL DOMAINS</p><h2>Attached addresses</h2><p className="muted">Custom domains stay on the same Base project. OrbitFS only switches to one after Vercel reports it verified.</p></div></div>
+              <div className="orbitZipControlRows">
+                <div><span>Generated</span><b>{domainState?.generatedDomain||install.vercel_project_name+".vercel.app"}</b></div>
+                {domainState?.customDomains?.length?domainState.customDomains.map((item:any)=><div key={item.name}><span>{item.verified&&!item.misconfigured?"Verified custom":"Custom · DNS pending"}</span><b>{item.name}</b>{domainState?.customDomain!==item.name&&<button type="button" className="secondary small" disabled={!!domainBusy} onClick={()=>void removeCustomDomain(item.name)}>Remove</button>}</div>):<div><span>Custom domains</span><b>None attached</b></div>}
+              </div>
+            </div>
+          </div>
+        </details>
 
         <div className="portalOverviewStats orbitZipOverviewStats">
           <div className="portalStatCard"><span className="portalStatIcon">B</span><div><small>BASE</small><strong>{install.release_version}</strong><span>{selectedChannel} channel</span></div></div>
