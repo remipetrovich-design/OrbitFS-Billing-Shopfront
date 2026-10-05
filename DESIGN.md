@@ -147,3 +147,69 @@ Danger actions remain visually separated from normal deployment actions.
 - Introduce a second progress model.
 - Use blue as the Base Deployer's primary accent.
 - Hide lifecycle consequences or present failed/partial deployment as success.
+
+## V6 Customer and Admin System
+
+V6 is the compact OrbitFS product interface derived from the supplied 12ui ZIP and maintained with the Frontend Design Premium consistency contract.
+
+### North Star
+
+V6 must feel like one operational product, not legacy portal pages wrapped in dark cards. The interface uses a compact dark navy canvas, restrained violet for selected/primary state, cyan for information and focus, and teal/green only for semantic success. Density is intentionally smaller than V5 while preserving readable controls and clear hierarchy.
+
+Avoid:
+- oversized hero blocks in operational screens,
+- full-width primary buttons when a compact action is sufficient,
+- repeated nested cards,
+- pill-shaped navigation actions,
+- duplicate selectors or controls for the same decision,
+- hidden controls caused by dark-on-dark surfaces,
+- page-local button systems that conflict with shared action hierarchy.
+
+### V6C customer flow
+
+Customer shell uses the V6C theme only under `/portal`. The logged-out/public storefront does not import customer theme CSS.
+
+Store purchasing is a three-route flow:
+1. Store `/portal/products`
+2. Basket `/portal/basket`
+3. Checkout `/portal/checkout`
+
+These remain separate pages and share the same step navigation. Each decision region has one clear primary action; navigation and utility actions are compact outline/ghost controls.
+
+### V6A admin system
+
+V6A is an Admin presentation layer over the existing V5A backend, permissions, routes and data ownership. It must not duplicate business state or introduce new technical authority.
+
+Canonical V6A shell:
+- compact top navigation,
+- compact contextual sub-navigation,
+- maximum working canvas approximately 1280px,
+- 8px panel radius,
+- 6px control radius,
+- 32–34px standard controls,
+- 23px page headings,
+- 7–9px utility/control copy where the existing application uses compact desktop density,
+- one obvious primary action per decision region,
+- neutral secondary actions,
+- visually separated danger actions.
+
+V6A account controls include a compact avatar menu and real logout. V5A keeps that V6A-only control hidden.
+
+### V6A protected exclusions
+
+Do not redesign these Admin systems until explicitly approved:
+- Base Deployment / Base Deployer
+- Update Release System / Update Release Deployer
+- their direct release execution surfaces
+
+`AdminLayoutClient` marks these routes with `data-admin-v6a-exempt="true"`. V6A page/shell styling must remain scoped away from those routes so they continue to use their existing V5A presentation.
+
+Release Channels, Customer Licences, License System and Product Connections are not exempt and may use V6A.
+
+### Interaction consistency
+
+Buttons use two axes: emphasis (primary / secondary / quiet) and intent (normal / danger). Full-width primary controls are reserved for workflows where the action genuinely owns the available action area.
+
+Inputs, selects and textareas must remain visibly separated from the background and expose visible focus. Tables/lists should be dense, bounded and readable rather than converted into oversized cards.
+
+Public/customer/Admin theme selectors must stay scoped to their runtime surface; no V6 customer/admin styles may leak onto the logged-out public site.
