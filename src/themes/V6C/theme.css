@@ -1787,3 +1787,67 @@ html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-conte
   border-radius:6px;
   background:#061a29;
 }
+
+
+/* V6C staff-only Admin shortcut on the global top bar. */
+.v6c-admin-toplink{
+  height:30px;
+  padding:0 9px;
+  display:flex;
+  align-items:center;
+  border:1px solid #5739b8;
+  border-radius:6px;
+  background:#17123d;
+  color:#d9d0ff!important;
+  text-decoration:none;
+  font-size:8px;
+  font-weight:700;
+  white-space:nowrap;
+}
+.v6c-admin-toplink:hover{background:#24175a;border-color:#7858dd;color:#fff!important}
+
+/* Invoice document contrast boundary.
+   The surrounding portal stays dark, but the invoice itself behaves like a
+   real light document so text can never become white-on-white. */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDocument{
+  background:#f7f9fc!important;
+  color:#172536!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDocument :where(h1,h2,h3,h4,strong,b,p,span,small,dt,dd){
+  color:#172536!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDocBusiness>span,
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDocMeta>span,
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDocFooter{
+  color:#536273!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDocItemHead{
+  background:#e8eef5!important;
+  color:#34475a!important;
+  border-color:#c8d2dd!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDocItemHead span{
+  color:#34475a!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDocItemRow{
+  border-color:#d6dee7!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDocTotals>div{
+  border-color:#ccd6e0!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDocBillTo,
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDocPaymentDetails{
+  background:#071d2d!important;
+  border-color:#244761!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDocBillTo :where(strong,b,span,p),
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDocPaymentDetails :where(strong,b,span,p){
+  color:#e9f3fb!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDocBillTo .invoiceDocLabel,
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDocPaymentDetails .invoiceDocLabel{
+  color:#71d8ff!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDocFooter{
+  border-color:#cbd5df!important;
+}
