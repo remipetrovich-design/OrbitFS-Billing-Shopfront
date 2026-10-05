@@ -2696,3 +2696,61 @@ html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route
     position:static!important;
   }
 }
+
+
+/* Final V6C Store control geometry — compact, deliberate actions. */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-store .storePrimaryAction{
+  min-height:36px!important;
+  padding:0 14px!important;
+  font-size:8.5px!important;
+  cursor:pointer!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-store .storeSecondaryAction{
+  min-height:34px!important;
+  padding:0 12px!important;
+  cursor:pointer!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-store .storeMinorButton{
+  cursor:pointer!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-store .storeDangerButton{
+  border-color:#693646!important;
+  background:#261620!important;
+  color:#ef9eae!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-store .storeConfirmClear{
+  display:flex!important;
+  align-items:center!important;
+  gap:6px!important;
+  flex-wrap:wrap!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-store .storeConfirmClear>span{
+  color:#8da7b9!important;
+  font-size:7px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-store .storePurchaseCard{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-store .storePurchaseCard .storePurchaseAction,
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-store .storePurchaseCard .storeSecondaryAction{
+  width:auto!important;
+  max-width:100%!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-store .storePurchaseCard .storeSecondaryAction{
+  margin-top:7px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-store .storeEmpty .storePrimaryAction{
+  width:auto!important;
+  max-width:max-content!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-store .storeCheckoutAction,
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-store .storePayAction{
+  width:auto!important;
+  max-width:max-content!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-store :where(.storePrimaryAction,.storeSecondaryAction,.storeMinorButton,.storeTextAction):focus-visible{
+  outline:2px solid #72d9ff!important;
+  outline-offset:2px!important;
+}
