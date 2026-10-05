@@ -1011,7 +1011,8 @@ export async function resolveProductionUrl(install:any,deployment?:any):Promise<
  const domains=await projectDomains(install);
  const candidates=domains.filter((d:any)=>d?.verified!==false&&normalize(d?.name)&&normalize(d?.name)!==deploymentHost);
  const preference=domainPreference(install);
- const preferredSelected=preference.mode!=="generated"&&preference.hostname?candidates.find((d:any)=>normalize(d?.name)===preference.hostname):null;
+ const preferredSelected=preference.mode==="custom"&&preference.hostname?candidates.find((d:any)=>normalize(d?.name)===preference.hostname):null;
+ const preferredVercelAlias=preference.mode==="vercel"&&preference.hostname&&aliases.includes(preference.hostname)?preference.hostname:"";
  const project=candidates.find((d:any)=>normalize(d.name)===projectDomain);
  const vercel=candidates.find((d:any)=>!d.redirect&&normalize(d.name).endsWith(".vercel.app"))
   ||candidates.find((d:any)=>normalize(d.name).endsWith(".vercel.app"));
@@ -1019,9 +1020,11 @@ export async function resolveProductionUrl(install:any,deployment?:any):Promise<
   ||candidates.find((d:any)=>!normalize(d.name).endsWith(".vercel.app"));
  const customAlias=aliases.find((host:string)=>host!==deploymentHost&&!host.endsWith(".vercel.app"));
  const generated=normalize(project?.name)||(aliases.includes(projectDomain)&&projectDomain!==deploymentHost?projectDomain:"")||normalize(vercel?.name)||projectDomain;
- const name=preference.mode!=="generated"
-  ?(normalize(preferredSelected?.name)||generated)
-  :(generated||normalize(custom?.name)||customAlias||normalize(candidates[0]?.name));
+ const name=preference.mode==="vercel"
+  ?(preferredVercelAlias||generated)
+  :preference.mode==="custom"
+   ?(normalize(preferredSelected?.name)||generated)
+   :(generated||normalize(custom?.name)||customAlias||normalize(candidates[0]?.name));
  return name?`https://${name}`:null;
 }
 export async function checkPublicPanelHealth(url:string,path:string):Promise<boolean>{
