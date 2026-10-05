@@ -121,10 +121,10 @@ export default function CheckoutPage(){
 
     <section className="storeFlowHeader">
       <div><p className="eyebrow">CHECKOUT</p><h1>Confirm and pay.</h1><p className="muted">Review the final total and choose an enabled payment method.</p></div>
-      <Link className="buttonlink secondary" href="/portal/basket">← Back to basket</Link>
+      <Link className="storeTextAction" href="/portal/basket">← Back to basket</Link>
     </section>
 
-    {!cart.item_count?<section className="panel storeEmpty"><b>Your basket is empty.</b><span>Add products before checking out.</span><Link className="buttonlink" href="/portal/products">Browse Store</Link></section>:
+    {!cart.item_count?<section className="panel storeEmpty"><b>Your basket is empty.</b><span>Add products before checking out.</span><Link className="storePrimaryAction" href="/portal/products">Browse Store</Link></section>:
     <div className="storeFlowGrid">
       <section className="panel storeCheckoutItems">
         <div className="panelTitle"><div><h2>Order review</h2><p className="muted">{cart.item_count} item{cart.item_count===1?"":"s"}</p></div></div>
@@ -146,7 +146,7 @@ export default function CheckoutPage(){
           <input type="radio" name="gateway" checked={gateway===g.code} onChange={()=>setGateway(g.code)}/>
           <span><b>{g.name}</b><small>{g.description}</small></span>
         </label>)}</div>:<div className="notice"><b>No online payment method enabled</b><span>You can still create the invoice and pay it later.</span></div>}
-        <button className="storeFlowPay" disabled={busy} onClick={()=>void checkout()}>{busy?"Processing…":gateway?"Place order & pay":"Create invoice"}</button>
+        <button className="storePrimaryAction storePayAction" disabled={busy} onClick={()=>void checkout()}>{busy?"Processing…":gateway?"Place order & pay":"Create invoice"}</button>
         <small>Checkout creates one order and one invoice containing the selected OrbitFS products.</small>
         {message&&<p className="storeMessage">{message}</p>}
       </aside>
