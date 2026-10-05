@@ -1517,3 +1517,6 @@ html[data-orbitfs-theme="V5A"] .orbitDeploymentToggles small{color:#7892a3!impor
   position:relative!important;z-index:102!important;
  }
 }
+
+/* V6A-only account control stays visually absent in active V5A. */
+html[data-orbitfs-theme="V5A"] .adminV6Account{display:none!important}
