@@ -160,7 +160,7 @@ export default function Products() {
   return <main className="portalPage storePage">
     <header className="storeHero">
       <div><p className="eyebrow">{storeText.hero_eyebrow || "ORBITFS STORE"}</p><h1>{storeText.hero_title || "Build your OrbitFS setup"}</h1><p className="storeLead">{storeText.hero_lead || "Start with OrbitFS Base System, then add the components you need."}</p></div>
-      <button className="storeCartJump secondary" type="button" onClick={() => document.getElementById("store-checkout")?.scrollIntoView({ behavior: "smooth" })}>Basket · {cart.item_count || 0}</button>
+      <Link className="storeCartJump secondary" href="/portal/basket">Basket · {cart.item_count || 0}</Link>
     </header>
 
     {base && <section className="storeBaseFeature">
@@ -171,17 +171,5 @@ export default function Products() {
     {!!addons.length && <section className="storeSection"><div className="storeSectionHead"><div><p className="eyebrow">{storeText.addons_eyebrow || "EXPAND ORBITFS"}</p><h2>{storeText.addons_title || "Add-ons"}</h2><p className="muted">{storeText.addons_lead || "Add only the capabilities you want."}</p></div></div>
       <div className="storeAddonList">{addons.map(p => <article className="storeAddonCard" key={p.slug}><div><span className="pill">{p.metadata?.store_badge || "Add-on"}</span><h3>{p.name}</h3><p>{p.description}</p></div><div className="storeAddonMeta"><strong>{productPrice(p)}</strong>{hasOptions(p)?<Link className="buttonlink" href={`/portal/products/${p.slug}`}>Configure & add</Link>:<button onClick={()=>directAdd(p)}>Add to basket</button>}<Link href={`/portal/products/${p.slug}`}>Details / gift →</Link></div></article>)}</div>
     </section>}
-
-    <section className="storeCheckout" id="store-checkout">
-      <div className="storeBasketPanel panel"><div className="panelTitle"><div><p className="eyebrow">YOUR ORDER</p><h2>Basket</h2></div>{cart.item_count > 0 && <button className="small secondary" onClick={clear}>Clear basket</button>}</div>
-        {cart.items?.length ? cart.items.map((x: any) => <div className="storeBasketRow" key={x.id}><div><b>{x.name}</b><span>Qty {x.quantity}{x.configuration?.gift_recipient_email?` · Gift for ${x.configuration.gift_recipient_email}`:""}</span></div><strong>{money(x.line_total_cents, x.currency || "AUD")}</strong><button className="small danger" onClick={() => remove(x.id)}>Remove</button></div>) : <div className="storeEmpty"><b>Your basket is empty.</b><span>Choose a product above to start building your order.</span></div>}
-      </div>
-
-      <aside className="storeCheckoutPanel buybox"><div className="storeTotals"><div><span>Subtotal</span><b>{money(cart.subtotal_cents)}</b></div><div><span>Discount</span><b>-{money(cart.discount_cents)}</b></div>{Number(cart.tax_cents||0)>0&&<div><span>Tax</span><b>{money(cart.tax_cents)}</b></div>}<div className="storeTotal"><span>Total</span><strong>{money(cart.total_cents)}</strong></div></div>
-        {catalogCfg.allowCoupons&&<div className="storeCheckoutBlock"><label>Coupon code</label><div className="couponApply"><input value={coupon} onChange={e => setCoupon(e.target.value.toUpperCase())} placeholder="Coupon code"/><button className="secondary" onClick={applyCoupon}>Apply</button></div></div>}
-        <div className="storeCheckoutBlock"><label>Payment method</label>{gateways.length ? <div className="storeGatewayList">{gateways.map((g: any) => <label className={`storeGateway ${gateway === g.code ? "active" : ""}`} key={g.code}><input type="radio" name="gateway" checked={gateway === g.code} onChange={() => setGateway(g.code)}/><span><b>{g.name}</b><small>{g.description}</small></span></label>)}</div> : <div className="notice"><b>No online payment method enabled</b><span>You can still create the invoice and pay it later.</span></div>}</div>
-        <button disabled={!cart.item_count || busy} onClick={checkout}>{busy ? "Processing…" : gateway ? "Place order & pay" : "Create invoice"}</button><small>Checkout creates one order and one invoice containing every selected OrbitFS product.</small>{!!msg && <p className="storeMessage">{msg}</p>}
-      </aside>
-    </section>
   </main>;
 }
