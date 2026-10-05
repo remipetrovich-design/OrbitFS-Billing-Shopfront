@@ -15,6 +15,7 @@ export default function BasketPage(){
   const [allowCoupons,setAllowCoupons]=useState(true);
   const [busy,setBusy]=useState("");
   const [message,setMessage]=useState("");
+  const [confirmClear,setConfirmClear]=useState(false);
 
   async function load(){
     const [{data,error},{data:cfg}]=await Promise.all([
@@ -38,12 +39,11 @@ export default function BasketPage(){
   }
 
   async function clear(){
-    if(!confirm("Clear your basket?"))return;
     setBusy("clear");
     const {error}=await sb.rpc("clear_cart");
     setMessage(error?.message||"Basket cleared.");
     if(!error)await trackCustomerActivity("cart.cleared",{entityType:"cart"});
-    setBusy("");await load();
+    setBusy("");setConfirmClear(false);await load();
   }
 
   async function applyCoupon(){
@@ -86,7 +86,7 @@ export default function BasketPage(){
         </div>
         {allowCoupons&&<div className="storeCheckoutBlock"><label>Coupon code</label><div className="couponApply"><input value={coupon} onChange={e=>setCoupon(e.target.value.toUpperCase())} placeholder="Coupon code"/><button className="storeMinorButton" onClick={()=>void applyCoupon()} disabled={!!busy}>{busy==="coupon"?"Applying…":"Apply"}</button></div></div>}
         <Link className={"storePrimaryAction storeCheckoutAction"+(!cart.item_count?" disabled":"")} aria-disabled={!cart.item_count} href={cart.item_count?"/portal/checkout":"/portal/basket"}>Continue to checkout →</Link>
-        {message&&<p className="storeMessage">{message}</p>}
+        {message&&<p className="storeMessage" role="status">{message}</p>}
       </aside>
     </div>
   </main>;
