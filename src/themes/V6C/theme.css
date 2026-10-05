@@ -3160,3 +3160,154 @@ html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route
   }
 }
 
+
+
+/* Update Release System — final visual refinement. */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHeroCopy{
+  min-width:0!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHeroMeta{
+  margin-top:13px!important;
+  display:flex!important;
+  align-items:stretch!important;
+  gap:6px!important;
+  flex-wrap:wrap!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHeroMeta>span{
+  min-width:105px!important;
+  min-height:43px!important;
+  padding:7px 9px!important;
+  display:grid!important;
+  align-content:center!important;
+  border:1px solid #173d58!important;
+  border-radius:6px!important;
+  background:#051827!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHeroMeta small,
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHeroMeta b{
+  display:block!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHeroMeta small{
+  color:#5f8098!important;
+  font-size:5.5px!important;
+  letter-spacing:.08em!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHeroMeta b{
+  margin-top:3px!important;
+  color:#edf7ff!important;
+  font-size:8px!important;
+}
+
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHeroActions :where(button,.buttonlink){
+  min-height:32px!important;
+  padding:0 11px!important;
+  border-radius:6px!important;
+  font-size:7px!important;
+  font-weight:700!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHeroActions .secondary{
+  border-color:#274f69!important;
+  background:#071f33!important;
+  color:#c8e8f8!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHeroActions .secondary:hover{
+  border-color:#3f718f!important;
+  background:#0a2942!important;
+  color:#fff!important;
+}
+
+/* Make the support footer a real surface, never bare text. */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupport{
+  min-height:84px!important;
+  margin:0!important;
+  padding:13px 14px!important;
+  display:grid!important;
+  grid-template-columns:34px minmax(0,1fr) auto!important;
+  gap:11px!important;
+  align-items:center!important;
+  border:1px solid #173e59!important;
+  border-radius:8px!important;
+  background:
+    radial-gradient(260px 110px at 92% 45%,rgba(73,57,205,.10),transparent 72%),
+    linear-gradient(180deg,#061b2c,#041522)!important;
+  box-shadow:none!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupportIcon{
+  width:32px!important;
+  height:32px!important;
+  display:grid!important;
+  place-items:center!important;
+  border:1px solid #2e5c79!important;
+  border-radius:50%!important;
+  background:#08263c!important;
+  color:#8edcff!important;
+  font-size:11px!important;
+  font-weight:800!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupportCopy{
+  min-width:0!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupportCopy .eyebrow{
+  margin:0!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupportCopy h2{
+  margin:3px 0!important;
+  color:#edf7ff!important;
+  font-size:12px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupportCopy p{
+  margin:0!important;
+  max-width:620px!important;
+  color:#6f8ea5!important;
+  font-size:7px!important;
+  line-height:1.45!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupportAction{
+  min-height:32px!important;
+  padding:0 11px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border:1px solid #285b78!important;
+  border-radius:6px!important;
+  background:#082b43!important;
+  color:#d9f1ff!important;
+  font-size:7px!important;
+  font-weight:700!important;
+  text-decoration:none!important;
+  white-space:nowrap!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupportAction:hover{
+  border-color:#4380a1!important;
+  background:#0b3552!important;
+  color:#fff!important;
+}
+
+/* Give live-progress copy enough breathing room without enlarging the page. */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateLive .orbitV5UpdatePanelHeading{
+  align-items:center!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateLive .orbitV5UpdatePanelHeading>div{
+  min-width:0!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateLive .orbitV5UpdatePanelHeading .state{
+  flex:0 0 auto!important;
+}
+
+@media(max-width:760px){
+  html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHeroMeta{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  }
+  html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHeroMeta>span{
+    min-width:0!important;
+  }
+  html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupport{
+    grid-template-columns:32px minmax(0,1fr)!important;
+    align-items:start!important;
+  }
+  html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupportAction{
+    grid-column:2!important;
+    justify-self:start!important;
+  }
+}
