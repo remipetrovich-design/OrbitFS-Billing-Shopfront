@@ -202,7 +202,7 @@ Do not redesign these Admin systems until explicitly approved:
 - Update Release System / Update Release Deployer
 - their direct release execution surfaces
 
-`AdminLayoutClient` marks these routes with `data-admin-v6a-exempt="true"`. V6A page/shell styling must remain scoped away from those routes so they continue to use their existing V5A presentation.
+`AdminLayoutClient` marks these routes with `data-admin-v6a-exempt="true"`. V6A must preserve the internal Base/Update workflow presentation and structure on those routes. The shared Admin top bar, account menu and contextual sub-navigation may use the V6A chrome so the protected workflows still feel part of the same Admin application.
 
 Release Channels, Customer Licences, License System and Product Connections are not exempt and may use V6A.
 
