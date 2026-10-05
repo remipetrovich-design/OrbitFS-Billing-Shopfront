@@ -4,65 +4,92 @@ import Link from "next/link";
 import {useEffect,useMemo,useState} from "react";
 import {createClient} from "@/lib/supabase";
 import {trackCustomerActivity} from "@/lib/customer-activity";
-import StoreFlowNav from "@/components/StoreFlowNav";
 
 const money=(cents:number,currency="AUD")=>new Intl.NumberFormat("en-AU",{style:"currency",currency}).format(Number(cents||0)/100);
 
-export default function Basket(){
+export default function BasketPage(){
   const sb=useMemo(()=>createClient(),[]);
   const [cart,setCart]=useState<any>(null);
-  const [message,setMessage]=useState("");
+  const [coupon,setCoupon]=useState("");
+  const [allowCoupons,setAllowCoupons]=useState(true);
   const [busy,setBusy]=useState("");
+  const [message,setMessage]=useState("");
 
   async function load(){
-    const {data,error}=await sb.rpc("cart_summary");
+    const [{data,error},{data:cfg}]=await Promise.all([
+      sb.rpc("cart_summary"),
+      sb.from("app_settings").select("key,value").eq("key","products.allow_coupons").maybeSingle()
+    ]);
     if(error){setMessage(error.message);return}
     setCart(data||{items:[],item_count:0,subtotal_cents:0,discount_cents:0,total_cents:0});
+    setCoupon(data?.coupon_code||"");
+    setAllowCoupons(cfg?.value!==false);
   }
-  useEffect(()=>{void load()},[]);
+
+  useEffect(()=>{void load()},[sb]);
 
   async function remove(id:string){
-    setBusy(id);
+    setBusy("remove:"+id);
     const {error}=await sb.rpc("remove_from_cart",{p_item_id:id});
-    if(error)setMessage(error.message);
-    else{setMessage("Removed from basket.");await trackCustomerActivity("cart.item_removed",{entityType:"cart_item",entityId:id});await load()}
-    setBusy("");
+    setMessage(error?.message||"Removed from basket.");
+    if(!error)await trackCustomerActivity("cart.item_removed",{entityType:"cart_item",entityId:id});
+    setBusy("");await load();
   }
 
   async function clear(){
     if(!confirm("Clear your basket?"))return;
     setBusy("clear");
     const {error}=await sb.rpc("clear_cart");
-    if(error)setMessage(error.message);
-    else{setMessage("Basket cleared.");await trackCustomerActivity("cart.cleared",{entityType:"cart"});await load()}
-    setBusy("");
+    setMessage(error?.message||"Basket cleared.");
+    if(!error)await trackCustomerActivity("cart.cleared",{entityType:"cart"});
+    setBusy("");await load();
   }
 
-  if(!cart)return <main className="portalPage v6c-store-step"><StoreFlowNav/><section className="v6c-store-state">Loading basket…</section></main>;
+  async function applyCoupon(){
+    setBusy("coupon");
+    const {error}=await sb.rpc("set_cart_coupon",{p_code:coupon});
+    if(error){setMessage(error.message);setBusy("");return}
+    setMessage(coupon.trim()?"Coupon applied.":"Coupon removed.");
+    await trackCustomerActivity(coupon.trim()?"cart.coupon_applied":"cart.coupon_removed",{entityType:"cart",detail:{coupon:coupon.trim()||null}});
+    setBusy("");await load();
+  }
+
+  if(!cart)return <main className="portalPage storeFlowPage"><section className="v6c-loading-state">Loading basket…</section></main>;
   const currency=cart.items?.[0]?.currency||"AUD";
 
-  return <main className="portalPage v6c-store-step">
-    <StoreFlowNav count={cart.item_count||0}/>
-    <header className="v6c-store-step-head"><div><span>BASKET</span><h1>Review your OrbitFS order.</h1><p>Check products, quantities and totals before moving to payment.</p></div><Link href="/portal/products">Continue shopping →</Link></header>
+  return <main className="portalPage storeFlowPage">
+    <nav className="storeFlowSteps" aria-label="Store checkout progress">
+      <Link href="/portal/products">01 · Store</Link>
+      <span className="active">02 · Basket</span>
+      <span>03 · Checkout</span>
+    </nav>
 
-    <div className="v6c-store-step-grid">
-      <section className="v6c-store-items">
-        <div className="v6c-store-panel-head"><div><small>YOUR ITEMS</small><h2>Basket</h2></div>{cart.item_count>0&&<button className="secondary" type="button" disabled={!!busy} onClick={()=>void clear()}>{busy==="clear"?"Clearing…":"Clear basket"}</button>}</div>
-        {cart.items?.length?cart.items.map((item:any)=><article className="v6c-store-item" key={item.id}>
+    <section className="storeFlowHeader">
+      <div><p className="eyebrow">YOUR BASKET</p><h1>Review your OrbitFS order.</h1><p className="muted">Check products, gifts and discounts before continuing to payment.</p></div>
+      <Link className="buttonlink secondary" href="/portal/products">← Continue shopping</Link>
+    </section>
+
+    <div className="storeFlowGrid">
+      <section className="panel storeBasketPagePanel">
+        <div className="panelTitle"><div><h2>Basket</h2><p className="muted">{cart.item_count||0} item{cart.item_count===1?"":"s"}</p></div>{cart.item_count>0&&<button className="secondary small" onClick={()=>void clear()} disabled={!!busy}>Clear basket</button>}</div>
+        {cart.items?.length?cart.items.map((item:any)=><article className="storeBasketPageRow" key={item.id}>
           <div><b>{item.name}</b><span>Qty {item.quantity}{item.configuration?.gift_recipient_email?" · Gift for "+item.configuration.gift_recipient_email:""}</span></div>
           <strong>{money(item.line_total_cents,item.currency||currency)}</strong>
-          <button className="danger" type="button" disabled={!!busy} onClick={()=>void remove(item.id)}>{busy===item.id?"Removing…":"Remove"}</button>
-        </article>):<div className="v6c-store-empty"><b>Your basket is empty.</b><span>Add a product from the Store to continue.</span><Link href="/portal/products">Browse Store →</Link></div>}
-        {message&&<p className="v6c-store-message">{message}</p>}
+          <button className="secondary small" disabled={!!busy} onClick={()=>void remove(item.id)}>{busy==="remove:"+item.id?"Removing…":"Remove"}</button>
+        </article>):<div className="storeEmpty"><b>Your basket is empty.</b><span>Add a product from the OrbitFS Store to continue.</span><Link className="buttonlink" href="/portal/products">Browse Store</Link></div>}
       </section>
 
-      <aside className="v6c-store-summary">
-        <small>ORDER SUMMARY</small>
-        <div><span>Subtotal</span><b>{money(cart.subtotal_cents,currency)}</b></div>
-        <div><span>Discount</span><b>-{money(cart.discount_cents,currency)}</b></div>
-        {Number(cart.tax_cents||0)>0&&<div><span>Tax</span><b>{money(cart.tax_cents,currency)}</b></div>}
-        <div className="total"><span>Total</span><strong>{money(cart.total_cents,currency)}</strong></div>
-        {cart.item_count>0?<Link className="buttonlink" href="/portal/checkout">Continue to checkout →</Link>:<Link className="buttonlink secondary" href="/portal/products">Open Store</Link>}
+      <aside className="panel storeBasketSummary">
+        <div className="panelTitle"><div><p className="eyebrow">ORDER SUMMARY</p><h2>Totals</h2></div></div>
+        <div className="storeTotals">
+          <div><span>Subtotal</span><b>{money(cart.subtotal_cents,currency)}</b></div>
+          <div><span>Discount</span><b>-{money(cart.discount_cents,currency)}</b></div>
+          {Number(cart.tax_cents||0)>0&&<div><span>Tax</span><b>{money(cart.tax_cents,currency)}</b></div>}
+          <div className="storeTotal"><span>Total</span><strong>{money(cart.total_cents,currency)}</strong></div>
+        </div>
+        {allowCoupons&&<div className="storeCheckoutBlock"><label>Coupon code</label><div className="couponApply"><input value={coupon} onChange={e=>setCoupon(e.target.value.toUpperCase())} placeholder="Coupon code"/><button className="secondary" onClick={()=>void applyCoupon()} disabled={!!busy}>{busy==="coupon"?"Applying…":"Apply"}</button></div></div>}
+        <Link className={"buttonlink storeFlowPrimary"+(!cart.item_count?" disabled":"")} aria-disabled={!cart.item_count} href={cart.item_count?"/portal/checkout":"/portal/basket"}>Continue to checkout →</Link>
+        {message&&<p className="storeMessage">{message}</p>}
       </aside>
     </div>
   </main>;
