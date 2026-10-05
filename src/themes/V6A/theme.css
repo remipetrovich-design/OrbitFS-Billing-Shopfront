@@ -1109,3 +1109,165 @@ html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layou
 }
 html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout[data-admin-v6a-exempt="true"] .adminV6AccountMenu>a:hover,
 html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout[data-admin-v6a-exempt="true"] .adminV6AccountMenu>button:hover{background:#082239!important;color:#fff!important}
+
+
+/* V6A specialised Admin workspaces. */
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) :where(
+  .cancellationRequestRow,.fulfillmentLineList,.billingCreateCard,.setupProviderRail,.setupProviderBody,
+  .staffCreateCard,.staffMemberPanel,.staffGroupRailV2,.staffGroupEditorV2,.supportKbRail,.supportKbEditor,
+  .supportKbCategories,.supportDepartmentCard,.supportTemplateCard,.supportDepartmentEditor,.supportCreateGrid>.panel,
+  .lmCard
+){
+  border:1px solid #173a55!important;
+  border-radius:8px!important;
+  background:linear-gradient(180deg,#061b2b,#041522)!important;
+  box-shadow:none!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) :where(
+  .cancellationRequestRow,.billingCreateCard,.setupProviderRail,.setupProviderBody,
+  .staffCreateCard,.staffMemberPanel,.staffGroupEditorV2,.supportKbRail,.supportKbEditor,
+  .supportKbCategories,.supportDepartmentCard,.supportTemplateCard,.supportDepartmentEditor,.lmCard
+){padding:11px!important}
+
+/* Cancellations / fulfilment */
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .cancellationRequestRow{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:10px!important;
+  min-height:62px!important;
+  margin-bottom:6px!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .cancellationMeta{
+  display:flex!important;gap:6px!important;flex-wrap:wrap!important;color:#6e8aa0!important;font-size:7px!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .cancellationRequestActions{
+  display:flex!important;align-items:center!important;gap:5px!important;flex-wrap:wrap!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .fulfillmentLineList{
+  padding:8px!important;display:grid!important;gap:5px!important
+}
+
+/* Billing create */
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .billingSetupGrid{
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .billingSectionHead{
+  min-height:34px!important;padding-bottom:7px!important;margin-bottom:8px!important;border-bottom:1px solid #12334b!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .billingLines{display:grid!important;gap:5px!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .billingLine{
+  min-height:48px!important;padding:7px 8px!important;display:grid!important;
+  grid-template-columns:minmax(150px,1.3fr) minmax(120px,1fr) 70px 110px 90px auto!important;
+  gap:6px!important;align-items:center!important;border:1px solid #15364e!important;border-radius:6px!important;background:#051827!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) :where(.billingProduct,.billingDescription,.billingQty,.billingPrice,.billingLineTotal){
+  font-size:7px!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .billingCreateFooter{
+  margin-top:9px!important;padding-top:9px!important;border-top:1px solid #12334b!important;
+  display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important
+}
+
+/* Payment setup */
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .gatewaySetupWorkspace{
+  display:grid!important;grid-template-columns:220px minmax(0,1fr)!important;gap:8px!important;align-items:start!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .setupProviderRail{padding:8px!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .setupProviderRow{
+  min-height:44px!important;padding:7px!important;border:1px solid transparent!important;border-radius:6px!important;background:transparent!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .setupProviderRow.active{
+  border-color:#5b43ba!important;background:#15183a!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .setupHero{
+  min-height:70px!important;padding:10px 11px!important;border-bottom:1px solid #12334b!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .setupSection{
+  padding:10px 0!important;border-bottom:1px solid #12334b!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) :where(.secretGrid,.currencyPicker){
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .secretField{
+  padding:8px!important;border:1px solid #16364f!important;border-radius:6px!important;background:#051827!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .webhookCard,
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .setupChecklist{
+  padding:9px!important;border:1px solid #16364f!important;border-radius:6px!important;background:#051827!important
+}
+
+/* Staff */
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .staffSystemStats{
+  display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important;margin:0 0 8px!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .staffSystemStats>*{
+  min-height:58px!important;padding:8px 9px!important;border:1px solid #173a55!important;border-radius:7px!important;background:#061a2a!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .staffWorkspace{
+  display:grid!important;grid-template-columns:minmax(260px,.65fr) minmax(0,1.35fr)!important;gap:8px!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .staffToolbar{
+  display:flex!important;gap:6px!important;align-items:center!important;flex-wrap:wrap!important;margin-bottom:7px!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .staffMemberRows{display:grid!important;gap:5px!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .staffMemberRow{
+  min-height:52px!important;padding:8px 9px!important;display:grid!important;
+  grid-template-columns:minmax(0,1.3fr) minmax(110px,.6fr) minmax(120px,.7fr) auto!important;
+  gap:8px!important;align-items:center!important;border:1px solid #15364e!important;border-radius:6px!important;background:#051827!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .staffGroupWorkspaceV2{
+  display:grid!important;grid-template-columns:240px minmax(0,1fr)!important;gap:8px!important;align-items:start!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .staffGroupRailV2{padding:8px!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .staffPermissionGridV2{
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:5px!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .staffPermissionItemV2{
+  min-height:46px!important;padding:7px 8px!important;border:1px solid #16364f!important;border-radius:6px!important;background:#051827!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .staffPermissionItemV2.on{
+  border-color:#5543af!important;background:#131735!important
+}
+
+/* Support operations */
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .supportKbGrid{
+  display:grid!important;grid-template-columns:230px minmax(0,1fr) 230px!important;gap:8px!important;align-items:start!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) :where(.supportKbRail,.supportKbEditor,.supportKbCategories){padding:10px!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .supportKbArticleList{display:grid!important;gap:4px!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .supportHierarchy{display:grid!important;gap:7px!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .supportDepartmentCard{
+  display:grid!important;grid-template-columns:minmax(0,1fr) 320px!important;gap:10px!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .supportDepartmentList,
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .supportMemberGrid{
+  display:grid!important;gap:5px!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .supportCreateGrid{
+  display:grid!important;grid-template-columns:260px minmax(0,1fr)!important;gap:8px!important;align-items:start!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .supportCustomerPicker{
+  max-height:420px!important;overflow:auto!important
+}
+
+/* Licensing runtime */
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .lmPage{
+  width:min(1180px,100%)!important;max-width:1180px!important;margin:0 auto!important;padding:19px 22px 60px!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .lmHero{
+  min-height:80px!important;padding:13px 14px!important;border:1px solid #173a55!important;border-radius:8px!important;
+  background:radial-gradient(260px 120px at 90% 10%,rgba(88,49,220,.12),transparent 70%),#061a2a!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .lmKicker{font-size:6.5px!important;color:#55c8ed!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .lmKV{
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .lmRuntimeList{display:grid!important;gap:5px!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .lmRuntimeList>div{
+  min-height:42px!important;padding:7px 8px!important;border:1px solid #15364e!important;border-radius:6px!important;background:#051827!important
+}
+
+@media(max-width:1050px){
+ html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) :where(.billingSetupGrid,.gatewaySetupWorkspace,.staffWorkspace,.staffGroupWorkspaceV2,.supportKbGrid,.supportDepartmentCard,.supportCreateGrid){grid-template-columns:1fr!important}
+ html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .staffPermissionGridV2{grid-template-columns:1fr!important}
+}
