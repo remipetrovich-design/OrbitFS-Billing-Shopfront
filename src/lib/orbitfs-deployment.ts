@@ -853,11 +853,22 @@ function normalizeDomainHost(value:any){
  if(!host.includes(".")||host.length>253||!/^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(host))throw Object.assign(new Error("Enter a valid public domain name"),{status:400,code:"INVALID_DOMAIN"});
  return host;
 }
+function normalizeVercelAlias(value:any){
+ const raw=String(value||"").trim().toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,"");
+ const candidate=raw.endsWith(".vercel.app")?raw:`${raw}.vercel.app`;
+ const host=normalizeDomainHost(candidate);
+ if(!host.endsWith(".vercel.app"))throw Object.assign(new Error("Enter a vercel.app address"),{status:400,code:"VERCEL_ALIAS_REQUIRED"});
+ const slug=host.slice(0,-".vercel.app".length);
+ if(!slug||slug.includes(".")||slug.length>63||!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug))throw Object.assign(new Error("Enter a valid Vercel address such as my-orbitfs.vercel.app"),{status:400,code:"INVALID_VERCEL_ALIAS"});
+ return `${slug}.vercel.app`;
+}
 function domainPreference(install:any){
  const raw=install?.metadata?.domainPreference&&typeof install.metadata.domainPreference==="object"?install.metadata.domainPreference:{};
- const mode=raw.mode==="custom"?"custom":"generated";
+ const mode=raw.mode==="custom"?"custom":raw.mode==="vercel"?"vercel":"generated";
  let hostname="";
- if(mode==="custom"){try{hostname=normalizeDomainHost(raw.hostname)}catch{}}
+ if(mode!=="generated"){
+  try{hostname=mode==="vercel"?normalizeVercelAlias(raw.hostname):normalizeDomainHost(raw.hostname)}catch{}
+ }
  return {mode,hostname};
 }
 async function projectDomains(install:any){
@@ -870,46 +881,79 @@ export async function installationDomainStatus(install:any){
  const generatedDomain=`${String(install.vercel_project_name||"").trim().toLowerCase()}.vercel.app`;
  const preference=domainPreference(install);
  const domains=await projectDomains(install);
- const selected=preference.mode==="custom"?domains.find((d:any)=>normalize(d?.name)===preference.hostname):domains.find((d:any)=>normalize(d?.name)===generatedDomain);
+ const selectedDomain=preference.mode==="generated"?generatedDomain:preference.hostname;
+ const selected=domains.find((d:any)=>normalize(d?.name)===selectedDomain);
+ const selectedVerified=preference.mode==="generated"?true:preference.mode==="vercel"?Boolean(selected):Boolean(selected&&selected?.verified!==false&&selected?.misconfigured!==true);
  const customDomains=domains.filter((d:any)=>!normalize(d?.name).endsWith(".vercel.app")).map((d:any)=>({
    name:normalize(d?.name),verified:d?.verified!==false,redirect:d?.redirect||null,misconfigured:d?.misconfigured===true
  }));
+ const vercelDomains=domains.filter((d:any)=>{
+   const name=normalize(d?.name);return name.endsWith(".vercel.app")&&name!==generatedDomain;
+ }).map((d:any)=>({name:normalize(d?.name),verified:true,redirect:d?.redirect||null,misconfigured:false}));
+ const effectiveHost=preference.mode==="generated"?generatedDomain:selectedVerified&&selectedDomain?selectedDomain:generatedDomain;
  return {
    mode:preference.mode,
    generatedDomain,
-   customDomain:preference.hostname||null,
-   selectedDomain:preference.mode==="custom"&&preference.hostname?preference.hostname:generatedDomain,
-   selectedVerified:preference.mode==="generated"?true:Boolean(selected&&selected?.verified!==false),
-   effectiveUrl:String(install.production_url||"")||null,
+   vercelDomain:preference.mode==="vercel"?preference.hostname||null:null,
+   customDomain:preference.mode==="custom"?preference.hostname||null:null,
+   selectedDomain:selectedDomain||generatedDomain,
+   selectedVerified,
+   effectiveUrl:effectiveHost?`https://${effectiveHost}`:String(install.production_url||"")||null,
+   vercelDomains,
    customDomains
  };
+}
+export async function checkInstallationVercelDomainAvailability(install:any,value:any){
+ await requireLicenseMasterForMutation();
+ if(!install?.vercel_project_id)throw Object.assign(new Error("Deploy Base before configuring its domain"),{status:409,code:"BASE_PROJECT_REQUIRED"});
+ const domain=normalizeVercelAlias(value);
+ const generatedDomain=`${String(install.vercel_project_name||"").trim().toLowerCase()}.vercel.app`;
+ if(domain===generatedDomain)return {domain,available:true,reserved:true,current:true};
+ const domains=await projectDomains(install);
+ if(domains.some((d:any)=>String(d?.name||"").trim().toLowerCase()===domain))return {domain,available:true,reserved:true,current:false};
+ try{
+  await vercelApi(String(install.auth_user_id),`/v10/projects/${encodeURIComponent(String(install.vercel_project_id))}/domains`,{method:"POST",body:JSON.stringify({name:domain})});
+  await event(install,"panel.vercel_domain_reserved","ok",`Reserved Base Vercel address ${domain}`,{domain});
+  return {domain,available:true,reserved:true,current:false};
+ }catch(error:any){
+  const message=String(error?.message||"").toLowerCase();
+  if(/alias.*(already|in use)|already.*(used|assigned|exists)|domain.*(in use|assigned)|alias_in_use|forbidden.*alias/.test(message)){
+   return {domain,available:false,reserved:false,current:false,reason:"already_in_use"};
+  }
+  throw error;
+ }
 }
 export async function configureInstallationDomain(install:any,input:any){
  await requireLicenseMasterForMutation();
  if(!install?.vercel_project_id)throw Object.assign(new Error("Deploy Base before configuring its domain"),{status:409,code:"BASE_PROJECT_REQUIRED"});
  const mode=String(input?.mode||"generated").trim().toLowerCase();
- if(mode!=="generated"&&mode!=="custom")throw Object.assign(new Error("Unsupported domain mode"),{status:400,code:"INVALID_DOMAIN_MODE"});
+ if(mode!=="generated"&&mode!=="vercel"&&mode!=="custom")throw Object.assign(new Error("Unsupported domain mode"),{status:400,code:"INVALID_DOMAIN_MODE"});
  const currentMetadata=install?.metadata&&typeof install.metadata==="object"&&!Array.isArray(install.metadata)?install.metadata:{};
  let hostname="";
+ if(mode==="vercel"){
+   const availability=await checkInstallationVercelDomainAvailability(install,input?.domain);
+   if(!availability.available)throw Object.assign(new Error(`${availability.domain} is already in use on Vercel`),{status:409,code:"VERCEL_ALIAS_UNAVAILABLE"});
+   hostname=availability.domain;
+ }
  if(mode==="custom"){
    hostname=normalizeDomainHost(input?.domain);
-   if(hostname.endsWith(".vercel.app"))throw Object.assign(new Error("Use Generated domain for vercel.app addresses"),{status:400,code:"CUSTOM_DOMAIN_REQUIRED"});
+   if(hostname.endsWith(".vercel.app"))throw Object.assign(new Error("Choose Custom Vercel address for vercel.app names"),{status:400,code:"CUSTOM_DOMAIN_REQUIRED"});
    const domains=await projectDomains(install);
    if(!domains.some((d:any)=>String(d?.name||"").trim().toLowerCase()===hostname)){
      await vercelApi(String(install.auth_user_id),`/v10/projects/${encodeURIComponent(String(install.vercel_project_id))}/domains`,{method:"POST",body:JSON.stringify({name:hostname})});
    }
  }
- const preference={mode,hostname:mode==="custom"?hostname:null,updatedAt:new Date().toISOString()};
+ const preference={mode,hostname:mode==="generated"?null:hostname,updatedAt:new Date().toISOString()};
  const {data,error}=await licenseDb().from("orbitfs_installations").update({
    metadata:{...currentMetadata,domainPreference:preference},
    updated_at:new Date().toISOString()
  }).eq("id",install.id).select().single();
  if(error)throw error;
  const status=await installationDomainStatus(data);
- const targetHost=status.mode==="custom"&&status.selectedVerified&&status.customDomain?status.customDomain:status.generatedDomain;
+ const targetHost=status.mode!=="generated"&&status.selectedVerified&&status.selectedDomain?status.selectedDomain:status.generatedDomain;
  if(targetHost)await upsertVercelEnv(data,"ORBITFS_PANEL_URL",`https://${targetHost}`);
  const synced=data.vercel_deployment_id?await syncDeployment(data):data;
- await event(synced,"panel.domain_preference_updated",status.selectedVerified?"ok":"warning",mode==="custom"?(status.selectedVerified?`Custom Base domain set to ${hostname}`:`Custom Base domain ${hostname} is awaiting Vercel verification`):`Base domain reset to ${status.generatedDomain}`,{mode,hostname:mode==="custom"?hostname:null,verified:status.selectedVerified});
+ await event(synced,"panel.domain_preference_updated",status.selectedVerified?"ok":"warning",mode==="custom"?(status.selectedVerified?`Custom Base domain set to ${hostname}`:`Custom Base domain ${hostname} is awaiting Vercel verification`):mode==="vercel"?`Base Vercel address set to ${hostname}`:`Base domain reset to ${status.generatedDomain}`,{mode,hostname:mode==="generated"?null:hostname,verified:status.selectedVerified});
  return {installation:synced,domain:await installationDomainStatus(synced)};
 }
 export async function removeInstallationCustomDomain(install:any,domainValue:any){
@@ -917,7 +961,9 @@ export async function removeInstallationCustomDomain(install:any,domainValue:any
  const hostname=normalizeDomainHost(domainValue);
  if(!install?.vercel_project_id)throw Object.assign(new Error("Base Vercel project is missing"),{status:409,code:"BASE_PROJECT_REQUIRED"});
  const preference=domainPreference(install);
- if(preference.mode==="custom"&&preference.hostname===hostname)throw Object.assign(new Error("Switch to the generated domain before removing the active custom domain"),{status:409,code:"CUSTOM_DOMAIN_ACTIVE"});
+ if(preference.mode!=="generated"&&preference.hostname===hostname)throw Object.assign(new Error("Switch to another address before removing the active domain"),{status:409,code:"CUSTOM_DOMAIN_ACTIVE"});
+ const generatedDomain=`${String(install.vercel_project_name||"").trim().toLowerCase()}.vercel.app`;
+ if(hostname===generatedDomain)throw Object.assign(new Error("The default generated Vercel domain cannot be removed"),{status:409,code:"GENERATED_DOMAIN_REQUIRED"});
  await vercelApi(String(install.auth_user_id),`/v9/projects/${encodeURIComponent(String(install.vercel_project_id))}/domains/${encodeURIComponent(hostname)}`,{method:"DELETE"});
  await event(install,"panel.custom_domain_removed","ok",`Removed custom Base domain ${hostname}`,{hostname});
  return installationDomainStatus(install);
@@ -932,7 +978,7 @@ export async function resolveProductionUrl(install:any,deployment?:any):Promise<
  const domains=await projectDomains(install);
  const candidates=domains.filter((d:any)=>d?.verified!==false&&normalize(d?.name)&&normalize(d?.name)!==deploymentHost);
  const preference=domainPreference(install);
- const preferredCustom=preference.mode==="custom"&&preference.hostname?candidates.find((d:any)=>normalize(d?.name)===preference.hostname):null;
+ const preferredSelected=preference.mode!=="generated"&&preference.hostname?candidates.find((d:any)=>normalize(d?.name)===preference.hostname):null;
  const project=candidates.find((d:any)=>normalize(d.name)===projectDomain);
  const vercel=candidates.find((d:any)=>!d.redirect&&normalize(d.name).endsWith(".vercel.app"))
   ||candidates.find((d:any)=>normalize(d.name).endsWith(".vercel.app"));
