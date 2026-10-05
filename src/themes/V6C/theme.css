@@ -1472,3 +1472,25 @@ html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-conte
   border:1px dashed #315a76!important;
   background:#071b2a!important;
 }
+
+
+/* Downloads keeps its entitlement summary visible while the shell owns the title. */
+.v6c-route-downloads .downloadsPageV3>.downloadsHead{
+  display:flex!important;
+  min-height:38px!important;
+  margin:0 0 9px!important;
+  padding:8px 10px!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  border:1px solid #123650!important;
+  border-radius:7px!important;
+  background:#041827!important;
+}
+.v6c-route-downloads .downloadsPageV3>.downloadsHead>div:first-child{display:none!important}
+.v6c-route-downloads .downloadsSummary{
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+}
+.v6c-route-downloads .downloadsSummary small{color:#62819a!important;font-size:6px!important}
+.v6c-route-downloads .downloadsSummary strong{color:#fff!important;font-size:12px!important}
