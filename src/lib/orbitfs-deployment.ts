@@ -882,14 +882,19 @@ async function vercelAliasLookup(userId:string,domain:string){
   headers:{authorization:`Bearer ${token}`,"content-type":"application/json"},
   cache:"no-store"
  });
- if(r.status===404)return {exists:false,projectId:null};
- if(r.status===403)return {exists:true,projectId:null};
+ if(r.status===404)return {exists:false,projectId:null,deploymentId:null,uid:null};
+ if(r.status===403)return {exists:true,projectId:null,deploymentId:null,uid:null};
  if(!r.ok){
   const detail=await r.text();
   throw Object.assign(new Error(`Vercel alias lookup ${r.status}: ${detail}`),{status:r.status>=500?502:r.status});
  }
  const body:any=await r.json().catch(()=>({}));
- return {exists:true,projectId:String(body?.projectId||body?.project?.id||body?.deployment?.projectId||"").trim()||null};
+ return {
+  exists:true,
+  projectId:String(body?.projectId||body?.project?.id||body?.deployment?.projectId||"").trim()||null,
+  deploymentId:String(body?.deploymentId||body?.deployment?.id||"").trim()||null,
+  uid:String(body?.uid||"").trim()||null
+ };
 }
 export async function installationDomainStatus(install:any){
  const normalize=(v:any)=>String(v||"").trim().replace(/^https?:\/\//,"").replace(/\/$/,"").toLowerCase();
@@ -897,14 +902,20 @@ export async function installationDomainStatus(install:any){
  const preference=domainPreference(install);
  const domains=await projectDomains(install);
  const selectedDomain=preference.mode==="generated"?generatedDomain:preference.hostname;
- const selected=domains.find((d:any)=>normalize(d?.name)===selectedDomain);
- const selectedVerified=preference.mode==="generated"?true:preference.mode==="vercel"?Boolean(selected):Boolean(selected&&selected?.verified!==false&&selected?.misconfigured!==true);
+ const customSelected=preference.mode==="custom"?domains.find((d:any)=>normalize(d?.name)===selectedDomain):null;
+ const alias=preference.mode==="vercel"&&selectedDomain?await vercelAliasLookup(String(install.auth_user_id),selectedDomain):null;
+ const aliasOwned=Boolean(alias?.exists&&alias?.projectId===String(install.vercel_project_id));
+ const selectedVerified=preference.mode==="generated"
+  ?true
+  :preference.mode==="vercel"
+   ?aliasOwned
+   :Boolean(customSelected&&customSelected?.verified!==false&&customSelected?.misconfigured!==true);
  const customDomains=domains.filter((d:any)=>!normalize(d?.name).endsWith(".vercel.app")).map((d:any)=>({
    name:normalize(d?.name),verified:d?.verified!==false,redirect:d?.redirect||null,misconfigured:d?.misconfigured===true
  }));
- const vercelDomains=domains.filter((d:any)=>{
-   const name=normalize(d?.name);return name.endsWith(".vercel.app")&&name!==generatedDomain;
- }).map((d:any)=>({name:normalize(d?.name),verified:true,redirect:d?.redirect||null,misconfigured:false}));
+ const vercelDomains=preference.mode==="vercel"&&preference.hostname&&aliasOwned
+  ?[{name:preference.hostname,verified:true,redirect:null,misconfigured:false}]
+  :[];
  const effectiveHost=preference.mode==="generated"?generatedDomain:selectedVerified&&selectedDomain?selectedDomain:generatedDomain;
  return {
    mode:preference.mode,
@@ -927,7 +938,10 @@ export async function checkInstallationVercelDomainAvailability(install:any,valu
  if(domains.some((d:any)=>String(d?.name||"").trim().toLowerCase()===domain))return {domain,available:true,attached:true,reserved:true,current:false};
  const lookup=await vercelAliasLookup(String(install.auth_user_id),domain);
  if(!lookup.exists)return {domain,available:true,attached:false,reserved:false,current:false};
- if(lookup.projectId&&lookup.projectId===String(install.vercel_project_id))return {domain,available:true,attached:false,reserved:true,current:false};
+ if(lookup.projectId&&lookup.projectId===String(install.vercel_project_id)){
+  const current=Boolean(install.vercel_deployment_id&&lookup.deploymentId===String(install.vercel_deployment_id));
+  return {domain,available:true,attached:current,reserved:true,current};
+ }
  return {domain,available:false,attached:false,reserved:false,current:false,reason:"already_in_use"};
 }
 export async function configureInstallationDomain(install:any,input:any){
@@ -941,9 +955,10 @@ export async function configureInstallationDomain(install:any,input:any){
    const availability=await checkInstallationVercelDomainAvailability(install,input?.domain);
    if(!availability.available)throw Object.assign(new Error(`${availability.domain} is already in use on Vercel`),{status:409,code:"VERCEL_ALIAS_UNAVAILABLE"});
    hostname=availability.domain;
+   if(!install.vercel_deployment_id)throw Object.assign(new Error("Base deployment is not ready for a custom Vercel address"),{status:409,code:"BASE_DEPLOYMENT_REQUIRED"});
    if(!availability.attached){
     try{
-     await vercelApi(String(install.auth_user_id),`/v10/projects/${encodeURIComponent(String(install.vercel_project_id))}/domains`,{method:"POST",body:JSON.stringify({name:hostname})});
+     await vercelApi(String(install.auth_user_id),`/v2/deployments/${encodeURIComponent(String(install.vercel_deployment_id))}/aliases`,{method:"POST",body:JSON.stringify({alias:hostname,redirect:null})});
     }catch(error:any){
      const message=String(error?.message||"").toLowerCase();
      if(Number(error?.status||0)===403||Number(error?.status||0)===409||/alias.*(already|in use)|already.*(used|assigned|exists)|domain.*(in use|assigned)|alias_in_use/.test(message)){
@@ -951,10 +966,6 @@ export async function configureInstallationDomain(install:any,input:any){
      }
      throw error;
     }
-   }
-   const previous=domainPreference(install);
-   if(previous.mode==="vercel"&&previous.hostname&&previous.hostname!==hostname&&previous.hostname!==`${String(install.vercel_project_name||"").trim().toLowerCase()}.vercel.app`){
-    await vercelApi(String(install.auth_user_id),`/v9/projects/${encodeURIComponent(String(install.vercel_project_id))}/domains/${encodeURIComponent(previous.hostname)}`,{method:"DELETE"}).catch(()=>undefined);
    }
  }
  if(mode==="custom"){
