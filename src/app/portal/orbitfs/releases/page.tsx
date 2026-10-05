@@ -38,6 +38,16 @@ function phaseStatus(events:UpdateEvent[],started:string,completed:string){
   if(events.some(event=>event.type===started))return "running";
   return "waiting";
 }
+function releaseNoteItems(raw:unknown){
+  const text=String(raw||"").trim();
+  if(!text)return [];
+  return text
+    .replace(/(#{2,4}\s+)/g,"\n$1")
+    .split(/\r?\n+/)
+    .map(value=>value.replace(/^[-*•]\s*/,"").replace(/^#{2,4}\s*/,"").trim())
+    .filter(Boolean)
+    .slice(0,12);
+}
 
 export default function OrbitFSUpdateReleaseSystem(){
   const sb=useMemo(()=>createClient(),[]);
@@ -503,20 +513,25 @@ export default function OrbitFSUpdateReleaseSystem(){
         <div><small>COMPONENTS</small><b>{updateComponents.length?updateComponents.join(", "):"See release manifest"}</b></div>
       </div>
       <div className="orbitV5UpdateReview">
-        <div><p className="eyebrow">RELEASE NOTES</p><h3>{selected.title||"Update v"+selected.version}</h3>
-          <p className="orbitV5UpdateNotes">{selected.changelog||selected.description||"No customer release notes supplied."}</p>
-          {selected.customer_notes&&<><p className="eyebrow">CUSTOMER NOTES</p><p className="orbitV5UpdateNotes">{selected.customer_notes}</p></>}
-        </div>
-        <div className="orbitV5UpdateChecks"><p className="eyebrow">PRE-DEPLOYMENT CHECK</p>
-          <div><span className={baseReady?"ok":"blocked"}>{baseReady?"✓":"!"}</span><p>{!hasBase?"Installed Base required":baseReady?"Installed Base ready":`Installed Base status is ${String(install?.state||"unknown")}; verify Base deployment is ready before updating`}{!baseReady&&install?.last_error?<small className="muted" style={{display:"block",marginTop:6}}>{String(install.last_error)}</small>:null}{hasBase&&!baseReady?<button type="button" className="secondary" style={{marginTop:8}} disabled={!!busy} onClick={()=>void verifyBaseDeployment()}>{busy==="verify-base"?"Verifying…":"Verify Base deployment"}</button>:null}</p></div>
-          <div><span className={compatible?"ok":"blocked"}>{compatible?"✓":"!"}</span><p>{requiredBase?"Requires Base v"+requiredBase: "No minimum Base version specified"}{!compatible?" · incompatible":""}</p></div>
-          <div><span className={!updateUnavailable?"ok":"blocked"}>{!updateUnavailable?"✓":"!"}</span><p>{updateUnavailable?"Update execution currently disabled":"Update authority available"}</p></div>
-          <div><span className={updateDiscoveryReady?"ok":"blocked"}>{updateDiscoveryReady?"✓":"!"}</span><p>{updateDiscoveryReady?"Published Update discovery available":`Update discovery failed: ${updateDiscoveryError}`}</p></div>
-          
+        <section className="orbitV5UpdateReviewCard orbitV5UpdateReviewNotes">
+          <div className="orbitV5UpdateReviewHead">
+            <div><p className="eyebrow">RELEASE NOTES</p><h3>{selected.title||"Update v"+selected.version}</h3></div>
+            <span>v{selected.version}</span>
+          </div>
+          <ul className="orbitV5UpdateNoteList">
+            {(releaseNoteItems(selected.changelog||selected.description).length?releaseNoteItems(selected.changelog||selected.description):["No customer release notes supplied."]).map((item,index)=><li key={index}>{item}</li>)}
+          </ul>
+          {selected.customer_notes&&<details className="orbitV5UpdateCustomerNotes"><summary>Customer notes</summary><p>{selected.customer_notes}</p></details>}
+        </section>
+        <section className="orbitV5UpdateReviewCard orbitV5UpdateChecks">
+          <div className="orbitV5UpdateReviewHead"><div><p className="eyebrow">PRE-DEPLOYMENT CHECK</p><h3>Ready to install?</h3></div><span>{canInstall?"READY":"CHECK"}</span></div>
+          <div className="orbitV5UpdateCheckRow"><span className={baseReady?"ok":"blocked"}>{baseReady?"✓":"!"}</span><div><b>Base deployment</b><p>{!hasBase?"Installed Base required":baseReady?"Installed Base is ready":`Base status is ${String(install?.state||"unknown")}`}</p>{!baseReady&&install?.last_error?<small>{String(install.last_error)}</small>:null}{hasBase&&!baseReady?<button type="button" className="secondary" disabled={!!busy} onClick={()=>void verifyBaseDeployment()}>{busy==="verify-base"?"Verifying…":"Verify Base"}</button>:null}</div></div>
+          <div className="orbitV5UpdateCheckRow"><span className={compatible?"ok":"blocked"}>{compatible?"✓":"!"}</span><div><b>Compatibility</b><p>{requiredBase?"Requires Base v"+requiredBase:"No minimum Base version specified"}{!compatible?" · incompatible":""}</p></div></div>
+          <div className="orbitV5UpdateCheckRow"><span className={!updateUnavailable?"ok":"blocked"}>{!updateUnavailable?"✓":"!"}</span><div><b>Deployment authority</b><p>{updateUnavailable?"Update execution is currently disabled":"Update authority is available"}</p></div></div>
+          <div className="orbitV5UpdateCheckRow"><span className={updateDiscoveryReady?"ok":"blocked"}>{updateDiscoveryReady?"✓":"!"}</span><div><b>Published release</b><p>{updateDiscoveryReady?"Release is available from License Manager":`Release lookup failed: ${updateDiscoveryError}`}</p></div></div>
           {blockingBaseOperation&&<p className="orbitV5UpdateHint">Finish the active Base operation before installing an Update.</p>}
-          {busy&&<p className="orbitV5UpdateHint">Please wait for the current request to finish.</p>}
           {(alreadyInstalled||isPrevious)&&<p className="orbitV5UpdateHint">{alreadyInstalled?"This Update is already installed.":"This version is not newer than your recorded installed Update."}</p>}
-        </div>
+        </section>
       </div>
       <label className="orbitV5UpdateConfirm">
         <input type="checkbox" checked={confirmed} onChange={event=>setConfirmed(event.target.checked)}/>
@@ -534,13 +549,14 @@ export default function OrbitFSUpdateReleaseSystem(){
         <p>{progressMode==="rollback"?"Using the existing authorized rollback workflow. Database migrations remain applied.":"The steps below reflect actual execution events, not estimated percentages."}</p>
         <small className="muted">LIVE · refreshes every 60 seconds{progress?.lastCheckedAt?" · last checked "+dateLabel(progress.lastCheckedAt):""}</small>
         </div><span className={"state "+(failedEvent?"waiting":completedEvent?"ready":"current")}>{failedEvent?"NEEDS ATTENTION":completedEvent?"COMPLETE":"IN PROGRESS"}</span></div>
-      <div className="orbitV5UpdateTimeline">
+      <div className="orbitV5UpdateTimeline" aria-label="Update execution phases">
         {phases.map((phase,index)=>{
           const status=phaseStatus(trackedEvents,phase.start,phase.end);
-          return <div key={phase.label} className={"orbitV5UpdatePhase "+status}>
+          return <article key={phase.label} className={"orbitV5UpdatePhase "+status}>
             <span className="orbitV5UpdatePhaseNumber">{status==="complete"?"✓":index+1}</span>
-            <div><b>{phase.label}</b><small>{status==="complete"?"Recorded complete":status==="running"?"Running":"Waiting for execution event"}</small></div>
-          </div>;
+            <div><b>{phase.label}</b><small>{status==="complete"?"Completed":status==="running"?"Running now":"Waiting"}</small></div>
+            <em>{status==="complete"?"DONE":status==="running"?"LIVE":"PENDING"}</em>
+          </article>;
         })}
       </div>
       {failedEvent&&<div className="orbitV5UpdateWarning"><b>Update operation needs attention</b><p>{failedEvent.message}</p></div>}
@@ -594,14 +610,14 @@ export default function OrbitFSUpdateReleaseSystem(){
       </div>
     </section>}
 
-    <section className="panel orbitV5UpdateSupport">
+    <aside className="orbitV5UpdateSupport" aria-label="Update support">
       <div className="orbitV5UpdateSupportIcon" aria-hidden="true">?</div>
       <div className="orbitV5UpdateSupportCopy">
-        <p className="eyebrow">UPDATE SUPPORT</p>
-        <h2>Need help with this Update?</h2>
-        <p>Open Support for a failed release, recovery issue or anything that needs staff assistance.</p>
+        <p className="eyebrow">NEED HELP?</p>
+        <h2>Update support</h2>
+        <p>Failed release, recovery problem or something not matching the expected state? Open a support ticket with the installation details attached.</p>
       </div>
-      <Link className="orbitV5UpdateSupportAction" href="/portal/support">Open Support →</Link>
-    </section>
+      <Link className="orbitV5UpdateSupportAction" href="/portal/support/new">Contact support →</Link>
+    </aside>
   </main>;
 }
