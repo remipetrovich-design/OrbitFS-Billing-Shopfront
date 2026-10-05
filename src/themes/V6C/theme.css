@@ -1494,3 +1494,296 @@ html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-conte
 }
 .v6c-route-downloads .downloadsSummary small{color:#62819a!important;font-size:6px!important}
 .v6c-route-downloads .downloadsSummary strong{color:#fff!important;font-size:12px!important}
+
+
+/* Store checkout controls */
+.v6c-route-store .storeBasketPanel,.v6c-route-store .storeCheckoutPanel{padding:13px!important}
+.v6c-route-store .storeBasketRow{
+  min-height:50px;
+  padding:8px 0;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  gap:10px;
+  align-items:center;
+  border-top:1px solid #0e3048;
+}
+.v6c-route-store .storeBasketRow b,.v6c-route-store .storeBasketRow span{display:block}
+.v6c-route-store .storeBasketRow b{font-size:8px}
+.v6c-route-store .storeBasketRow span{margin-top:3px;color:#66849d;font-size:7px}
+.v6c-route-store .storeTotals{display:grid;gap:6px}
+.v6c-route-store .storeTotals>div{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:8px}
+.v6c-route-store .storeTotal{margin-top:4px;padding-top:8px;border-top:1px solid #17405a}
+.v6c-route-store .storeTotal strong{font-size:15px}
+.v6c-route-store .storeCheckoutBlock{margin-top:12px}
+.v6c-route-store .couponApply{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin-top:5px}
+.v6c-route-store .storeGatewayList{display:grid;gap:6px;margin-top:6px}
+.v6c-route-store .storeGateway{
+  min-height:52px;
+  padding:8px 10px;
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  border:1px solid #214860;
+  border-radius:6px;
+  background:#061b2b;
+}
+.v6c-route-store .storeGateway.active{border-color:#6543ce;background:#13183d}
+.v6c-route-store .storeGateway input{width:15px!important;min-height:15px!important;margin-top:2px}
+.v6c-route-store .storeGateway b,.v6c-route-store .storeGateway small{display:block}
+.v6c-route-store .storeGateway b{font-size:8px}
+.v6c-route-store .storeGateway small{margin-top:3px;color:#67869e;font-size:7px}
+
+/* Settings / Wallet */
+.v6c-route-settings .settingsSectionHead{
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:space-between!important;
+  gap:14px!important;
+  padding-bottom:10px!important;
+  border-bottom:1px solid #0f3048!important;
+}
+.v6c-route-settings .settingsReadOnlyRow{
+  min-height:38px;
+  padding:8px 10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border:1px solid #1d425a;
+  border-radius:6px;
+  background:#061a29;
+}
+.v6c-route-settings .billingPreview{
+  margin-top:4px;
+  padding:11px;
+  border:1px solid #21475f;
+  border-radius:7px;
+  background:#071c2c;
+}
+.v6c-route-settings .billingPreview small,.v6c-route-settings .billingPreview b,.v6c-route-settings .billingPreview span{display:block}
+.v6c-route-settings .billingPreview b{margin:5px 0;font-size:9px}
+.v6c-route-settings .billingPreview span{margin-top:2px;color:#7893a9;font-size:7px}
+.v6c-route-settings .walletSettingsHead{align-items:center!important}
+.v6c-route-settings .walletBalanceBadge{
+  min-width:120px;
+  padding:9px 10px;
+  border:1px solid #176057;
+  border-radius:7px;
+  background:#07352f;
+  text-align:right;
+}
+.v6c-route-settings .walletBalanceBadge small,.v6c-route-settings .walletBalanceBadge strong{display:block}
+.v6c-route-settings .walletBalanceBadge small{font-size:6px;color:#5bcab8}
+.v6c-route-settings .walletBalanceBadge strong{margin-top:3px;font-size:14px;color:#e8fffb}
+.v6c-route-settings .walletRechargeHistory,.v6c-route-settings .walletActivity{margin-top:12px}
+.v6c-route-settings .walletRechargeRow,.v6c-route-settings .walletActivityRow{
+  min-height:48px;
+  padding:8px 0;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto auto;
+  gap:9px;
+  align-items:center;
+  border-top:1px solid #0e3048;
+}
+.v6c-route-settings .walletActivityRow{grid-template-columns:minmax(0,1fr) auto}
+.v6c-route-settings .walletRechargeMain b,.v6c-route-settings .walletRechargeMain span,
+.v6c-route-settings .walletActivityRow b,.v6c-route-settings .walletActivityRow span{display:block}
+.v6c-route-settings .walletRechargeMain b,.v6c-route-settings .walletActivityRow b{font-size:8px}
+.v6c-route-settings .walletRechargeMain span,.v6c-route-settings .walletActivityRow span{margin-top:2px;color:#638199;font-size:7px}
+.v6c-route-settings .walletMiniReceipt{
+  margin:6px 0 10px;
+  padding:11px;
+  border:1px solid #21475f;
+  border-radius:7px;
+  background:#061a29;
+}
+.v6c-route-settings .walletReceiptGrid{display:grid;grid-template-columns:1fr auto;gap:6px;font-size:7px}
+.v6c-route-settings .mailSubscriptionRow{
+  min-height:50px;
+  padding:8px 0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border-top:1px solid #0e3048;
+}
+.v6c-route-settings .mailSubscriptionControl{
+  position:relative;
+  width:34px;
+  height:18px;
+  flex:0 0 34px;
+}
+.v6c-route-settings .mailSubscriptionControl input{
+  position:absolute!important;
+  inset:0!important;
+  width:34px!important;
+  height:18px!important;
+  min-height:18px!important;
+  opacity:0!important;
+  cursor:pointer;
+}
+.v6c-route-settings .mailSubscriptionTrack{
+  position:absolute;inset:0;border:1px solid #31536a;border-radius:999px;background:#102536;pointer-events:none;
+}
+.v6c-route-settings .mailSubscriptionControl input:checked + .mailSubscriptionTrack{
+  border-color:#4d43ba;background:#4b2cb5;
+}
+.v6c-route-settings .mailSubscriptionControl input:checked + .mailSubscriptionTrack:after{
+  left:18px;
+}
+.v6c-route-settings .mailSubscriptionTrack:after{
+  content:"";position:absolute;left:2px;top:2px;width:12px;height:12px;border-radius:50%;background:#dceafa;transition:left .15s ease;
+}
+
+/* Licence */
+.v6c-route-license .orbitfsLicenseController>.portalOverviewHero{display:none!important}
+.v6c-route-license .portalOverviewGrid>.panel{
+  min-width:0;
+}
+.v6c-route-license .portalOverviewGrid>.panel>.panel{
+  margin-top:8px!important;
+  padding:11px!important;
+  background:#061a29!important;
+  border-color:#1d425a!important;
+}
+.v6c-route-license .listrow{
+  min-height:36px!important;
+  padding:6px 0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+}
+.v6c-route-license .listrow b{font-size:7px!important}
+.v6c-route-license .listrow>span{max-width:70%;text-align:right;font-size:7px!important;color:#84a0b4!important}
+.v6c-route-license .badge{
+  padding:4px 6px;
+  border:1px solid #24536d;
+  border-radius:999px;
+  background:#0a3047;
+  font-size:6px;
+}
+.v6c-route-license .licenseKeyReveal code{
+  display:block;
+  margin-top:7px;
+  padding:9px;
+  border:1px solid #28516a;
+  border-radius:6px;
+  background:#031522;
+  color:#9fe2ff;
+  font-size:8px;
+}
+
+/* Channels */
+.v6c-route-channels .portalReleaseHeader{display:none!important}
+.v6c-route-channels .customerChannelCardHead{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+}
+.v6c-route-channels .customerChannelTitle{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.v6c-route-channels .customerChannelTitle h2{margin:0!important}
+.v6c-route-channels .customerChannelCardHead p{margin:5px 0 0!important}
+.v6c-route-channels .customerChannelActions{
+  min-height:32px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+}
+.v6c-route-channels .channelRequestForm{
+  display:grid;
+  gap:9px;
+}
+.v6c-route-channels .channelRequestForm label{display:grid;gap:5px}
+.v6c-route-channels .channelRequestFormHead,.v6c-route-channels .channelRequestSubmit{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.v6c-route-channels .channelRequestFormHead b,.v6c-route-channels .channelRequestFormHead span{display:block}
+.v6c-route-channels .channelRequestFormHead b{font-size:8px}
+.v6c-route-channels .channelRequestFormHead span{margin-top:3px;color:#68869f;font-size:7px}
+.v6c-route-channels .channelRequestFeedback{
+  margin:8px 0;
+  padding:9px;
+  border:1px solid #694356;
+  border-radius:6px;
+  background:#211827;
+}
+.v6c-route-channels .channelRequestFeedback b,.v6c-route-channels .channelRequestFeedback span{display:block}
+.v6c-route-channels .channelRequestFeedback b{font-size:8px}
+.v6c-route-channels .channelRequestFeedback span{margin-top:3px;color:#987c8c;font-size:7px}
+
+/* Base deployment */
+.v6c-route-base .orbitZipDeployer{max-width:none!important}
+.v6c-route-base .orbitV5SectionTitle{padding:0 2px!important}
+.v6c-route-base .orbitV5SectionTitle h2{font-size:15px!important}
+.v6c-route-base .orbitV5FlowCards{padding:0!important}
+.v6c-route-base .orbitV5FlowCard{
+  min-width:0!important;
+  min-height:52px!important;
+  display:flex!important;
+  align-items:flex-start!important;
+  gap:6px!important;
+}
+.v6c-route-base .orbitV5Connections{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+}
+.v6c-route-base .orbitInstallerWorkspace .form,
+.v6c-route-base .orbitInstallerWorkspace form{display:grid;gap:8px}
+.v6c-route-base .orbitZipControlPanel{padding:14px!important}
+.v6c-route-base .orbitZipReleaseControls{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto!important;
+  gap:8px!important;
+  align-items:end!important;
+}
+.v6c-route-base .orbitZipReleaseControls label{display:grid!important;gap:5px!important}
+.v6c-route-base .orbitZipControlTop{
+  display:flex!important;
+  justify-content:space-between!important;
+  gap:16px!important;
+  align-items:flex-start!important;
+}
+.v6c-route-base .orbitZipControlTopActions{display:flex!important;gap:6px!important;flex-wrap:wrap!important;justify-content:flex-end!important}
+
+/* Update release system */
+.v6c-route-updates .orbitV5UpdatePanelHeading{
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:space-between!important;
+  gap:14px!important;
+}
+.v6c-route-updates .orbitV5UpdateFilter{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(180px,.5fr) auto!important;
+  gap:8px!important;
+  align-items:end!important;
+}
+.v6c-route-updates .orbitV5UpdateFilter label{display:grid!important;gap:5px!important}
+.v6c-route-updates .orbitV5UpdateReleaseList{display:grid!important;gap:7px!important}
+.v6c-route-updates .orbitV5UpdateRelease{padding:11px!important}
+.v6c-route-updates .orbitV5UpdateReleaseMain{
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+}
+.v6c-route-updates .orbitV5UpdateActions{
+  display:flex!important;
+  gap:7px!important;
+  justify-content:flex-end!important;
+  flex-wrap:wrap!important;
+}
+.v6c-route-updates .orbitV5UpdateConfirm{
+  margin-top:10px;
+  padding:9px;
+  display:flex!important;
+  align-items:flex-start!important;
+  gap:8px!important;
+  border:1px solid #21475f;
+  border-radius:6px;
+  background:#061a29;
+}
