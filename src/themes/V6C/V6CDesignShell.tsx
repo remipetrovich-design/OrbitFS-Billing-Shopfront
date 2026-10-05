@@ -28,6 +28,7 @@ function routeInfo(path:string):RouteInfo|null{
   if(path.startsWith("/portal/products")||path.startsWith("/portal/basket")||path.startsWith("/portal/checkout"))return {key:"store",eyebrow:"ORBITFS STORE",title:"Build your OrbitFS setup.",description:"Choose your core system, add the components you need and manage checkout from the same platform."};
   if(path.startsWith("/portal/support"))return {key:"support",eyebrow:"SUPPORT CENTRE",title:"Help when you need it.",description:"Open and track support requests, review conversations and browse the OrbitFS knowledge base."};
   if(path.startsWith("/portal/settings"))return {key:"settings",eyebrow:"MY ACCOUNT",title:"Account settings.",description:"Manage your profile, billing details, Wallet, preferences and security."};
+  if(path.startsWith("/portal/downloads"))return {key:"downloads",eyebrow:"PRODUCT DOWNLOADS",title:"Your OrbitFS downloads.",description:"Access published files attached to your active paid product entitlements."};
   if(path.startsWith("/portal/orbitfs/license"))return {key:"license",eyebrow:"MY ORBITFS · LICENCE",title:"License Controller",description:"View your authoritative licence state, entitlements and permitted customer actions."};
   if(path.startsWith("/portal/orbitfs/channels"))return {key:"channels",eyebrow:"MY ORBITFS · RELEASE CHANNELS",title:"Release Channels",description:"Choose how early you receive OrbitFS releases and manage access to restricted channels."};
   return null;
