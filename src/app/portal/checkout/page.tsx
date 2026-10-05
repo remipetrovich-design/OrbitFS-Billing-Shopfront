@@ -148,7 +148,7 @@ export default function CheckoutPage(){
         </label>)}</div>:<div className="notice"><b>No online payment method enabled</b><span>You can still create the invoice and pay it later.</span></div>}
         <button className="storePrimaryAction storePayAction" disabled={busy} onClick={()=>void checkout()}>{busy?"Processing…":gateway?"Place order & pay":"Create invoice"}</button>
         <small>Checkout creates one order and one invoice containing the selected OrbitFS products.</small>
-        {message&&<p className="storeMessage">{message}</p>}
+        {message&&<p className="storeMessage" role="status">{message}</p>}
       </aside>
     </div>}
   </main>;
