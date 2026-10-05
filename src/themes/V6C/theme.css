@@ -1958,22 +1958,6 @@ html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .invoiceDo
 .v6c-route-store .storeEmpty span{color:#68879f;font-size:8px}
 .v6c-route-store .storeEmpty .buttonlink{justify-self:start;margin-top:4px}
 
-/* Theme Manager: tile-only, compact cards. */
-.activeSummary{
-  display:grid;
-  gap:1px;
-  min-width:120px;
-  padding:7px 9px;
-  border:1px solid #32445a;
-  border-radius:7px;
-  background:#111a24;
-  text-align:right;
-}
-.activeSummary span{font-size:6px;text-transform:uppercase;letter-spacing:.08em;color:#74879b}
-.activeSummary b{font-size:9px;color:#eef5ff}
-.activeSummary small{font-size:7px;color:#7f92a6}
-
-
 /* Store → Basket → Checkout shared V6C flow */
 .v6c-store-flow{
   display:flex;
