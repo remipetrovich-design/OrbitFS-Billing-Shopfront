@@ -372,8 +372,14 @@ export default function OrbitFSUpdateReleaseSystem(){
 
   return <main className="portalOverviewV2 orbitV5Updater">
     <header className="orbitV5UpdateHero">
-      <div><p className="eyebrow">MY ORBITFS · UPDATE CENTER</p><h1>Update Release System</h1>
-        <p>Choose an authorized Update, review exactly what changes and follow deployment in one place.</p></div>
+      <div className="orbitV5UpdateHeroCopy"><p className="eyebrow">MY ORBITFS · UPDATE CENTER</p><h1>Update Release System</h1>
+        <p>Choose an authorized Update, review exactly what changes and follow deployment in one place.</p>
+        <div className="orbitV5UpdateHeroMeta" aria-label="Current update state">
+          <span><small>BASE</small><b>{baseVersion?"v"+baseVersion:"Not installed"}</b></span>
+          <span><small>INSTALLED UPDATE</small><b>{appliedVersion?"v"+appliedVersion:"None"}</b></span>
+          <span><small>CHANNEL</small><b>{channel||installedChannel||"stable"}</b></span>
+        </div>
+      </div>
       <div className="orbitV5UpdateHeroActions">
         <button type="button" className="secondary" disabled={!!busy} onClick={()=>void load(true)}>Refresh releases</button>
         <button type="button" className="secondary" disabled={!appliedVersion} onClick={()=>{setRecoveryOpen(true);setStage(5)}}>Recovery</button>
@@ -588,9 +594,14 @@ export default function OrbitFSUpdateReleaseSystem(){
       </div>
     </section>}
 
-    <section className="orbitV5UpdateSupport">
-      <div><p className="eyebrow">NEED HELP?</p><h2>Update support</h2><p>Need help with a release, update failure or recovery?</p></div>
-      <Link className="buttonlink secondary" href="/portal/support">Contact support ↗</Link>
+    <section className="panel orbitV5UpdateSupport">
+      <div className="orbitV5UpdateSupportIcon" aria-hidden="true">?</div>
+      <div className="orbitV5UpdateSupportCopy">
+        <p className="eyebrow">UPDATE SUPPORT</p>
+        <h2>Need help with this Update?</h2>
+        <p>Open Support for a failed release, recovery issue or anything that needs staff assistance.</p>
+      </div>
+      <Link className="orbitV5UpdateSupportAction" href="/portal/support">Open Support →</Link>
     </section>
   </main>;
 }
