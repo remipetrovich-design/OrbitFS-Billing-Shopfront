@@ -10,7 +10,8 @@ const sections:Section[]=[
   {title:"General system",description:"Registrations, verification, maintenance, account lifecycle and regional defaults.",href:"/admin/settings/general",badge:"Core",tags:["Accounts","Availability","Region"]},
   {title:"Site customisation",description:"Branding, colours, canonical URLs, layout density, homepage content, links and portal presentation.",href:"/admin/settings/customization",badge:"Appearance",tags:["Branding","Colours","Layout"]},
   {title:"Storefront presentation",description:"Customer Store copy used by the catalogue and checkout surface, including hero and add-on sections.",href:"/admin/settings/store",badge:"Store",tags:["Storefront","Copy","Checkout"]},
-  {title:"Customer downloads",description:"Customer download access, entitlement presentation and delivery behaviour.",href:"/admin/settings/downloads",badge:"Downloads",tags:["Entitlements","Delivery","Portal"]}
+  {title:"Customer downloads",description:"Customer download access, entitlement presentation and delivery behaviour.",href:"/admin/settings/downloads",badge:"Downloads",tags:["Entitlements","Delivery","Portal"]},
+  {title:"Global portal banner",description:"Configure the persistent Info, Warning or Alert banner shown across every customer portal page.",href:"/admin/settings/portal-banner",badge:"Banner",tags:["Global","Customer portal","Dismissal"]}
  ]},
  {title:"Commerce & billing",description:"Money movement, invoice behaviour, gateways and catalogue defaults.",cards:[
   {title:"Billing & Wallet",description:"Currency, Wallet behaviour, recharge limits, tax and payment rules.",href:"/admin/settings/billing",badge:"Billing",tags:["Currency","Wallet","Tax"]},
