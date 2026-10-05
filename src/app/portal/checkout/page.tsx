@@ -4,6 +4,7 @@ import Link from "next/link";
 import {useEffect,useMemo,useState} from "react";
 import {createClient} from "@/lib/supabase";
 import {trackCustomerActivity} from "@/lib/customer-activity";
+import StoreFlowNav from "@/components/StoreFlowNav";
 
 const money=(cents:number,currency="AUD")=>new Intl.NumberFormat("en-AU",{style:"currency",currency}).format(Number(cents||0)/100);
 
@@ -116,11 +117,7 @@ export default function CheckoutPage(){
   const currency=cart.items?.[0]?.currency||"AUD";
 
   return <main className="portalPage storeFlowPage">
-    <nav className="storeFlowSteps" aria-label="Store checkout progress">
-      <Link href="/portal/products">01 · Store</Link>
-      <Link href="/portal/basket">02 · Basket</Link>
-      <span className="active">03 · Checkout</span>
-    </nav>
+    <StoreFlowNav count={cart.item_count||0}/>
 
     <section className="storeFlowHeader">
       <div><p className="eyebrow">CHECKOUT</p><h1>Confirm and pay.</h1><p className="muted">Review the final total and choose an enabled payment method.</p></div>
