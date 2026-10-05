@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {useEffect,useMemo,useState} from "react";
 import {createClient} from "@/lib/supabase";
+import "../settings-system-v2.css";
 
 type Level="info"|"warning"|"alert";
 
