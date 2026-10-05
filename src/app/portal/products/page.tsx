@@ -81,7 +81,7 @@ export default function Products(){
         <h1>{storeText.hero_title||"Build your OrbitFS setup"}</h1>
         <p className="storeLead">{storeText.hero_lead||"Start with OrbitFS Base System, then add the components you need."}</p>
       </div>
-      <Link className="storeCartJump secondary" href="/portal/basket">Basket · {cart.item_count||0}</Link>
+      <Link className="storeTextAction storeCartJump" href="/portal/basket">Basket · {cart.item_count||0}</Link>
     </header>
 
     {msg&&<p className="v6c-store-message v6c-store-catalog-message">{msg}</p>}
@@ -96,8 +96,8 @@ export default function Products(){
       <div className="storeBaseAction">
         <small>{storeText.base_action_label||"Base system"}</small>
         <strong>{productPrice(base)}</strong>
-        {hasOptions(base)?<Link className="buttonlink" href={"/portal/products/"+base.slug}>Configure {base.name}</Link>:<button onClick={()=>void directAdd(base)}>Add to basket</button>}
-        <Link href={"/portal/products/"+base.slug}>Product details / gift →</Link>
+        {hasOptions(base)?<Link className="storePrimaryAction" href={"/portal/products/"+base.slug}>Configure {base.name}</Link>:<button className="storePrimaryAction" onClick={()=>void directAdd(base)}>Add to basket</button>}
+        <Link className="storeTextAction" href={"/portal/products/"+base.slug}>Product details / gift →</Link>
       </div>
     </section>}
 
@@ -113,8 +113,8 @@ export default function Products(){
         <div><span className="pill">{p.metadata?.store_badge||"Add-on"}</span><h3>{p.name}</h3><p>{p.description}</p></div>
         <div className="storeAddonMeta">
           <strong>{productPrice(p)}</strong>
-          {hasOptions(p)?<Link className="buttonlink" href={"/portal/products/"+p.slug}>Configure & add</Link>:<button onClick={()=>void directAdd(p)}>Add to basket</button>}
-          <Link href={"/portal/products/"+p.slug}>Details / gift →</Link>
+          {hasOptions(p)?<Link className="storePrimaryAction" href={"/portal/products/"+p.slug}>Configure & add</Link>:<button className="storePrimaryAction" onClick={()=>void directAdd(p)}>Add to basket</button>}
+          <Link className="storeTextAction" href={"/portal/products/"+p.slug}>Details / gift →</Link>
         </div>
       </article>)}</div>
     </section>}
