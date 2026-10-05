@@ -1,0 +1,41 @@
+name: Store Scan Cadence
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: store-scan-cadence-main
+  cancel-in-progress: false
+
+jobs:
+  cadence:
+    name: Check scan cadence
+    runs-on: ubuntu-latest
+    outputs:
+      due: ${{ steps.cadence.outputs.due }}
+    steps:
+      - name: Run full scan every fifth main push
+        id: cadence
+        shell: bash
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          if (( RUN_NUMBER % 5 == 0 )); then
+            echo "due=true" >> "$GITHUB_OUTPUT"
+            echo "Full scan is due on cadence run $RUN_NUMBER."
+          else
+            echo "due=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping heavy full scan on cadence run $RUN_NUMBER."
+          fi
+
+  full-scan:
+    name: Scheduled full scan
+    needs: cadence
+    if: needs.cadence.outputs.due == 'true'
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
