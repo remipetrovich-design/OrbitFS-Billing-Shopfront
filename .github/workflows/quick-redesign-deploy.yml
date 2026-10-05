@@ -5,7 +5,7 @@ on:
 
 permissions:
   contents: read
-  actions: read
+  actions: write
 
 concurrency:
   group: v2-billing-quick
@@ -104,7 +104,7 @@ jobs:
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
           echo "Quick Deploy source: $TARGET_BRANCH @ $commit"
 
-      - name: Require successful Store Full Scan for exact commit
+      - name: Ensure successful Store Full Scan for exact commit
         if: steps.profile.outputs.deploy == 'true'
         shell: bash
         env:
@@ -115,60 +115,105 @@ jobs:
           test -n "$SOURCE_COMMIT"
           test -n "$GH_TOKEN"
 
-          response_file="$(mktemp)"
-          trap 'rm -f "$response_file"' EXIT
-          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
-            --header "Authorization: Bearer $GH_TOKEN" \
-            --header "Accept: application/vnd.github+json" \
-            --header "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&event=push&status=completed&per_page=50")"
+          api="https://api.github.com/repos/$GITHUB_REPOSITORY"
+          auth_header="Authorization: Bearer $GH_TOKEN"
+          accept_header="Accept: application/vnd.github+json"
+          version_header="X-GitHub-Api-Version: 2022-11-28"
 
-          if [ "$status" != "200" ]; then
-            echo "::error::Could not verify Store Full Scan status (HTTP $status)."
-            cat "$response_file"
-            exit 1
+          find_run() {
+            curl --fail --silent --show-error \
+              --header "$auth_header" \
+              --header "$accept_header" \
+              --header "$version_header" \
+              "$api/actions/workflows/ci.yml/runs?branch=main&per_page=50" \
+            | node -e '
+              let input="";
+              process.stdin.on("data",d=>input+=d).on("end",()=>{
+                const [sha]=process.argv.slice(1);
+                const body=JSON.parse(input);
+                const runs=(Array.isArray(body.workflow_runs)?body.workflow_runs:[])
+                  .filter(run=>String(run.head_sha||"")===sha)
+                  .sort((a,b)=>String(b.created_at||"").localeCompare(String(a.created_at||"")));
+                if(!runs.length)return;
+                const successful=runs.find(run=>String(run.status||"")==="completed"&&String(run.conclusion||"")==="success");
+                const chosen=successful||runs[0];
+                process.stdout.write(JSON.stringify({
+                  id:chosen.id,
+                  status:String(chosen.status||""),
+                  conclusion:String(chosen.conclusion||""),
+                  url:String(chosen.html_url||""),
+                  event:String(chosen.event||"")
+                }));
+              });' "$SOURCE_COMMIT"
+          }
+
+          run_json="$(find_run || true)"
+          if [ -n "$run_json" ]; then
+            status="$(node -e 'const x=JSON.parse(process.argv[1]);process.stdout.write(x.status)' "$run_json")"
+            conclusion="$(node -e 'const x=JSON.parse(process.argv[1]);process.stdout.write(x.conclusion)' "$run_json")"
+            url="$(node -e 'const x=JSON.parse(process.argv[1]);process.stdout.write(x.url)' "$run_json")"
+            if [ "$status" = "completed" ] && [ "$conclusion" = "success" ]; then
+              echo "Store Full Scan already passed for $SOURCE_COMMIT."
+              echo "Run: $url"
+              exit 0
+            fi
           fi
 
-          result="$(node - "$response_file" "$SOURCE_COMMIT" <<'NODE'
-          const fs=require('fs');
-          const [file,sha]=process.argv.slice(2);
-          const body=JSON.parse(fs.readFileSync(file,'utf8'));
-          const runs=Array.isArray(body.workflow_runs)?body.workflow_runs:[];
-          const exact=runs
-            .filter((run)=>String(run.head_sha||'')===sha)
-            .sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
-          if(!exact.length){
-            process.stdout.write('missing');
-          }else if(exact.some((run)=>String(run.conclusion||'')==='success')){
-            process.stdout.write('success');
-          }else{
-            const latest=exact[0];
-            process.stdout.write('failed:'+String(latest.conclusion||latest.status||'unknown')+':'+String(latest.html_url||''));
-          }
-          NODE
-          )"
+          if [ -z "$run_json" ]; then
+            echo "No Store Full Scan exists for $SOURCE_COMMIT; dispatching one explicitly."
+            dispatch_status="$(curl --silent --show-error --output /tmp/store-scan-dispatch.txt --write-out '%{http_code}' \
+              --request POST \
+              --header "$auth_header" \
+              --header "$accept_header" \
+              --header "$version_header" \
+              "$api/actions/workflows/ci.yml/dispatches" \
+              --data '{"ref":"main"}')"
+            if [ "$dispatch_status" != "204" ]; then
+              echo "::error::Could not dispatch Store Full Scan (HTTP $dispatch_status)."
+              cat /tmp/store-scan-dispatch.txt
+              exit 1
+            fi
+          else
+            current_status="$(node -e 'const x=JSON.parse(process.argv[1]);process.stdout.write(x.status)' "$run_json")"
+            current_conclusion="$(node -e 'const x=JSON.parse(process.argv[1]);process.stdout.write(x.conclusion)' "$run_json")"
+            current_url="$(node -e 'const x=JSON.parse(process.argv[1]);process.stdout.write(x.url)' "$run_json")"
+            if [ "$current_status" = "completed" ] && [ "$current_conclusion" != "success" ]; then
+              echo "::error::Store Full Scan already failed for $SOURCE_COMMIT (conclusion: $current_conclusion)."
+              [ -n "$current_url" ] && echo "Run: $current_url"
+              exit 1
+            fi
+            echo "Store Full Scan is already running for $SOURCE_COMMIT."
+            [ -n "$current_url" ] && echo "Run: $current_url"
+          fi
 
-          case "$result" in
-            success)
+          deadline=$((SECONDS+900))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            sleep 10
+            run_json="$(find_run || true)"
+            [ -z "$run_json" ] && continue
+
+            status="$(node -e 'const x=JSON.parse(process.argv[1]);process.stdout.write(x.status)' "$run_json")"
+            conclusion="$(node -e 'const x=JSON.parse(process.argv[1]);process.stdout.write(x.conclusion)' "$run_json")"
+            url="$(node -e 'const x=JSON.parse(process.argv[1]);process.stdout.write(x.url)' "$run_json")"
+
+            if [ "$status" != "completed" ]; then
+              echo "Store Full Scan status: $status"
+              continue
+            fi
+
+            if [ "$conclusion" = "success" ]; then
               echo "Store Full Scan passed for $SOURCE_COMMIT."
-              ;;
-            missing)
-              echo "::error::No completed Store Full Scan push run exists for $SOURCE_COMMIT. Wait for the scan to finish before Quick Deploy."
-              exit 1
-              ;;
-            failed:*)
-              detail="${result#failed:}"
-              conclusion="${detail%%:*}"
-              url="${detail#*:}"
-              echo "::error::Store Full Scan did not pass for $SOURCE_COMMIT (conclusion: $conclusion)."
-              if [ -n "$url" ]; then echo "Run: $url"; fi
-              exit 1
-              ;;
-            *)
-              echo "::error::Unexpected Store Full Scan verification result: $result"
-              exit 1
-              ;;
-          esac
+              echo "Run: $url"
+              exit 0
+            fi
+
+            echo "::error::Store Full Scan failed for $SOURCE_COMMIT (conclusion: $conclusion)."
+            [ -n "$url" ] && echo "Run: $url"
+            exit 1
+          done
+
+          echo "::error::Timed out waiting for Store Full Scan for $SOURCE_COMMIT."
+          exit 1
 
       - name: Reuse an existing production deployment for this commit
         if: steps.profile.outputs.deploy == 'true'
