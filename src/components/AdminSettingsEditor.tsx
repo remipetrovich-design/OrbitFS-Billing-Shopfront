@@ -174,16 +174,19 @@ export default function AdminSettingsEditor({category,title,description}:{catego
   </div>
 
   <form onSubmit={save} noValidate>
-   <div className="settingsGroupStack">{groupEntries.map(([group,list],groupIndex)=><details className="settingsGroupV3" key={group} open={query.trim()?true:groupIndex===0}>
-    <summary className="settingsGroupHeadV3"><div><h2>{group}</h2><p>{GROUP_HELP[group]||GROUP_HELP["Other settings"]}</p></div><span>{list.length}</span><i>⌄</i></summary>
+   <div className="settingsGroupStack">{groupEntries.map(([group,list],groupIndex)=>{
+    const changedInGroup=list.filter(({row:r})=>initial[r.key]!==JSON.stringify({value:r.value,public_read:r.public_read})).length;
+    return <details className="settingsGroupV3" key={group} open={query.trim()?true:groupIndex===0}>
+    <summary className="settingsGroupHeadV3"><div><h2>{group}</h2><p>{GROUP_HELP[group]||GROUP_HELP["Other settings"]}</p></div><span>{changedInGroup?changedInGroup+" changed":list.length+" settings"}</span><i>⌄</i></summary>
     <div className="settingsListV3">
      {list.map(({row:r,index:i})=>{
       const m=settingMeta(r.key,r.value);
       const unit=r.key.endsWith("_cents")?"AUD":m.unit;
       const type=typeName(m.type,r.key);
-      return <article className={`settingV3 ${m.danger?"danger":""}`} key={r.key}>
+      const changed=initial[r.key]!==JSON.stringify({value:r.value,public_read:r.public_read});
+      return <article className={`settingV3 ${m.danger?"danger":""} ${changed?"changed":""}`} key={r.key}>
        <div className="settingInfoV3">
-        <div className="settingTitleV3"><b>{m.label}</b><span className="settingTypeBadge">{type}</span>{m.danger&&<span className="settingDangerBadge">High impact</span>}</div>
+        <div className="settingTitleV3"><b>{m.label}</b><span className="settingTypeBadge">{type}</span>{changed&&<span className="settingChangedBadge">Unsaved</span>}{m.danger&&<span className="settingDangerBadge">High impact</span>}</div>
         <p>{m.description}</p>
         <div className="settingKeyV3"><code>{r.key}</code><span className="settingVisibilityState">{r.public_read?"Public read":"Internal"}</span></div>
        </div>
@@ -198,7 +201,7 @@ export default function AdminSettingsEditor({category,title,description}:{catego
       </article>;
      })}
     </div>
-   </details>)}</div>
+   </details>})}</div>
    {visibleRows===0&&<div className="settingsNoResults">No settings match “{query}”.</div>}
    <div className="settingsSaveV3"><div><b>{saving?"Saving live configuration…":dirtyCount?`${dirtyCount} unsaved change${dirtyCount===1?"":"s"}`:"Live configuration is saved"}</b><span role="status">{msg||"Changes write directly to the authoritative Billing configuration."}</span></div><div className="settingsSaveActionsV3">{dirtyCount>0&&<button type="button" className="secondary" onClick={resetUnsaved} disabled={saving}>Reset</button>}<button type="submit" aria-busy={saving} disabled={dirtyCount===0||saving}>{saving?"Saving…":"Save changes"}</button></div></div>
   </form>
