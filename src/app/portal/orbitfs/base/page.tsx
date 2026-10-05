@@ -193,7 +193,7 @@ export default function MyOrbitFS(){
       setDomainState(next);
       setDomainMode(next?.mode==="custom"?"custom":next?.mode==="vercel"?"vercel":"generated");
       setCustomDomain(String(next?.vercelDomain||next?.customDomain||""));
-      setVercelAvailability(next?.mode==="vercel"&&next?.vercelDomain?{domain:next.vercelDomain,available:true,reserved:true,current:true}:null);
+      setVercelAvailability(next?.mode==="vercel"&&next?.vercelDomain?{domain:next.vercelDomain,available:true,attached:true,reserved:true,current:true}:null);
     }catch(e:any){setMsg(e?.message||"Could not load Base domain settings.")}
     finally{setDomainBusy("")}
   }
@@ -211,7 +211,7 @@ export default function MyOrbitFS(){
       setVercelAvailability(availability);
       if(availability?.domain)setCustomDomain(String(availability.domain));
       setMsg(availability?.available
-        ?`${availability.domain} is available and reserved on this Base project.`
+        ?`${availability.domain} ${availability.attached?"is already attached to this Base project.":"is available. It will only be claimed when you save."}`
         :`${availability?.domain||customDomain} is already in use on Vercel.`);
       return availability;
     }catch(e:any){
@@ -524,14 +524,15 @@ export default function MyOrbitFS(){
               <div className="panelTitle"><div><p className="eyebrow">CURRENT ADDRESS</p><h2>{domainState?.effectiveUrl||install.production_url||"Checking domain…"}</h2><p className="muted">Changing this does not create another Base deployment. It updates the address attached to this existing Vercel project.</p></div><span className={"state "+(domainState?.selectedVerified===false?"waiting":"ready")}>{domainBusy==="load"?"CHECKING":domainState?.selectedVerified===false?"DNS REQUIRED":"ACTIVE"}</span></div>
               <div className="form">
                 <label>Address type
-                  <select value={domainMode} disabled={!!domainBusy} onChange={e=>setDomainMode(e.target.value==="custom"?"custom":"generated")}>
-                    <option value="generated">OrbitFS generated Vercel domain</option>
-                    <option value="custom">My own custom domain</option>
+                  <select value={domainMode} disabled={!!domainBusy} onChange={e=>{const value=e.target.value;setDomainMode(value==="custom"?"custom":value==="vercel"?"vercel":"generated");setVercelAvailability(null);}}>
+                    <option value="generated">Default Vercel address</option>
+                    <option value="vercel">Custom Vercel address</option>
+                    <option value="custom">My own domain</option>
                   </select>
                 </label>
                 {domainMode==="vercel"&&<label>Custom Vercel address
                   <input value={customDomain} disabled={!!domainBusy} onChange={e=>{setCustomDomain(e.target.value);setVercelAvailability(null)}} placeholder="my-orbitfs.vercel.app" autoCapitalize="none" autoCorrect="off"/>
-                  <small>Enter the name you want. OrbitFS checks Vercel and reserves it on this Base project before it can be used.</small>
+                  <small>Enter the name you want. Check availability first; nothing is claimed until you save.</small>
                 </label>}
                 {domainMode==="custom"&&<label>Custom domain
                   <input value={customDomain} disabled={!!domainBusy} onChange={e=>setCustomDomain(e.target.value)} placeholder="panel.example.com" autoCapitalize="none" autoCorrect="off"/>
@@ -541,14 +542,14 @@ export default function MyOrbitFS(){
                   <button type="button" disabled={!!domainBusy||(domainMode!=="generated"&&!customDomain.trim())} onClick={()=>void saveDomain()}>{domainBusy==="save"?"Saving…":domainMode==="custom"?"Use custom domain":domainMode==="vercel"?"Use Vercel address":"Use generated domain"}</button>
                   <button type="button" className="secondary" disabled={!!domainBusy} onClick={()=>void loadDomainState(true)}>{domainBusy==="load"?"Checking…":"Refresh domain status"}</button>
                 </div>
-                {domainMode==="vercel"&&vercelAvailability&&<p className={"inlineStatus "+(vercelAvailability.available?"":"error")}><b>{vercelAvailability.available?"AVAILABLE":"UNAVAILABLE"}</b> · {vercelAvailability.domain}{vercelAvailability.available?" is reserved on this Base project.":" is already in use on Vercel."}</p>}
+                {domainMode==="vercel"&&vercelAvailability&&<p className={"inlineStatus "+(vercelAvailability.available?"":"error")}><b>{vercelAvailability.available?"AVAILABLE":"UNAVAILABLE"}</b> · {vercelAvailability.domain}{vercelAvailability.available?(vercelAvailability.attached?" is already attached to this Base project.":" is available and will only be claimed when you save."):" is already in use on Vercel."}</p>}
               </div>
             </div>
             <div className="panel orbitZipControlSection">
-              <div className="panelTitle"><div><p className="eyebrow">VERCEL DOMAINS</p><h2>Attached addresses</h2><p className="muted">Custom domains stay on the same Base project. OrbitFS only switches to one after Vercel reports it verified.</p></div></div>
+              <div className="panelTitle"><div><p className="eyebrow">VERCEL DOMAINS</p><h2>Attached addresses</h2><p className="muted">All addresses stay on the same Base project. Custom Vercel addresses are claimed when saved; owned domains only become active after Vercel reports them verified.</p></div></div>
               <div className="orbitZipControlRows">
                 <div><span>Default generated</span><b>{domainState?.generatedDomain||install.vercel_project_name+".vercel.app"}</b></div>
-                {domainState?.vercelDomains?.map((item:any)=><div key={item.name}><span>{domainState?.vercelDomain===item.name?"Active Vercel address":"Reserved Vercel address"}</span><b>{item.name}</b>{domainState?.vercelDomain!==item.name&&<button type="button" className="secondary small" disabled={!!domainBusy} onClick={()=>void removeCustomDomain(item.name)}>Remove</button>}</div>)}
+                {domainState?.vercelDomains?.map((item:any)=><div key={item.name}><span>{domainState?.vercelDomain===item.name?"Active Vercel address":"Attached Vercel address"}</span><b>{item.name}</b>{domainState?.vercelDomain!==item.name&&<button type="button" className="secondary small" disabled={!!domainBusy} onClick={()=>void removeCustomDomain(item.name)}>Remove</button>}</div>)}
                 {domainState?.customDomains?.length?domainState.customDomains.map((item:any)=><div key={item.name}><span>{item.verified&&!item.misconfigured?"Verified custom":"Custom · DNS pending"}</span><b>{item.name}</b>{domainState?.customDomain!==item.name&&<button type="button" className="secondary small" disabled={!!domainBusy} onClick={()=>void removeCustomDomain(item.name)}>Remove</button>}</div>):<div><span>Custom domains</span><b>None attached</b></div>}
               </div>
             </div>
