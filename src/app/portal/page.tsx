@@ -71,6 +71,10 @@ export default function Portal(){
         <Link href="/portal/settings"><div><b>Account Settings</b><small>Profile, billing and security</small></div><strong>→</strong></Link>
       </aside>
     </div>
+    <div className="v6c-dashboard-bottom">
+      <CustomerVisibleNotes entityType="customer" entityId={d.user.id} title="Account notices" />
+      {!!d.news.length&&<section className="v6c-dashboard-news"><header><span>ORBITFS NEWS</span><h2>Latest updates</h2></header>{d.news.map((n:any)=><article key={n.title}><b>{n.title}</b><p>{n.excerpt}</p><small>{n.published_at?new Date(n.published_at).toLocaleDateString():""}</small></article>)}</section>}
+    </div>
   </section>
 
   <div className="v6c-dashboard-legacy">
