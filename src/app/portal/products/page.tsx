@@ -164,6 +164,7 @@ export default function Products() {
       <div><p className="eyebrow">{storeText.hero_eyebrow || "ORBITFS STORE"}</p><h1>{storeText.hero_title || "Build your OrbitFS setup"}</h1><p className="storeLead">{storeText.hero_lead || "Start with OrbitFS Base System, then add the components you need."}</p></div>
       <Link className="storeCartJump secondary" href="/portal/basket">Basket · {cart.item_count || 0}</Link>
     </header>
+    {msg&&<p className="v6c-store-message v6c-store-catalog-message">{msg}</p>}
 
     {base && <section className="storeBaseFeature">
       <div className="storeBaseCopy"><span className="pill">{base.metadata?.store_badge || "Core system"}</span><h2>{base.name}</h2><p>{base.description}</p>{baseFeatures.length>0&&<div className="storeBasePoints">{baseFeatures.map((x:string)=><span key={x}>{x}</span>)}</div>}</div>
