@@ -69,7 +69,10 @@ assert(
 assert(
   portal.includes('const isBase=true') &&
   portal.includes('/api/orbitfs/installations/${install.id}/base/${baseAction}') &&
-  updatesPortal.includes('/api/orbitfs/installations/${install.id}/deploy') &&
+  (
+    updatesPortal.includes('/api/orbitfs/installations/${install.id}/deploy') ||
+    updatesPortal.includes('"/api/orbitfs/installations/"+install.id+"/deploy"')
+  ) &&
   updatesPortal.includes('action:"update"'),
   "Base lifecycle invariant failed: Base lifecycle and standalone Update Release execution must remain separate."
 );
