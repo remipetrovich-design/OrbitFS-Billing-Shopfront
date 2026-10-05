@@ -900,3 +900,212 @@ html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layou
 html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout[data-admin-v6a-exempt="true"] .adminV3Subnav>a.active{
   border-color:#244f6c!important;background:#08243a!important;color:#dff3ff!important
 }
+
+
+/* V6A Settings — compact operational configuration workspace. */
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsHubV2,
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsEditorV3{
+  gap:8px!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsRuntimeStrip{
+  gap:6px!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsRuntimeStrip article{
+  min-height:60px!important;
+  padding:8px 9px!important;
+  border-color:#173a55!important;
+  border-radius:7px!important;
+  background:#061a2a!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsRuntimeStrip small{font-size:6px!important;color:#5d7d95!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsRuntimeStrip strong{font-size:14px!important;color:#f0f7ff!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsRuntimeStrip span{font-size:6.5px!important;color:#69859a!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsQuickActions{
+  grid-template-columns:190px minmax(0,1fr)!important;
+  gap:6px!important;
+  padding:7px!important;
+  border-color:#173a55!important;
+  background:#041624!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsQuickActionGrid{
+  gap:5px!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsQuickActionGrid>a{
+  min-height:58px!important;
+  padding:7px 8px!important;
+  border-color:#183c55!important;
+  background:#051827!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsQuickActionGrid>a:hover{
+  border-color:#5a44bc!important;
+  background:#101732!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsSectionV2{
+  border-color:#173a55!important;
+  background:#041624!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsSectionSummary{
+  min-height:46px!important;
+  padding:7px 9px!important;
+  background:#061a2a!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsSectionSummary:hover{background:#082238!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsAreaGrid{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  padding:6px!important;
+  gap:5px!important;
+  border-color:#12334b!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsAreaCard{
+  min-height:84px!important;
+  padding:8px!important;
+  border-color:#17384f!important;
+  background:#051827!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsAreaCard:hover{
+  border-color:#5944b8!important;
+  background:#10162f!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsAreaTitle b{font-size:8px!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsAreaCopy p{font-size:6.5px!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsAreaGo{font-size:6.5px!important;color:#86d6f6!important}
+
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsEditorBreadcrumbs{
+  font-size:7px!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsEditorHeader h1{
+  font-size:23px!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsSummaryV3{
+  gap:5px!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsSummaryV3 article{
+  min-height:42px!important;
+  padding:6px 8px!important;
+  border-color:#173a55!important;
+  background:#051827!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsLiveBarV3,
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsToolsV3{
+  border-color:#173a55!important;
+  background:#041624!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsGroupV3{
+  border-color:#173a55!important;
+  border-radius:7px!important;
+  background:#041624!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsGroupHeadV3{
+  min-height:44px!important;
+  padding:7px 9px!important;
+  background:#061a2a!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsGroupHeadV3:hover{background:#082238!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingV3{
+  grid-template-columns:minmax(0,1.05fr) minmax(260px,.95fr)!important;
+  gap:10px!important;
+  padding:8px 9px!important;
+  border-color:#103048!important;
+  background:#051827!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingV3:hover{background:#071d30!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingV3.changed{
+  background:#0e1933!important;
+  box-shadow:inset 2px 0 #6949dd!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingTitleV3 b{font-size:8px!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingInfoV3 p{font-size:6.8px!important;color:#6f8da3!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingKeyV3 code{font-size:5.8px!important;color:#57758c!important}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingControlV3 input:not([type=checkbox]):not([type=color]),
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingControlV3 select{
+  min-height:32px!important;
+  font-size:8px!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingControlV3 textarea{
+  min-height:68px!important;
+  font-size:8px!important;
+  resize:none!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout:not([data-admin-v6a-exempt="true"]) .settingsSaveV3{
+  bottom:8px!important;
+  padding:7px 8px!important;
+  border-color:#3b4d78!important;
+  background:rgba(5,18,31,.96)!important;
+  box-shadow:0 12px 34px rgba(0,0,0,.34)!important;
+}
+
+/* V6A shell-only treatment for Base/Update routes.
+   Their release/deployment page structure stays unchanged. */
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout[data-admin-v6a-exempt="true"] .adminV3Topbar{
+  height:58px!important;
+  min-height:58px!important;
+  padding:0 14px!important;
+  gap:10px!important;
+  border-bottom:1px solid #14344d!important;
+  background:#031522!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout[data-admin-v6a-exempt="true"] .adminV3Primary>a{
+  min-height:30px!important;
+  padding:0 8px!important;
+  border-radius:6px!important;
+  font-size:8px!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout[data-admin-v6a-exempt="true"] .adminV3Subnav{
+  min-height:38px!important;
+  padding:5px 14px!important;
+  border-color:#12334b!important;
+  background:#03131f!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout[data-admin-v6a-exempt="true"] .adminV6Account{
+  position:relative;
+  display:block!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout[data-admin-v6a-exempt="true"] .adminV6Account>summary{
+  list-style:none;
+  width:30px;
+  height:30px;
+  display:grid;
+  place-items:center;
+  border:1px solid #5a46bc;
+  border-radius:50%;
+  background:linear-gradient(145deg,#5b2ac1,#234fbd);
+  color:#fff;
+  font-size:7px;
+  font-weight:800;
+  cursor:pointer;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout[data-admin-v6a-exempt="true"] .adminV6AccountMenu{
+  position:absolute;
+  top:37px;
+  right:0;
+  z-index:160;
+  width:210px;
+  padding:6px;
+  border:1px solid #244761;
+  border-radius:8px;
+  background:#051724;
+  box-shadow:0 20px 44px rgba(0,0,0,.42);
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout[data-admin-v6a-exempt="true"] .adminV6Identity{
+  padding:9px;
+  border-bottom:1px solid #16364f;
+  margin-bottom:5px;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout[data-admin-v6a-exempt="true"] .adminV6Identity :where(b,small,em){display:block}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout[data-admin-v6a-exempt="true"] .adminV6AccountMenu>a,
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout[data-admin-v6a-exempt="true"] .adminV6AccountMenu>button{
+  width:100%;
+  min-height:30px!important;
+  padding:0 8px!important;
+  display:flex!important;
+  align-items:center!important;
+  border:0!important;
+  border-radius:5px!important;
+  background:transparent!important;
+  color:#9bb5c8!important;
+  font-size:7px!important;
+  text-decoration:none!important;
+  cursor:pointer!important;
+}
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout[data-admin-v6a-exempt="true"] .adminV6AccountMenu>a:hover,
+html[data-orbitfs-theme="V6A"][data-orbitfs-theme-surface="admin"] .adminV3Layout[data-admin-v6a-exempt="true"] .adminV6AccountMenu>button:hover{background:#082239!important;color:#fff!important}
