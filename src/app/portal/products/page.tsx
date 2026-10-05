@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { trackCustomerActivity } from "@/lib/customer-activity";
+import StoreFlowNav from "@/components/StoreFlowNav";
 
 const money = (cents: number, currency = "AUD") => new Intl.NumberFormat("en-AU", { style: "currency", currency }).format((Number(cents || 0)) / 100);
 const productPrice = (p: any) => p.metadata?.free_product ? "Free" : p.price_cents == null ? "Pricing not configured" : money(p.price_cents, p.currency || "AUD");
@@ -158,6 +159,7 @@ export default function Products() {
   const baseFeatures = Array.isArray(base?.metadata?.store_features) ? base.metadata.store_features : [];
 
   return <main className="portalPage storePage">
+    <StoreFlowNav count={cart.item_count||0}/>
     <header className="storeHero">
       <div><p className="eyebrow">{storeText.hero_eyebrow || "ORBITFS STORE"}</p><h1>{storeText.hero_title || "Build your OrbitFS setup"}</h1><p className="storeLead">{storeText.hero_lead || "Start with OrbitFS Base System, then add the components you need."}</p></div>
       <Link className="storeCartJump secondary" href="/portal/basket">Basket · {cart.item_count || 0}</Link>
