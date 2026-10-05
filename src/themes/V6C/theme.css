@@ -3105,3 +3105,357 @@ html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route
     flex-direction:column!important;
   }
 }
+
+
+/* --------------------------------------------------------------------------
+   V6C Update Release System — compact operational redesign.
+   Presentation only: update authorization/execution remains authoritative
+   through the existing License Manager-backed APIs.
+   -------------------------------------------------------------------------- */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5Updater{
+  display:grid!important;
+  gap:10px!important;
+  max-width:none!important;
+}
+
+/* Hero */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHero{
+  min-height:124px!important;
+  padding:17px 18px!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:18px!important;
+  align-items:center!important;
+  border:1px solid #173a55!important;
+  border-radius:9px!important;
+  background:
+    radial-gradient(360px 150px at 88% 25%,rgba(97,49,222,.18),transparent 70%),
+    linear-gradient(120deg,#061a2b,#031522)!important;
+  box-shadow:none!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHero h1{
+  margin:5px 0 4px!important;
+  font-size:25px!important;
+  line-height:1.05!important;
+  letter-spacing:-.035em!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHero p{
+  max-width:620px!important;
+  margin:0!important;
+  color:#7894aa!important;
+  font-size:8px!important;
+  line-height:1.45!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHeroActions{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:6px!important;
+  flex-wrap:wrap!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHeroActions :where(button,.buttonlink){
+  min-height:29px!important;
+  padding:0 9px!important;
+  font-size:7px!important;
+}
+
+/* Update flow */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateJourney{
+  padding:11px!important;
+  border:1px solid #173a55!important;
+  border-radius:8px!important;
+  background:#041624!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSectionTitle{
+  margin:0 0 9px!important;
+  padding:0 1px!important;
+  display:flex!important;
+  align-items:flex-end!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSectionTitle h2{
+  margin:3px 0 0!important;
+  font-size:13px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSectionTitle>span{
+  color:#718fa5!important;
+  font-size:6px!important;
+  font-weight:800!important;
+  letter-spacing:.08em!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSteps{
+  display:grid!important;
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  gap:6px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateStep{
+  min-width:0!important;
+  min-height:58px!important;
+  padding:8px 9px!important;
+  display:grid!important;
+  grid-template-columns:22px minmax(0,1fr)!important;
+  align-items:center!important;
+  gap:7px!important;
+  text-align:left!important;
+  border:1px solid #173a55!important;
+  border-radius:7px!important;
+  background:#061a29!important;
+  color:#7995aa!important;
+  box-shadow:none!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateStep:hover:not(:disabled){
+  border-color:#315f79!important;
+  background:#082238!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateStep.active{
+  border-color:#674bd0!important;
+  background:linear-gradient(135deg,#15183e,#0a2140)!important;
+  box-shadow:inset 2px 0 #714ee0!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateStep.done{
+  border-color:#17645a!important;
+  background:#072b2b!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateCircle{
+  width:21px!important;
+  height:21px!important;
+  display:grid!important;
+  place-items:center!important;
+  border:1px solid #28506b!important;
+  border-radius:50%!important;
+  background:#082238!important;
+  color:#91aec2!important;
+  font-size:6.5px!important;
+  font-weight:800!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateStep.active .orbitV5UpdateCircle{
+  border-color:#795bea!important;
+  background:#39218c!important;
+  color:#fff!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateStep.done .orbitV5UpdateCircle{
+  border-color:#228072!important;
+  background:#0a493f!important;
+  color:#77e4cf!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateStep b{
+  display:block!important;
+  color:#dce8f2!important;
+  font-size:7.2px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateStep small{
+  display:block!important;
+  margin-top:2px!important;
+  color:#617f96!important;
+  font-size:5.8px!important;
+  line-height:1.3!important;
+}
+
+/* Main step surface */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdatePanel{
+  padding:13px!important;
+  border:1px solid #173a55!important;
+  border-radius:8px!important;
+  background:linear-gradient(180deg,#061b2b,#041522)!important;
+  box-shadow:none!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdatePanelHeading{
+  min-height:44px!important;
+  padding-bottom:9px!important;
+  margin-bottom:9px!important;
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:space-between!important;
+  gap:14px!important;
+  border-bottom:1px solid #12334b!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdatePanelHeading h2{
+  margin:3px 0!important;
+  font-size:14px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdatePanelHeading p{
+  margin:0!important;
+  color:#708ca2!important;
+  font-size:7.5px!important;
+  line-height:1.45!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdatePanelHeading>span.state{
+  flex:0 0 auto!important;
+  margin-top:1px!important;
+}
+
+/* Live execution */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateLive{
+  background:
+    radial-gradient(320px 130px at 88% 0,rgba(84,53,210,.10),transparent 72%),
+    linear-gradient(180deg,#061b2b,#041522)!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateTimeline{
+  display:grid!important;
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  gap:6px!important;
+  margin:4px 0 10px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdatePhase{
+  min-width:0!important;
+  min-height:74px!important;
+  padding:8px!important;
+  display:grid!important;
+  grid-template-columns:21px minmax(0,1fr)!important;
+  gap:7px!important;
+  align-items:start!important;
+  border:1px solid #17364e!important;
+  border-radius:7px!important;
+  background:#051827!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdatePhaseNumber{
+  width:20px!important;
+  height:20px!important;
+  display:grid!important;
+  place-items:center!important;
+  border:1px solid #28506b!important;
+  border-radius:50%!important;
+  background:#082238!important;
+  color:#7897ad!important;
+  font-size:6.5px!important;
+  font-weight:800!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdatePhase b{
+  display:block!important;
+  color:#dbe8f2!important;
+  font-size:7px!important;
+  line-height:1.3!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdatePhase small{
+  display:block!important;
+  margin-top:3px!important;
+  color:#5f7d93!important;
+  font-size:5.8px!important;
+  line-height:1.35!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdatePhase.running{
+  border-color:#6549c8!important;
+  background:#111735!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdatePhase.running .orbitV5UpdatePhaseNumber{
+  border-color:#795cea!important;
+  background:#3d248f!important;
+  color:#fff!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdatePhase.complete{
+  border-color:#176157!important;
+  background:#072b2a!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdatePhase.complete .orbitV5UpdatePhaseNumber{
+  border-color:#258072!important;
+  background:#0a493f!important;
+  color:#74e2cd!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateActivity{
+  margin-top:9px!important;
+  border:1px solid #17364e!important;
+  border-radius:7px!important;
+  background:#041724!important;
+  overflow:hidden!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateActivity>summary{
+  min-height:36px!important;
+  padding:0 10px!important;
+  display:flex!important;
+  align-items:center!important;
+  color:#a8bfd0!important;
+  font-size:7px!important;
+  font-weight:700!important;
+  cursor:pointer!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateActivity>ol,
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateActivity>p{
+  margin:0!important;
+  padding:8px 10px 10px!important;
+  border-top:1px solid #12334b!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateActivity li{
+  padding:6px 0!important;
+  border-bottom:1px solid #0e2d43!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateActivity li:last-child{
+  border-bottom:0!important;
+}
+
+/* Bottom support panel — fixes the loose/bare footer. */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupport{
+  min-height:76px!important;
+  padding:12px 13px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:16px!important;
+  border:1px solid #173a55!important;
+  border-radius:8px!important;
+  background:
+    radial-gradient(220px 90px at 88% 40%,rgba(73,64,206,.09),transparent 70%),
+    #041624!important;
+  box-shadow:none!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupport>div{
+  min-width:0!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupport .eyebrow{
+  margin:0 0 3px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupport h2{
+  margin:0!important;
+  font-size:12px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupport p{
+  margin:3px 0 0!important;
+  color:#6f8ca2!important;
+  font-size:7px!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupport>.buttonlink{
+  flex:0 0 auto!important;
+  min-height:30px!important;
+  padding:0 10px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border:1px solid #285a76!important;
+  border-radius:6px!important;
+  background:#082b43!important;
+  color:#d5efff!important;
+  font-size:7px!important;
+}
+
+/* Action bars stay compact and visually separated from body copy. */
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateActions{
+  margin-top:10px!important;
+  padding-top:9px!important;
+  display:flex!important;
+  gap:6px!important;
+  justify-content:flex-end!important;
+  flex-wrap:wrap!important;
+  border-top:1px solid #12334b!important;
+}
+html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateActions :where(button,.buttonlink){
+  min-height:31px!important;
+  padding:0 10px!important;
+  font-size:7px!important;
+}
+
+@media(max-width:900px){
+  html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHero{
+    grid-template-columns:1fr!important;
+  }
+  html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateHeroActions{
+    justify-content:flex-start!important;
+  }
+  html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSteps,
+  html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateTimeline{
+    grid-template-columns:1fr!important;
+  }
+  html[data-orbitfs-theme="V6C"][data-orbitfs-theme-surface="customer"] .v6c-route-updates .orbitV5UpdateSupport{
+    align-items:flex-start!important;
+    flex-direction:column!important;
+  }
+}
