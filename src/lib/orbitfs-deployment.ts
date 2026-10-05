@@ -876,6 +876,21 @@ async function projectDomains(install:any){
  const result=await vercelApi(String(install.auth_user_id),`/v9/projects/${encodeURIComponent(String(install.vercel_project_id))}/domains`,{method:"GET"});
  return Array.isArray(result?.domains)?result.domains:[];
 }
+async function vercelAliasLookup(userId:string,domain:string){
+ const {token,teamId}=await vercelAccessToken(userId);
+ const r=await fetch(`${VERCEL_API}${withTeam(`/v4/aliases/${encodeURIComponent(domain)}`,teamId)}`,{
+  headers:{authorization:`Bearer ${token}`,"content-type":"application/json"},
+  cache:"no-store"
+ });
+ if(r.status===404)return {exists:false,projectId:null};
+ if(r.status===403)return {exists:true,projectId:null};
+ if(!r.ok){
+  const detail=await r.text();
+  throw Object.assign(new Error(`Vercel alias lookup ${r.status}: ${detail}`),{status:r.status>=500?502:r.status});
+ }
+ const body:any=await r.json().catch(()=>({}));
+ return {exists:true,projectId:String(body?.projectId||body?.project?.id||body?.deployment?.projectId||"").trim()||null};
+}
 export async function installationDomainStatus(install:any){
  const normalize=(v:any)=>String(v||"").trim().replace(/^https?:\/\//,"").replace(/\/$/,"").toLowerCase();
  const generatedDomain=`${String(install.vercel_project_name||"").trim().toLowerCase()}.vercel.app`;
@@ -904,24 +919,16 @@ export async function installationDomainStatus(install:any){
  };
 }
 export async function checkInstallationVercelDomainAvailability(install:any,value:any){
- await requireLicenseMasterForMutation();
  if(!install?.vercel_project_id)throw Object.assign(new Error("Deploy Base before configuring its domain"),{status:409,code:"BASE_PROJECT_REQUIRED"});
  const domain=normalizeVercelAlias(value);
  const generatedDomain=`${String(install.vercel_project_name||"").trim().toLowerCase()}.vercel.app`;
- if(domain===generatedDomain)return {domain,available:true,reserved:true,current:true};
+ if(domain===generatedDomain)return {domain,available:true,attached:true,reserved:true,current:true};
  const domains=await projectDomains(install);
- if(domains.some((d:any)=>String(d?.name||"").trim().toLowerCase()===domain))return {domain,available:true,reserved:true,current:false};
- try{
-  await vercelApi(String(install.auth_user_id),`/v10/projects/${encodeURIComponent(String(install.vercel_project_id))}/domains`,{method:"POST",body:JSON.stringify({name:domain})});
-  await event(install,"panel.vercel_domain_reserved","ok",`Reserved Base Vercel address ${domain}`,{domain});
-  return {domain,available:true,reserved:true,current:false};
- }catch(error:any){
-  const message=String(error?.message||"").toLowerCase();
-  if(/alias.*(already|in use)|already.*(used|assigned|exists)|domain.*(in use|assigned)|alias_in_use|forbidden.*alias/.test(message)){
-   return {domain,available:false,reserved:false,current:false,reason:"already_in_use"};
-  }
-  throw error;
- }
+ if(domains.some((d:any)=>String(d?.name||"").trim().toLowerCase()===domain))return {domain,available:true,attached:true,reserved:true,current:false};
+ const lookup=await vercelAliasLookup(String(install.auth_user_id),domain);
+ if(!lookup.exists)return {domain,available:true,attached:false,reserved:false,current:false};
+ if(lookup.projectId&&lookup.projectId===String(install.vercel_project_id))return {domain,available:true,attached:false,reserved:true,current:false};
+ return {domain,available:false,attached:false,reserved:false,current:false,reason:"already_in_use"};
 }
 export async function configureInstallationDomain(install:any,input:any){
  await requireLicenseMasterForMutation();
@@ -934,6 +941,21 @@ export async function configureInstallationDomain(install:any,input:any){
    const availability=await checkInstallationVercelDomainAvailability(install,input?.domain);
    if(!availability.available)throw Object.assign(new Error(`${availability.domain} is already in use on Vercel`),{status:409,code:"VERCEL_ALIAS_UNAVAILABLE"});
    hostname=availability.domain;
+   if(!availability.attached){
+    try{
+     await vercelApi(String(install.auth_user_id),`/v10/projects/${encodeURIComponent(String(install.vercel_project_id))}/domains`,{method:"POST",body:JSON.stringify({name:hostname})});
+    }catch(error:any){
+     const message=String(error?.message||"").toLowerCase();
+     if(Number(error?.status||0)===403||Number(error?.status||0)===409||/alias.*(already|in use)|already.*(used|assigned|exists)|domain.*(in use|assigned)|alias_in_use/.test(message)){
+      throw Object.assign(new Error(`${hostname} is already in use on Vercel`),{status:409,code:"VERCEL_ALIAS_UNAVAILABLE"});
+     }
+     throw error;
+    }
+   }
+   const previous=domainPreference(install);
+   if(previous.mode==="vercel"&&previous.hostname&&previous.hostname!==hostname&&previous.hostname!==`${String(install.vercel_project_name||"").trim().toLowerCase()}.vercel.app`){
+    await vercelApi(String(install.auth_user_id),`/v9/projects/${encodeURIComponent(String(install.vercel_project_id))}/domains/${encodeURIComponent(previous.hostname)}`,{method:"DELETE"}).catch(()=>undefined);
+   }
  }
  if(mode==="custom"){
    hostname=normalizeDomainHost(input?.domain);
@@ -986,8 +1008,8 @@ export async function resolveProductionUrl(install:any,deployment?:any):Promise<
   ||candidates.find((d:any)=>!normalize(d.name).endsWith(".vercel.app"));
  const customAlias=aliases.find((host:string)=>host!==deploymentHost&&!host.endsWith(".vercel.app"));
  const generated=normalize(project?.name)||(aliases.includes(projectDomain)&&projectDomain!==deploymentHost?projectDomain:"")||normalize(vercel?.name)||projectDomain;
- const name=preference.mode==="custom"
-  ?(normalize(preferredCustom?.name)||generated)
+ const name=preference.mode!=="generated"
+  ?(normalize(preferredSelected?.name)||generated)
   :(generated||normalize(custom?.name)||customAlias||normalize(candidates[0]?.name));
  return name?`https://${name}`:null;
 }
