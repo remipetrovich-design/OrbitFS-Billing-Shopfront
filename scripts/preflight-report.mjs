@@ -30,6 +30,8 @@ else{try{const v=JSON.parse(readFileSync("vercel.json","utf8"));if(v?.git?.deplo
 run("Clean locked dependency install",npm,["ci"]);
 run("Whitespace / patch integrity","git",["diff","--check"]);
 run("Base lifecycle contract","node",["scripts/check-base-lifecycle-contract.mjs"]);
+run("Canonical licence status contract","node",["--test","scripts/license-status-contract.test.mjs"]);
+run("Immediate account enforcement contract","node",["--test","scripts/account-enforcement-immediate-sync.test.mjs"]);
 run("Theme package validation",npm,["run","theme:validate"]);
 run("Lint",npm,["run","lint"]);
 run("Typecheck",npm,["run","typecheck"]);

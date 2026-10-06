@@ -3,6 +3,7 @@ import Link from "next/link";
 import {useEffect,useMemo,useState} from "react";
 import {createClient} from "@/lib/supabase";
 import "./mail-config-compact.css";
+import "../mail-v6.css";
 import MailSubscriptionCategories from "@/components/MailSubscriptionCategories";
 
 async function readJson(r:Response){const t=await r.text();if(!t)return {};try{return JSON.parse(t)}catch{return {error:t||`Request failed (${r.status})`}}}
@@ -43,15 +44,22 @@ export default function MailConfig(){
   }
   const settings=useMemo(()=>Object.fromEntries((adminData?.settings||[]).map((x:any)=>[x.key,x.value])),[adminData]);
 
-  return <main className="mailConfigCompact" style={{minHeight:'100vh',background:'#f4f6fa',fontFamily:'Arial,sans-serif',color:'#172033'}}>
-    <header style={{background:'#111827',color:'#fff',padding:'20px 18px'}}><div style={{maxWidth:1280,margin:'0 auto',display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}><div><h1 style={{margin:0,fontSize:24}}>Mail Config</h1><p style={{margin:'5px 0 0',opacity:.7}}>OrbitFS Mail settings and mailbox management.</p></div><div style={{display:'flex',gap:16,flexWrap:'wrap'}}><Link href="/mail" style={{color:'#fff',fontWeight:700,textDecoration:'none'}}>Mail & Queue</Link><Link href="/admin" style={{color:'#fff',fontWeight:700,textDecoration:'none'}}>Back to Admin</Link></div></div></header>
-    <div style={{maxWidth:1280,margin:'0 auto',padding:'20px 16px 30px'}}>
-      {error&&<div style={{padding:14,border:'1px solid #f2b8b5',background:'#fff5f5',borderRadius:12,color:'#a52727',marginBottom:16}}>{error}</div>}
-      {msg&&<div style={{padding:12,background:'#eef4ff',borderRadius:10,marginBottom:14}}>{msg}</div>}
+  return <main className="mailConfigCompact">
+    <header><div><div><h1 style={{margin:0}}>Mail Configuration</h1><p>Current OrbitFS Mail settings, mailboxes, subscriptions, templates, spam controls and delivery history.</p></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link href="/mail">Mailboxes & Queue</Link><Link href="/admin">Back to Admin</Link></div></div></header>
+    <div>
+      <nav className="mailV6SectionTabs" aria-label="Mail sections"><Link href="/mail">Mailboxes & Queue</Link><Link className="active" href="/mail/admin">Configuration</Link></nav>
+      {error&&<div className="mailV6Notice error">{error}</div>}
+      {msg&&<div className="mailV6Notice">{msg}</div>}
       {loading&&<p>Loading Mail Config…</p>}
       {!loading&&adminData&&<section style={{display:'grid',gap:12}}>
+        <div className="mailV6QueueStats">
+          <div className="mailV6QueueStat"><small>Mailboxes</small><b>{(adminData.accounts||[]).length}</b></div>
+          <div className="mailV6QueueStat"><small>Templates</small><b>{(adminData.templates||[]).length}</b></div>
+          <div className="mailV6QueueStat"><small>Automations</small><b>{(adminData.automations||[]).length}</b></div>
+          <div className="mailV6QueueStat"><small>Recent deliveries</small><b>{(adminData.logs||[]).length}</b></div>
+        </div>
         {caps.settings&&<details style={panel}><summary style={{cursor:'pointer',fontWeight:700,fontSize:17}}>Mail settings</summary><div style={{marginTop:14}}><MainSettings settings={settings} provider={adminData.provider||{}} save={save}/></div></details>}
-        {caps.settings&&<details style={panel}><summary style={{cursor:'pointer',fontWeight:700,fontSize:17}}>Email subscriptions & categories</summary><div style={{marginTop:14}}><MailSubscriptionCategories categories={adminData.subscriptionCategories||[]} events={adminData.subscriptionEvents||[]} automations={adminData.automations||[]} templates={adminData.templates||[]} onSave={save} showEvents/></div></details>}
+        {caps.settings&&<details style={panel}><summary style={{cursor:'pointer',fontWeight:700,fontSize:17}}>Email subscriptions & categories</summary><div style={{marginTop:14}}><MailSubscriptionCategories tone="dark" categories={adminData.subscriptionCategories||[]} events={adminData.subscriptionEvents||[]} automations={adminData.automations||[]} templates={adminData.templates||[]} onSave={save} showEvents/></div></details>}
         {caps.settings&&<details style={panel}><summary style={{cursor:'pointer',fontWeight:700,fontSize:17}}>Mailbox settings</summary><div style={{marginTop:14}}><MailboxSettings rows={adminData.accounts||[]} users={adminData.users||[]} save={save}/></div></details>}
         {caps.settings&&<details style={panel}><summary style={{cursor:'pointer',fontWeight:700,fontSize:17}}>Spam protection</summary><div style={{marginTop:14}}><SpamProtection data={spamData} token={token} reload={()=>load(true)}/></div></details>}
         {caps.templates&&<details style={panel}><summary style={{cursor:'pointer',fontWeight:700,fontSize:17}}>Templates · release, news & deployment</summary><div style={{marginTop:14}}><Templates rows={adminData.templates||[]} save={save}/></div></details>}
@@ -110,9 +118,9 @@ function MailboxSettings({rows,users,save}:{rows:any[],users:any[],save:(b:any)=
 }
 
 function AccountSettings({account,users,save}:{account:any,users:any[],save:(b:any)=>Promise<boolean>}){
-  const [name,setName]=useState(account.display_name||''),[kind,setKind]=useState(account.kind||'shared'),[active,setActive]=useState(account.active!==false),[assignedUserId,setAssignedUserId]=useState(account.assigned_user_id||'');
+  const [name,setName]=useState(account.display_name||''),[kind,setKind]=useState(account.kind||'shared'),[active,setActive]=useState(account.active!==false),[assignedUserId,setAssignedUserId]=useState(account.assigned_user_id||''),[confirmDelete,setConfirmDelete]=useState(false);
   function changeKind(v:string){setKind(v);if(v!=='personal')setAssignedUserId('')}
-  async function remove(){if(!confirm(`Delete mailbox ${account.address}? This removes the mailbox configuration. Existing delivery history is kept.`))return;await save({action:'account_delete',address:account.address})}
+  async function remove(){await save({action:'account_delete',address:account.address});setConfirmDelete(false)}
   return <details style={{border:'1px solid #dfe4ec',borderRadius:9,padding:'11px 13px'}}>
     <summary style={{cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,fontSize:12,fontWeight:800}}>
       <span style={{overflowWrap:'anywhere'}}>{account.display_name||account.address} <span style={muted}>· {account.address}</span></span>
@@ -122,7 +130,7 @@ function AccountSettings({account,users,save}:{account:any,users:any[],save:(b:a
       <div><label>Display name</label><input style={input} value={name} onChange={e=>setName(e.target.value)} placeholder="Display name"/><small style={muted}>Permission key: mail.account.{String(account.address).split('@')[0]}</small></div>
       <TypeSelect value={kind} onChange={changeKind}/>{kind==='personal'&&<StaffSelect users={users} value={assignedUserId} onChange={setAssignedUserId}/>}
       <label style={{display:'flex',alignItems:'center',gap:7,padding:'10px 0'}}><input type="checkbox" checked={active} onChange={e=>setActive(e.target.checked)}/> Active</label>
-      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button onClick={()=>save({action:'account',address:account.address,displayName:name,kind,active,assignedUserId:kind==='personal'?assignedUserId:null})}>Save</button><button style={danger} onClick={remove}>Delete</button></div>
+      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button onClick={()=>save({action:'account',address:account.address,displayName:name,kind,active,assignedUserId:kind==='personal'?assignedUserId:null})}>Save</button>{confirmDelete?<><button type="button" onClick={()=>setConfirmDelete(false)}>Cancel</button><button type="button" style={danger} onClick={()=>void remove()}>Confirm delete</button></>:<button type="button" style={danger} onClick={()=>setConfirmDelete(true)}>Delete</button>}</div>
     </div>
   </details>;
 }

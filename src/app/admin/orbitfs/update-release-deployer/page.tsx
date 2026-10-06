@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useMemo,useState} from "react";
 import {createClient} from "@/lib/supabase";
+import V6ConfirmDialog from "@/components/V6ConfirmDialog";
 
 type UpdateRelease={
  id:string;version:string;channel?:string;status?:string;reviewStatus?:string;releaseType?:string;
@@ -13,6 +14,7 @@ type UpdateRelease={
 
 const workingStatus=(value?:string)=>["queued","running","in_progress","processing","validating","reviewing"].includes(String(value||"").toLowerCase());
 const failedStatus=(value?:string)=>["failed","failure","error","rejected"].includes(String(value||"").toLowerCase());
+type UpdateConfirmState={title:string;description:string;confirmLabel:string;danger?:boolean;reasonLabel?:string;run:(reason:string)=>void}|null;
 
 export default function OrbitFSUpdateReleaseDeployer(){
  const sb=useMemo(()=>createClient(),[]);
@@ -24,6 +26,8 @@ export default function OrbitFSUpdateReleaseDeployer(){
  const [editing,setEditing]=useState(false);
  const [channels,setChannels]=useState<any[]>([]);
  const [targetChannel,setTargetChannel]=useState("");
+ const [confirmState,setConfirmState]=useState<UpdateConfirmState>(null);
+ const [confirmReason,setConfirmReason]=useState("");
  const [draft,setDraft]=useState({title:"",description:"",changelog:"",customer_notes:"",internal_notes:"",severity:"normal",required:false,rollout:"public",minimum_version:"",rollback_version:""});
 
  async function auth(){const {data:{session}}=await sb.auth.getSession();if(!session?.access_token)throw Error("Administrator session expired. Sign in again.");return {Authorization:"Bearer "+session.access_token};}
@@ -39,6 +43,7 @@ export default function OrbitFSUpdateReleaseDeployer(){
    const j=await r.json().catch(()=>({}));
    const cj=await cr.json().catch(()=>({}));
    if(!r.ok)throw Error(j.error||"Could not load Update releases");
+   if(!cr.ok)throw Error(cj.error||"Could not load shared release channels from License Manager");
    const rows=(Array.isArray(j.releases)?j.releases:[]).filter((x:any)=>String(x.releaseType||x.release_type||"").toLowerCase()==="update");
    setReleases(rows);
    setChannels((Array.isArray(cj.channels)?cj.channels:[]).filter((x:any)=>x.enabled!==false&&x.customer_visible!==false));
@@ -49,11 +54,6 @@ export default function OrbitFSUpdateReleaseDeployer(){
 
  const selected=releases.find(r=>r.id===selectedId)||releases[0]||null;
  useEffect(()=>{setTargetChannel(selected?.channel||"stable")},[selected?.id,selected?.channel]);
- useEffect(()=>{
-  if(!selected||selected.status==="published"||busy)return;
-  const timer=setInterval(()=>{if(document.visibilityState==="visible")void load({silent:true,preserveMessage:true})},30000);
-  return()=>clearInterval(timer);
- },[selected?.id,selected?.status,busy]);
  const pending=useMemo(()=>releases.filter(r=>r.status!=="published"&&!r.publishedAt),[releases]);
  const published=useMemo(()=>releases.filter(r=>r.status==="published"),[releases]);
  const validationStatus=String(selected?.validation?.status||"");
@@ -64,7 +64,7 @@ export default function OrbitFSUpdateReleaseDeployer(){
  const reviewFailed=failedStatus(reviewStatus);
  const validationWorking=busy==="validate"||workingStatus(validationStatus);
  const reviewWorking=busy==="approve"||busy==="reject"||workingStatus(reviewStatus);
- const presentationReady=Boolean(selected?.title&&selected?.changelog);
+ const presentationReady=Boolean(selected?.changelog);
  const rolloutPublishable=String(selected?.rollout||"public").toLowerCase()!=="internal";
  const finalReviewReady=Boolean(selected?.checksum&&selected?.channel&&presentationReady&&rolloutPublishable);
  const finalReviewWorking=busy==="channel"||busy==="edit";
@@ -72,7 +72,7 @@ export default function OrbitFSUpdateReleaseDeployer(){
  const publicationWorking=busy==="publish"||workingStatus(selected?.status);
  const canPublish=Boolean(selected&&!portalPublished&&!selected.publishedAt&&validationPassed&&reviewApproved&&finalReviewReady);
  const canRepublish=Boolean(selected?.status==="withdrawn"&&selected.publishedAt&&validationPassed&&reviewApproved&&finalReviewReady);
- const blockers=[!reviewApproved&&"Technical approval",!validationPassed&&"Validation",!selected?.checksum&&"Artifact checksum",!selected?.channel&&"Customer channel",!presentationReady&&"Customer title + changelog",!rolloutPublishable&&"Internal rollout cannot publish"].filter(Boolean) as string[];
+ const blockers=[!reviewApproved&&"Technical approval",!validationPassed&&"Validation",!selected?.checksum&&"Artifact checksum",!selected?.channel&&"Customer channel",!presentationReady&&"Customer changelog",!rolloutPublishable&&"Internal rollout cannot publish"].filter(Boolean) as string[];
  const stageClass=(state:"done"|"active"|"working"|"error"|"idle")=>"orbitStage "+(state==="idle"?"":state);
  const intakeStage=selected?"done":"active";
  const validationStage=pipelineError===2||validationFailed?"error":validationWorking?"working":validationPassed?"done":selected?"active":"idle";
@@ -95,12 +95,20 @@ export default function OrbitFSUpdateReleaseDeployer(){
    setEditing(false);setMessage("Update release details saved.");await load({preserveMessage:true});
   }catch(e:any){setPipelineError(4);setMessage(e?.message||"Could not update release")}finally{setBusy("")}
  }
- async function reviewAction(action:"validate"|"approve"|"reject"){
+ async function reviewAction(action:"validate"|"approve"|"reject",confirmedReason=""){
   if(!selected)return;
-  let reason="";
-  if(action==="reject"){
-   reason=prompt("Reason for rejecting this Update release:","")||"";
-   if(!reason.trim())return;
+  let reason=confirmedReason.trim();
+  if(action==="reject"&&!reason){
+   setConfirmReason("");
+   setConfirmState({
+    title:"Reject Update release?",
+    description:"Rejecting this release returns it to the technical rework path. Enter the reason that should be recorded with the License Manager review decision.",
+    confirmLabel:"Reject release",
+    danger:true,
+    reasonLabel:"Rejection reason",
+    run:value=>void reviewAction("reject",value)
+   });
+   return;
   }
   setBusy(action);setMessage("");setPipelineError(null);
   try{
@@ -129,9 +137,17 @@ export default function OrbitFSUpdateReleaseDeployer(){
    if(nextId)setSelectedId(nextId);
   }catch(e:any){setPipelineError(4);setMessage(e?.message||"Could not set release channel")}finally{setBusy("")}
  }
- async function publish(){
+ async function publish(confirmed=false){
   if(!selected||!canPublish)return;
-  if(!confirm("Publish v"+selected.version+" to the "+(selected.channel||"stable")+" customer channel?"))return;
+  if(!confirmed){
+   setConfirmState({
+    title:"Publish Update v"+selected.version+"?",
+    description:"Publish this technically approved release to the "+(selected.channel||"stable")+" customer channel. This uses the existing License Manager release record.",
+    confirmLabel:"Publish to customers",
+    run:()=>void publish(true)
+   });
+   return;
+  }
   setBusy("publish");setMessage("");setPipelineError(null);
   try{
    const r=await fetch("/api/admin/orbitfs/release-publish",{method:"POST",headers:{...(await auth()),"content-type":"application/json"},body:JSON.stringify({releaseId:selected.id})});
@@ -140,8 +156,17 @@ export default function OrbitFSUpdateReleaseDeployer(){
    setMessage("Update published to the customer portal.");await load({preserveMessage:true});
   }catch(e:any){setPipelineError(5);setMessage(e?.message||"Could not publish update")}finally{setBusy("")}
  }
- async function unpublish(r:UpdateRelease){
-  if(!confirm("Unpublish v"+r.version+" from the customer portal?"))return;
+ async function unpublish(r:UpdateRelease,confirmed=false){
+  if(!confirmed){
+   setConfirmState({
+    title:"Unpublish Update v"+r.version+"?",
+    description:"Remove this release from customer publication. The License Manager release record and release history remain intact.",
+    confirmLabel:"Unpublish",
+    danger:true,
+    run:()=>void unpublish(r,true)
+   });
+   return;
+  }
   setBusy("unpublish:"+r.id);setMessage("");
   try{
    const res=await fetch("/api/admin/orbitfs/release-control",{method:"POST",headers:{...(await auth()),"content-type":"application/json"},body:JSON.stringify({action:"withdraw",releaseId:r.id})});
@@ -150,8 +175,16 @@ export default function OrbitFSUpdateReleaseDeployer(){
    setMessage("Update removed from customer publication. You can republish it or return it to Dev Panel.");await load({preserveMessage:true});
   }catch(e:any){setMessage(e?.message||"Could not unpublish update")}finally{setBusy("")}
  }
- async function republish(r:UpdateRelease){
-  if(!confirm("Republish v"+r.version+" to the "+(r.channel||"stable")+" customer channel? This republishes the same License Manager release record; it does not create another release entry."))return;
+ async function republish(r:UpdateRelease,confirmed=false){
+  if(!confirmed){
+   setConfirmState({
+    title:"Republish Update v"+r.version+"?",
+    description:"Republish the same License Manager release record to the "+(r.channel||"stable")+" customer channel. This does not create another release entry.",
+    confirmLabel:"Republish",
+    run:()=>void republish(r,true)
+   });
+   return;
+  }
   setBusy("republish:"+r.id);setMessage("");setPipelineError(null);
   try{
    const res=await fetch("/api/admin/orbitfs/release-control",{method:"POST",headers:{...(await auth()),"content-type":"application/json"},body:JSON.stringify({action:"republish",releaseId:r.id})});
@@ -162,8 +195,17 @@ export default function OrbitFSUpdateReleaseDeployer(){
    setSelectedId(r.id);
   }catch(e:any){setPipelineError(5);setMessage(e?.message||"Could not republish update")}finally{setBusy("")}
  }
- async function deleteBillingCopy(r:UpdateRelease){
-  if(!confirm("Delete the Billing-owned customer presentation for v"+r.version+"? This will not create, reject, withdraw or return any License Manager release."))return;
+ async function deleteBillingCopy(r:UpdateRelease,confirmed=false){
+  if(!confirmed){
+   setConfirmState({
+    title:"Delete Billing presentation for v"+r.version+"?",
+    description:"Delete only the Billing-owned customer presentation data. This does not create, reject, withdraw or return any License Manager release.",
+    confirmLabel:"Delete Billing copy",
+    danger:true,
+    run:()=>void deleteBillingCopy(r,true)
+   });
+   return;
+  }
   setBusy("delete-copy:"+r.id);setMessage("");
   try{
    const res=await fetch("/api/admin/orbitfs/release-control",{method:"POST",headers:{...(await auth()),"content-type":"application/json"},body:JSON.stringify({action:"delete_billing_copy",releaseId:r.id})});
@@ -173,9 +215,20 @@ export default function OrbitFSUpdateReleaseDeployer(){
    await load({preserveMessage:true});
   }catch(e:any){setMessage(e?.message||"Could not delete Billing copy")}finally{setBusy("")}
  }
- async function returnToDev(r:UpdateRelease){
-  const reason=prompt("Reason for returning this release to Dev Panel:","")||"";
-  if(!reason.trim())return;
+ async function returnToDev(r:UpdateRelease,confirmedReason=""){
+  const reason=confirmedReason.trim();
+  if(!reason){
+   setConfirmReason("");
+   setConfirmState({
+    title:"Return Update v"+r.version+" to Dev Panel?",
+    description:"This creates a technical handback for Stage 1 rework. Enter the reason that should be recorded with the release history.",
+    confirmLabel:"Return to Dev",
+    danger:true,
+    reasonLabel:"Return reason",
+    run:value=>void returnToDev(r,value)
+   });
+   return;
+  }
   setBusy("return:"+r.id);setMessage("");
   try{
    const res=await fetch("/api/admin/orbitfs/release-control",{method:"POST",headers:{...(await auth()),"content-type":"application/json"},body:JSON.stringify({action:"return_to_dev",releaseId:r.id,reason})});
@@ -242,7 +295,7 @@ export default function OrbitFSUpdateReleaseDeployer(){
        </div>
        <div>
         <b>Final publication review</b>
-        <p className="muted">{presentationReady?"Customer title and changelog are ready.":"Add a customer-facing title and changelog before publishing."}</p>
+        <p className="muted">{presentationReady?"Customer changelog is ready. Title is optional and defaults to the Update version.":"Add a customer-facing changelog before publishing. Title is optional."}</p>
         {selected.customerNotes&&<p><b>Customer notes:</b> {selected.customerNotes}</p>}
         {selected.internalNotes&&<p className="muted"><b>Internal review:</b> {selected.internalNotes}</p>}
        </div>
@@ -282,11 +335,32 @@ export default function OrbitFSUpdateReleaseDeployer(){
    </div>
   </section>
 
+  <V6ConfirmDialog
+   open={Boolean(confirmState)}
+   title={confirmState?.title||""}
+   description={confirmState?.description||""}
+   confirmLabel={confirmState?.confirmLabel||"Confirm"}
+   danger={confirmState?.danger===true}
+   busy={Boolean(busy)}
+   confirmDisabled={Boolean(confirmState?.reasonLabel)&&!confirmReason.trim()}
+   onCancel={()=>{setConfirmState(null);setConfirmReason("")}}
+   onConfirm={()=>{
+    const pending=confirmState;
+    const reason=confirmReason.trim();
+    if(!pending)return;
+    setConfirmState(null);
+    setConfirmReason("");
+    pending.run(reason);
+   }}
+  >
+   {confirmState?.reasonLabel&&<label className="v6ConfirmReason"><span>{confirmState.reasonLabel}</span><textarea autoFocus maxLength={500} value={confirmReason} onChange={event=>setConfirmReason(event.target.value)} placeholder="Enter the reason that should be recorded."/></label>}
+  </V6ConfirmDialog>
+
   {editing&&selected&&<div className="orbitModalBackdrop" onMouseDown={()=>setEditing(false)}>
    <div className="orbitModal" onMouseDown={e=>e.stopPropagation()}>
     <div className="orbitPanelHead"><div><p className="eyebrow">UPDATE PRESENTATION</p><h2>Edit v{selected.version}</h2></div><button className="orbitAction orbitActionQuiet" onClick={()=>setEditing(false)}>Close</button></div>
     <div className="orbitFormGrid">
-     <label>Title<input value={draft.title} onChange={e=>setDraft({...draft,title:e.target.value})}/></label>
+     <label>Title <small className="muted">Optional</small><input value={draft.title} onChange={e=>setDraft({...draft,title:e.target.value})} placeholder={selected?`OrbitFS Update v${selected.version}`:"OrbitFS Update"}/></label>
      <label>Severity<select value={draft.severity} onChange={e=>setDraft({...draft,severity:e.target.value})}><option value="normal">Normal</option><option value="important">Important</option><option value="critical">Critical</option></select></label>
      <label>Rollout<select value={draft.rollout} onChange={e=>setDraft({...draft,rollout:e.target.value})}><option value="public">Public</option><option value="staged">Staged</option><option value="limited">Limited</option><option value="internal">Internal</option></select></label>
      <label className="wide">Description<textarea rows={3} value={draft.description} onChange={e=>setDraft({...draft,description:e.target.value})}/></label>

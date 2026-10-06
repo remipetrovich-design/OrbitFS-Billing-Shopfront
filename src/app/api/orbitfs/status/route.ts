@@ -4,6 +4,8 @@ import {masterLicenses,masterReleases} from "@/lib/master-api";
 import {customerReleaseChannels} from "@/lib/orbitfs-release-channels";
 import {expireStaleBaseOperations} from "@/lib/orbitfs-base-operations";
 import {compareOrbitReleaseVersions} from "@/lib/orbitfs-version";
+import {canonicalLicenseStatus} from "@/lib/license-status";
+import {billingCustomerUserFilter} from "@/lib/billing-customer-identity.mjs";
 
 export const dynamic="force-dynamic";
 const url=()=>String(process.env.NEXT_PUBLIC_SUPABASE_URL||"");
@@ -14,26 +16,33 @@ export async function GET(req:Request){
  try{
   const auth=await currentUser(req),user=auth.user,db=createClient(url(),key(),{auth:{persistSession:false,autoRefreshToken:false}}),q=(p:any)=>Promise.resolve(p).catch((error:any)=>({data:[],error:{message:error?.message||String(error)}}));
   const bootstrap=new URL(req.url).searchParams.get("view")==="bootstrap";
-  const [customerResult,bindings,connections,installations,settings,masterLicenseResult,channelAccess,masterAvailability]=await Promise.all([
-   q(db.from("customers").select("id,customer_number,name,email").eq("auth_user_id",user.id).maybeSingle()),
+  const [customerResult,bindings,connections,installations,settings,masterAvailability]=await Promise.all([
+   q(db.from("customers").select("id,auth_user_id,user_id,customer_number,name,email").or(billingCustomerUserFilter(user.id)).limit(1).maybeSingle()),
    q(db.from("license_bindings").select("*").eq("auth_user_id",user.id).is("archived_at",null).order("created_at",{ascending:false})),
    q(db.from("orbitfs_provider_connections").select("id,provider,status,provider_account_id,provider_account_name,team_id,scopes,token_expires_at,connected_at,refreshed_at,last_error,metadata").eq("auth_user_id",user.id).order("updated_at",{ascending:false})),
    q(db.from("orbitfs_installations").select("*").eq("auth_user_id",user.id).order("created_at",{ascending:false})),
    q(db.from("orbitfs_release_system_settings").select("*").eq("id","primary").maybeSingle()),
-   masterLicenses().catch(()=>({licenses:[]})),
-   Promise.resolve(["stable"]),
    getLicenseMasterAvailability()
   ]);
   for(const [label,result] of [["customer",customerResult],["license bindings",bindings],["provider connections",connections],["installations",installations],["release settings",settings]] as const){
     if((result as any)?.error)throw Object.assign(new Error(`Could not load ${label}: ${(result as any).error.message||"database error"}`),{status:500});
   }
   const customer=customerResult.data||null;
-  const installationRows=installations.data||[],bindingRows=bindings.data||[],masterLicensesRows=masterLicenseResult?.licenses||[];
+  const customerNumber=String(customer?.customer_number||"").trim();
+  const bindingRows:any[]=Array.isArray(bindings.data)?bindings.data:[];
+  const linkedLicenseIds:string[]=[...new Set<string>(
+    bindingRows
+      .map((row:any)=>String(row?.license_id||"").trim())
+      .filter((licenseId:string)=>licenseId.length>0)
+  )];
+  const masterLicenseResult=(customerNumber||linkedLicenseIds.length)?await masterLicenses("billing",customerNumber,linkedLicenseIds).catch((error:any)=>{throw Object.assign(new Error(`License Manager licence lookup failed: ${error?.message||String(error)}`),{status:502,code:"LICENSE_LOOKUP_FAILED"})}):{licenses:[]};
+  const channelAccess=["stable"];
+  const installationRows=installations.data||[],masterLicensesRows=masterLicenseResult?.licenses||[];
   const preferredInstall=installationRows.find((x:any)=>String(x.component_key||"")==="orbitfs_base")||installationRows[0]||null;
   let channelDiscoveryError:string|null=null;
   const discoveredChannels=bootstrap?[String(preferredInstall?.release_channel||"stable")]:await customerReleaseChannels(user.id,preferredInstall?.license_binding_id||null).catch((error:any)=>{
     channelDiscoveryError=String(error?.message||"License Manager channel lookup failed");
-    return channelAccess||["stable"];
+    return channelAccess;
   });
   const allowedChannels=[...new Set(discoveredChannels.map((x:any)=>String(x)))];
   if(!allowedChannels.length)allowedChannels.push("stable");
@@ -63,8 +72,7 @@ export async function GET(req:Request){
   const updateReleaseDiscoveryAvailable=Object.values(updateReleaseDiscoveryByChannel).every((x:any)=>x.available===true);
   const updateReleaseDiscoveryError=remoteReleaseResults.filter((x:any)=>x.type==="update"&&!x.ok).map((x:any)=>`${x.channel}: ${x.error}`).join("; ")||null;
   const masterReleaseRows=remoteReleaseResults.flatMap((x:any)=>x?.value?.releases||[]);
-  const customerNumber=String(customer?.customer_number||"").trim();
-  const customerMasterLicenses=customerNumber?masterLicensesRows.filter((x:any)=>String(x.customer_external_id||"").trim()===customerNumber).filter((x:any)=>!["revoked","expired"].includes(String(x.status||"").toLowerCase())):[];
+  const customerMasterLicenses=masterLicensesRows.filter((x:any)=>!["terminated","expired"].includes(canonicalLicenseStatus(x)));
   let connectionRows=(connections.data||[]).map((x:any)=>({...x,metadata:{...(x.metadata||{})}}));
   const enrichedBindings=bindingRows.flatMap((b:any)=>{
     const remote=customerMasterLicenses.find((x:any)=>String(x.id)===String(b.license_id));
@@ -76,9 +84,12 @@ export async function GET(req:Request){
       license_product_key:product,
       label:b.label||remote.product_name||product,
       license_key_last4:remote.license_key_last4||b.license_key_last4||null,
-      authoritative_status:String(remote.status||"unknown"),
+      authoritative_status:canonicalLicenseStatus(remote),
+      authoritative_storage_status:String(remote.storage_status||remote.status||"unknown"),
+      authoritative_component_states:remote.component_states||{},
       authoritative_expires_at:remote.expires_at||null,
-      status:String(remote.status||"unknown"),
+      status:canonicalLicenseStatus(remote),
+      storage_status:String(remote.storage_status||remote.status||"unknown"),
       expires_at:remote.expires_at||null,
       components:remote.components||{},
       activations:Array.isArray(remote.activations)?remote.activations:[],
@@ -96,13 +107,18 @@ export async function GET(req:Request){
         license_product_key:product,
         label:remote.product_name||product,
         license_key_last4:remote.license_key_last4||null,
-        authoritative_status:String(remote.status||"unknown"),
+        authoritative_status:canonicalLicenseStatus(remote),
+      authoritative_storage_status:String(remote.storage_status||remote.status||"unknown"),
+      authoritative_component_states:remote.component_states||{},
         authoritative_expires_at:remote.expires_at||null,
-        status:String(remote.status||"unknown"),
+        status:canonicalLicenseStatus(remote),
+      storage_status:String(remote.storage_status||remote.status||"unknown"),
         expires_at:remote.expires_at||null,
         components:remote.components||{},
         activations:Array.isArray(remote.activations)?remote.activations:[],
-        api_source:"license_master"
+        api_source:"license_master",
+        linked_order_id:null,
+        linked_order_item_id:null
       });
     }
   }

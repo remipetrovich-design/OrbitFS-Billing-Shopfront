@@ -1,7 +1,9 @@
 "use client";
 
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
 import {createClient} from "@/lib/supabase";
+import {canonicalLicenseStatus,canonicalStatusLabel,isCanonicalLicenseUsable} from "@/lib/license-status";
+import V6ConfirmDialog from "@/components/V6ConfirmDialog";
 
 type Row=Record<string,any>;
 
@@ -32,6 +34,20 @@ export default function LicenseControllerPage(){
  const [editingNickname,setEditingNickname]=useState("");
  const [nickname,setNickname]=useState("");
  const [issueComponents,setIssueComponents]=useState({orbitfs_apex:false,orbitfs_mcp:false,orbitfs_studio:false});
+ const [channelData,setChannelData]=useState<any>({channels:[],access:[]});
+ const [confirmState,setConfirmState]=useState<{title:string;message:string}|null>(null);
+ const confirmAction=useRef<null|(()=>void)>(null);
+
+ function askConfirmation(title:string,message:string,action:()=>void){
+  confirmAction.current=action;
+  setConfirmState({title,message});
+ }
+ function closeConfirmation(){confirmAction.current=null;setConfirmState(null)}
+ function acceptConfirmation(){
+  const action=confirmAction.current;
+  closeConfirmation();
+  action?.();
+ }
 
  async function getToken(){
   const {data:{session}}=await sb.auth.getSession();
@@ -40,22 +56,28 @@ export default function LicenseControllerPage(){
  }
 
  async function loadCustomers(){
-  const {data,error}=await sb.from("customers").select("id,auth_user_id,user_id,customer_number,name,email").not("auth_user_id","is",null).order("created_at",{ascending:false});
+  const {data,error}=await sb.from("customers").select("id,auth_user_id,user_id,customer_number,name,email").order("created_at",{ascending:false});
   if(error)throw error;
-  const rows=data||[];
+  const rows=(data||[]).filter((row:any)=>row.auth_user_id||row.user_id);
   setCustomers(rows);
   setCustomerId(current=>current||String(rows[0]?.id||""));
  }
 
  async function loadCustomer(id=customerId){
-  if(!id){setData(null);return}
-  setLoading(true);setError("");
+  if(!id){setData(null);setChannelData({channels:[],access:[]});return}
+  setLoading(true);setError("");setData(null);setChannelData({channels:[],access:[]});
   try{
    const t=await getToken();
-   const r=await fetch("/api/admin/license-link?customerId="+encodeURIComponent(id),{headers:{Authorization:"Bearer "+t},cache:"no-store"});
+   const h={Authorization:"Bearer "+t};
+   const [r,cr]=await Promise.all([
+    fetch("/api/admin/license-link?customerId="+encodeURIComponent(id),{headers:h,cache:"no-store"}),
+    fetch("/api/admin/orbitfs/release-channels",{headers:h,cache:"no-store"})
+   ]);
    const j=await r.json().catch(()=>({}));
+   const cj=await cr.json().catch(()=>({}));
    if(!r.ok)throw Error(j.error||"Could not load customer licences.");
    setData(j);
+   setChannelData(cr.ok?cj:{channels:[],access:[]});
   }catch(e:any){
    setError(e?.message||"Could not load customer licences.");
    setData(null);
@@ -106,9 +128,9 @@ export default function LicenseControllerPage(){
   finally{setBusy("")}
  }
 
- async function issueAdditional(){
+ async function issueAdditional(confirmed=false){
   if(!customerId)return;
-  if(!confirm("Issue an additional independent OrbitFS Base licence for this customer? Existing licences will remain active."))return;
+  if(!confirmed){askConfirmation("Issue additional licence","Create another independent OrbitFS Base licence for this customer. Existing licences remain active.",()=>void issueAdditional(true));return;}
   setBusy("issue-additional");setError("");setMessage("");setNewKey("");
   try{
    const t=await getToken();
@@ -137,10 +159,15 @@ export default function LicenseControllerPage(){
   finally{setBusy("")}
  }
 
- async function control(licenseId:string,action:string,installationId=""){
+ async function control(licenseId:string,action:string,installationId="",confirmed=false){
   const needsInstallation=["lock-installation","unlock-installation","reactivate-installation","terminate-installation"].includes(action);
   if(needsInstallation&&!installationId){setError("A specific installation is required for this control.");return}
-  if(!confirm(action==="rotate"?"Rotate this licence key? The replacement key will be shown once.":"Apply "+action+" to this licence?"))return;
+  if(!confirmed){
+   const title=action==="rotate"?"Rotate licence key":action==="terminate"?"Terminate licence":"Confirm licence action";
+   const message=action==="rotate"?"The current key will be replaced and the new key will be shown once.":action==="terminate"?"This terminates the licence. Recovery requires an explicit reactivation flow.":"Apply "+action.replaceAll("-"," ")+" to this licence?";
+   askConfirmation(title,message,()=>void control(licenseId,action,installationId,true));
+   return;
+  }
   setBusy(action+":"+licenseId+":"+installationId);setError("");setMessage("");
   try{
    const t=await getToken();
@@ -160,9 +187,9 @@ export default function LicenseControllerPage(){
   finally{setBusy("")}
  }
 
- async function controlComponent(licenseId:string,component:string,enabled:boolean){
+ async function controlComponent(licenseId:string,component:string,enabled:boolean,confirmed=false){
   const label=productName(component);
-  if(!confirm((enabled?"Activate ":"Deactivate ")+label+"? The Base installation binding will stay locked to its current installation."))return;
+  if(!confirmed){askConfirmation((enabled?"Activate ":"Deactivate ")+label,(enabled?"Enable ":"Disable ")+label+" on this licence. The Base installation binding remains locked to its current installation.",()=>void controlComponent(licenseId,component,enabled,true));return;}
   setBusy("component:"+component+":"+licenseId);setError("");setMessage("");
   try{
    const t=await getToken();
@@ -180,8 +207,17 @@ export default function LicenseControllerPage(){
  }
 
  const bindings=data?.bindings||[];
+ const selectedUserId=String(data?.customer?.auth_user_id||data?.customer?.user_id||selectedCustomer?.auth_user_id||selectedCustomer?.user_id||"");
+ const channelDefinitions=(channelData?.channels||[]) as Array<{channel:string;label?:string;enabled?:boolean;customer_visible?:boolean;access_mode?:string}>;
+ const customerChannelAccess=(channelData?.access||[]).filter((x:any)=>String(x.user_id||"")===selectedUserId);
+ const hasUsableBase=bindings.some((b:any)=>String(b.license_product_key||"").toLowerCase()==="orbitfs_base"&&isCanonicalLicenseUsable(b));
+ const channelsForLicense=(licenseId:string)=>{
+  const explicit=customerChannelAccess.filter((x:any)=>String(x.license_id||"")===String(licenseId||"")).map((x:any)=>String(x.channel||"")).filter(Boolean);
+  const automatic=channelDefinitions.filter((x:any)=>x.enabled!==false&&x.customer_visible!==false&&(x.channel==="stable"||x.access_mode==="open")).map((x:any)=>String(x.channel));
+  return [...new Set([...automatic,...explicit])];
+ };
 
- return <main className="lmPage licenseControllerPage orbitReferencePage orbitLicenceReference">
+ return <main className="lmPage licenseControllerPage orbitReferencePage orbitLicenceReference orbitPhaseOne">
   <header className="orbitReferenceHero">
    <div>
     <p className="eyebrow">MY ORBITFS · CUSTOMER LICENCES</p>
@@ -189,8 +225,8 @@ export default function LicenseControllerPage(){
     <p className="muted">Manage Billing Store customer links and run permitted licence actions through the authoritative License Manager APIs.</p>
    </div>
    <div className="orbitReferenceHeroActions">
-    <button className="orbitIconAction" title="Refresh customer licences" aria-label="Refresh customer licences" onClick={()=>void refresh()} disabled={loading}>↻</button>
-    <button className="orbitIconAction primary" title="Find and automatically link the single matching existing License Manager licence for this customer" aria-label="Auto-link matching licence" onClick={()=>void link("","auto")} disabled={!selectedCustomer||!!busy}>↗</button>
+    <button className="secondary" type="button" onClick={()=>void refresh()} disabled={loading}>{loading?"Refreshing…":"Refresh"}</button>
+    <button type="button" onClick={()=>void link("","auto")} disabled={!selectedCustomer||!!busy}>{busy==="auto:"?"Matching…":"Auto-link match"}</button>
    </div>
   </header>
 
@@ -223,10 +259,23 @@ export default function LicenseControllerPage(){
        <small>{selectedCustomer.customer_number||selectedCustomer.id}</small>
       </div>
       <div className="orbitReferenceCustomerSummary">
-       <span className="orbitMiniState live">{bindings.some((b:any)=>String(b.authoritative_status||b.status||"").toLowerCase()==="active")?"Active":"Linked"}</span>
+       <span className="orbitMiniState live">{bindings.some((b:any)=>isCanonicalLicenseUsable(b))?"Active":"Linked"}</span>
        <span className="orbitLicenceCount">{bindings.length} {bindings.length===1?"licence":"licences"}</span>
       </div>
     </div>
+
+    <section className="orbitReferenceSection orbitLicenceChannelSummary">
+     <div className="orbitReferenceSectionHead"><div><b>Release channel access</b><small>Shared Base + Update eligibility from the authoritative License Manager channel system.</small></div><span>{customerChannelAccess.length} explicit grants</span></div>
+     <div className="orbitLicenceChannelGrid">
+      {channelDefinitions.filter((ch:any)=>ch.enabled!==false&&ch.customer_visible!==false).map((ch:any)=>{
+       const automatic=ch.channel==="stable"||ch.access_mode==="open";
+       const explicit=customerChannelAccess.some((grant:any)=>String(grant.channel||"")===String(ch.channel));
+       const available=(automatic&&hasUsableBase)||explicit;
+       return <div key={ch.channel} className={available?"available":""}><span><b>{ch.label||ch.channel}</b><small>{ch.channel} · {automatic?(hasUsableBase?"automatic":"requires active Base licence"):explicit?"explicit grant":"restricted"}</small></span><span className={"orbitMiniState "+(available?"live":"")}>{available?"Available":"No access"}</span></div>
+      })}
+      {!channelDefinitions.length&&<div className="orbitReferenceEmpty compact">Channel authority is unavailable for this customer view.</div>}
+     </div>
+    </section>
 
     {newKey&&<section className="orbitReferenceKeyBox" role="status">
      <div><b>New licence key</b><span>Shown once. Save it before leaving this page.</span></div>
@@ -238,18 +287,18 @@ export default function LicenseControllerPage(){
      <div className="orbitReferenceSectionHead"><div><b>Linked licences</b><small>License Manager records currently linked to this Billing Store customer.</small></div><span>{bindings.length}</span></div>
      {loading?<div className="orbitReferenceEmpty compact">Loading customer licences…</div>:bindings.length?<div className="orbitReferenceLicenceList">
       {bindings.map((b:any)=>{
-       const status=String(b.authoritative_status||b.status||"unknown").toLowerCase();
+       const status=canonicalLicenseStatus(b);
        const authoritativeComponents=b.authoritative_components||{};
        const components=Object.entries(authoritativeComponents).filter(([,enabled])=>Boolean(enabled)).map(([key])=>productName(key)).join(" · ")||productName(b.license_product_key||"orbitfs_base");
        const addonControls=[["orbitfs_apex","APEX"],["orbitfs_mcp","MCP"],["orbitfs_studio","Studio"]] as const;
        const installs=b.master_activations?.length?b.master_activations:(data?.installations||[]).filter((i:any)=>String(i.license_binding_id)===String(b.id)).map((i:any)=>({...i,status:i.state}));
        return <details className="orbitReferenceLicenceCard" key={b.id}>
-        <summary className="orbitReferenceLicenceTop" style={{cursor:"pointer",listStyle:"none",alignItems:"center"}}>
+        <summary className="orbitReferenceLicenceTop">
          <div><h3>{b.label||productName(b.license_product_key)}</h3><p>{productName(b.license_product_key)} · {b.license_key_last4?"••••-"+b.license_key_last4:"Protected"}</p></div>
-         <span style={{display:"flex",alignItems:"center",gap:12}}><span className={"orbitMiniState "+(status==="active"?"live":status==="suspended"?"suspended":"")}>{status}</span><span aria-hidden="true">▾</span></span>
+         <span className="orbitReferenceLicenceTopState"><span className={"orbitMiniState "+((status==="active"||status==="locked")?"live":(status==="restricted"||status==="suspended")?"suspended":"")}>{canonicalStatusLabel(status)}</span><span aria-hidden="true">▾</span></span>
         </summary>
-        <div style={{padding:"0 12px 12px"}}>
-         {editingNickname===String(b.id)?<div className="orbitReferenceActions" style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center"}}>
+        <div className="orbitReferenceLicenceBody">
+         {editingNickname===String(b.id)?<div className="orbitReferenceActions orbitLicenceNicknameEditor">
            <input aria-label="Licence nickname" maxLength={80} autoFocus value={nickname} onChange={e=>setNickname(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();void saveNickname(String(b.id))}}} placeholder="Licence nickname (optional)"/>
            <button disabled={!!busy} onClick={()=>void saveNickname(String(b.id))}>{busy==="nickname:"+b.id?"Saving…":"Save name"}</button>
            <button className="secondary" onClick={()=>{setEditingNickname("");setNickname("")}}>Cancel</button>
@@ -259,14 +308,18 @@ export default function LicenseControllerPage(){
          <div><span>Licence key</span><b>{b.license_key_last4?"••••-"+b.license_key_last4:"Protected"}</b></div>
          <div><span>Expiry</span><b>{b.authoritative_expires_at?new Date(b.authoritative_expires_at).toLocaleDateString():"No expiry"}</b></div>
          <div><span>Components</span><b>{components}</b></div>
+         <div><span>Release channels</span><b>{channelsForLicense(String(b.license_id)).join(" · ")||"No channel access"}</b></div>
         </div>
         <div className="orbitReferenceLicenceActions">
-         {status==="active"&&<button disabled={!!busy} onClick={()=>void control(String(b.license_id),"rotate")}>{busy.startsWith("rotate:"+b.license_id)?"Rotating…":"Rotate key"}</button>}
-         {["active","suspended"].includes(status)&&<button className="secondary" disabled={!!busy} onClick={()=>void control(String(b.license_id),status==="suspended"?"activate":"suspend")}>{busy.startsWith("activate:"+b.license_id)?"Unsuspending…":busy.startsWith("suspend:"+b.license_id)?"Suspending…":status==="suspended"?"Unsuspend":"Suspend"}</button>}
-         <button className="danger" disabled={!!busy} onClick={()=>void control(String(b.license_id),"revoke")}>{busy.startsWith("revoke:"+b.license_id)?"Terminating…":"Terminate"}</button>
+         {(status==="active"||status==="locked")&&<button disabled={!!busy} onClick={()=>void control(String(b.license_id),"rotate")}>{busy.startsWith("rotate:"+b.license_id)?"Rotating…":"Rotate key"}</button>}
+         {(status==="active"||status==="locked")&&<button className="secondary" disabled={!!busy} onClick={()=>void control(String(b.license_id),"restrict")}>{busy.startsWith("restrict:"+b.license_id)?"Restricting…":"Restrict"}</button>}
+         {status==="restricted"&&<button className="secondary" disabled={!!busy} onClick={()=>void control(String(b.license_id),"activate")}>{busy.startsWith("activate:"+b.license_id)?"Removing…":"Remove restriction"}</button>}
+         {status==="suspended"&&<span className="orbitMiniState suspended">Account suspended · manage customer</span>}
+         {status==="terminated"&&<button className="secondary" disabled={!!busy} onClick={()=>void control(String(b.license_id),"activate")}>{busy.startsWith("activate:"+b.license_id)?"Reactivating…":"Reactivate with new key"}</button>}
+         {status!=="terminated"&&<button className="danger" disabled={!!busy} onClick={()=>void control(String(b.license_id),"terminate")}>{busy.startsWith("terminate:"+b.license_id)?"Terminating…":"Terminate"}</button>}
         </div>
         <div className="orbitReferenceInstallations">
-         {addonControls.map(([key,label])=>{const enabled=Boolean(authoritativeComponents[key]);const busyKey="component:"+key+":"+b.license_id;return <div key={key}><span><b>{label}</b><small>{enabled?"Active entitlement":"Inactive entitlement"} · Base binding stays locked</small></span><button className="secondary" disabled={!!busy||status!=="active"} onClick={()=>void controlComponent(String(b.license_id),key,!enabled)}>{busy===busyKey?(enabled?"Deactivating…":"Activating…"):(enabled?"Deactivate":"Activate")}</button></div>})}
+         {addonControls.map(([key,label])=>{const enabled=Boolean(authoritativeComponents[key]);const busyKey="component:"+key+":"+b.license_id;return <div key={key}><span><b>{label}</b><small>{enabled?"Active entitlement":"Not entitled"} · Base binding stays locked</small></span><button className="secondary" disabled={!!busy||!(status==="active"||status==="locked")} onClick={()=>void controlComponent(String(b.license_id),key,!enabled)}>{busy===busyKey?(enabled?"Deactivating…":"Activating…"):(enabled?"Deactivate":"Activate")}</button></div>})}
         </div>
         {!!installs.length&&<div className="orbitReferenceInstallations">
          {installs.map((i:any)=><div key={i.id||i.installation_id}><span><b>{i.installation_id}</b><small>{String(i.status||"").toLowerCase()==="active"?"bound / locked":String(i.status||"").toLowerCase()==="released"?"released / unlocked":i.status||"unknown"}</small></span>{String(i.status||"").toLowerCase()==="active"&&<button className="secondary" disabled={!!busy} onClick={()=>void control(String(b.license_id),"unlock-installation",String(i.installation_id))}>{busy===("unlock-installation:"+b.license_id+":"+i.installation_id)?"Releasing…":"Unlock / release"}</button>}</div>)}
@@ -294,7 +347,7 @@ export default function LicenseControllerPage(){
       <p>These are existing License Manager records. Linking creates the Billing Store customer association only; it does not issue a licence.</p>
       <input value={masterQuery} onChange={e=>setMasterQuery(e.target.value)} placeholder="Search licence ID, product, status, customer reference or order…"/>
       <div className="orbitReferenceGrantList inventory">
-       {available.slice(0,50).map((x:any)=><div className="orbitReferenceGrantRow" key={String(x.id||x.license_id)}><div><b>{productName(x.product_code||x.product)}</b><small>{x.id||x.license_id} · {x.status||"unknown"}{x.customer_external_id?" · Customer ref "+x.customer_external_id:""}</small></div><button disabled={!!busy} onClick={()=>void link(String(x.id||x.license_id))}>{busy==="manual:"+String(x.id||x.license_id)?"Linking…":"Link to customer"}</button></div>)}
+       {available.slice(0,50).map((x:any)=><div className="orbitReferenceGrantRow" key={String(x.id||x.license_id)}><div><b>{productName(x.product_code||x.product)}</b><small>{x.id||x.license_id} · {canonicalStatusLabel(canonicalLicenseStatus(x))}{x.customer_external_id?" · Customer ref "+x.customer_external_id:""}</small></div><button disabled={!!busy} onClick={()=>void link(String(x.id||x.license_id))}>{busy==="manual:"+String(x.id||x.license_id)?"Linking…":"Link to customer"}</button></div>)}
        {!available.length&&<div className="orbitReferenceEmpty compact">No unlinked licences match this search.</div>}
       </div>
      </div>
@@ -302,5 +355,15 @@ export default function LicenseControllerPage(){
    </>:<div className="orbitReferenceEmpty">Select a customer to review linked licences.</div>}
    </section>
   </div>
+  <V6ConfirmDialog
+   open={Boolean(confirmState)}
+   title={confirmState?.title||""}
+   description={confirmState?.message||""}
+   confirmLabel="Confirm"
+   danger={confirmState?.title==="Terminate licence"||confirmState?.title==="Rotate licence key"}
+   busy={Boolean(busy)}
+   onCancel={closeConfirmation}
+   onConfirm={acceptConfirmation}
+  />
  </main>;
 }

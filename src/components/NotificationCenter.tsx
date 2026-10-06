@@ -1,7 +1,8 @@
 "use client";
 
 import {useCallback,useEffect,useRef,useState} from "react";
-import {useRouter} from "next/navigation"
+import type {CSSProperties} from "react";
+import {usePathname,useRouter} from "next/navigation"
 import {createPortal} from "react-dom";
 import {createClient} from "@/lib/supabase";
 import styles from "./NotificationCenter.module.css";
@@ -43,6 +44,7 @@ function notificationKind(n:NotificationRow):AlertKind{
 
 export default function NotificationCenter({surface,compact=false}:{surface:Surface;compact?:boolean}){
   const router=useRouter();
+  const pathname=usePathname();
   const rootRef=useRef<HTMLDivElement|null>(null);
   const panelRef=useRef<HTMLElement|null>(null);
   const [mounted,setMounted]=useState(false);
@@ -57,6 +59,9 @@ export default function NotificationCenter({surface,compact=false}:{surface:Surf
   const [configReady,setConfigReady]=useState(false);
   const [systemEnabled,setSystemEnabled]=useState(true);
   const [feedLimit,setFeedLimit]=useState(40);
+  const [userId,setUserId]=useState("");
+  const [realtimeEnabled,setRealtimeEnabled]=useState(true);
+  const [panelStyle,setPanelStyle]=useState<CSSProperties>({});
 
   const load=useCallback(async(limit=40)=>{
     const {data,error:e}=await sb.rpc("notification_feed",{p_surface:surface,p_limit:limit});
@@ -72,11 +77,13 @@ export default function NotificationCenter({surface,compact=false}:{surface:Surf
     (async()=>{
       const {data:{user}}=await sb.auth.getUser();
       if(!user||cancelled){setConfigReady(true);return}
+      setUserId(user.id);
 
       const settingsResult=await sb.rpc("orbitfs_alert_client_settings");
       const cfg:ClientSettings=settingsResult.error?{enabled:true,realtime_enabled:true,feed_limit:40}:settingsResult.data as ClientSettings;
       const limit=Math.max(10,Math.min(100,Number(cfg?.feed_limit||40)));
       setSystemEnabled(cfg?.enabled!==false);
+      setRealtimeEnabled(cfg?.realtime_enabled!==false);
       setFeedLimit(limit);
 
       if(surface==="admin"){
@@ -94,6 +101,59 @@ export default function NotificationCenter({surface,compact=false}:{surface:Surf
     })();
     return()=>{cancelled=true};
   },[sb,surface,load]);
+
+  useEffect(()=>{setOpen(false)},[pathname]);
+
+  useEffect(()=>{
+    if(!configReady||!systemEnabled||!realtimeEnabled||!userId)return;
+    let refreshTimer:ReturnType<typeof setTimeout>|undefined;
+    const refresh=()=>{
+      if(refreshTimer)clearTimeout(refreshTimer);
+      refreshTimer=setTimeout(()=>{void load(feedLimit)},120);
+    };
+    const channel=sb.channel(`orbitfs-notifications-${surface}-${userId}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"notifications",filter:`recipient_user_id=eq.${userId}`},payload=>{
+        const row=(payload.new&&Object.keys(payload.new).length?payload.new:payload.old) as Record<string,any>;
+        if(!row?.surface||row.surface===surface)refresh();
+      })
+      .subscribe();
+    const onFocus=()=>void load(feedLimit);
+    window.addEventListener("focus",onFocus);
+    return()=>{
+      if(refreshTimer)clearTimeout(refreshTimer);
+      window.removeEventListener("focus",onFocus);
+      void sb.removeChannel(channel);
+    };
+  },[sb,surface,userId,configReady,systemEnabled,realtimeEnabled,feedLimit,load]);
+
+  useEffect(()=>{
+    if(!open||!mounted)return;
+    const syncPanelToVisualViewport=()=>{
+      const viewport=window.visualViewport;
+      const width=Math.max(0,viewport?.width??window.innerWidth);
+      const height=Math.max(0,viewport?.height??window.innerHeight);
+      const offsetLeft=viewport?.offsetLeft??0;
+      const offsetTop=viewport?.offsetTop??0;
+      const mobile=width<=760;
+      const panelWidth=mobile?Math.max(0,width-12):Math.min(460,Math.max(320,width-20));
+      const panelHeight=mobile?Math.min(620,Math.max(260,Math.floor(height*.76))):Math.min(720,Math.max(260,height-70));
+      const left=mobile?offsetLeft+6:offsetLeft+Math.max(10,width-panelWidth-10);
+      const top=mobile?offsetTop+Math.max(6,height-panelHeight-6):offsetTop+58;
+      setPanelStyle({position:"fixed",top:Math.round(top),left:Math.round(left),right:"auto",bottom:"auto",width:Math.round(panelWidth),height:mobile?Math.round(panelHeight):undefined,maxHeight:Math.round(panelHeight)});
+    };
+    syncPanelToVisualViewport();
+    const viewport=window.visualViewport;
+    viewport?.addEventListener("resize",syncPanelToVisualViewport);
+    viewport?.addEventListener("scroll",syncPanelToVisualViewport);
+    window.addEventListener("resize",syncPanelToVisualViewport);
+    window.addEventListener("scroll",syncPanelToVisualViewport,true);
+    return()=>{
+      viewport?.removeEventListener("resize",syncPanelToVisualViewport);
+      viewport?.removeEventListener("scroll",syncPanelToVisualViewport);
+      window.removeEventListener("resize",syncPanelToVisualViewport);
+      window.removeEventListener("scroll",syncPanelToVisualViewport,true);
+    };
+  },[open,mounted]);
 
   useEffect(()=>{
     if(!open)return;
@@ -125,12 +185,12 @@ export default function NotificationCenter({surface,compact=false}:{surface:Surf
   if(!configReady||!systemEnabled)return null;
 
   return <div ref={rootRef} className={styles.root} data-surface={surface} data-compact={compact?"true":"false"}>
-    <button className={styles.trigger} type="button" aria-label={`Open ${surface} notifications`} aria-expanded={open} onClick={()=>{setOpen(v=>!v);if(!open)void load(feedLimit)}}>
+    <button className={styles.trigger} type="button" aria-label={`Open ${surface} notifications`} aria-expanded={open} onPointerDown={event=>event.stopPropagation()} onClick={()=>setOpen(current=>{const next=!current;if(next)void load(feedLimit);return next})}>
       <span className={styles.icon}><BellIcon/></span>
       <span className={styles.triggerText}>Notifications</span>
       {unread>0&&<span className={styles.badge}>{unread>99?"99+":unread}</span>}
     </button>
-    {open&&mounted&&createPortal(<section ref={panelRef} data-surface={surface} className={styles.panel} aria-label={surface==="admin"?"Admin notifications":"Customer notifications"}>
+    {open&&mounted&&createPortal(<section ref={panelRef} data-surface={surface} className={styles.panel} style={panelStyle} aria-label={surface==="admin"?"Admin notifications":"Customer notifications"}>
       <header className={styles.header}>
         <div><small>{surface==="admin"?"ORBITFS ALERT SYSTEM":"CUSTOMER PORTAL"}</small><h2>Notifications</h2></div>
         <div className={styles.headerActions}>

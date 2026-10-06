@@ -985,8 +985,8 @@ html[data-customer-theme="V3C"] .portalLayout a{
 
 
 /* Customer portal adaptive phone shell. Desktop is intentionally untouched. */
-.portalMobileMenuButton,
-.portalMobileOnly{display:none!important}
+html[data-customer-theme="V3C"] .portalMobileMenuButton,
+html[data-customer-theme="V3C"] .portalMobileOnly{display:none!important}
 
 @media(max-width:700px){
   html[data-customer-theme="V3C"] .portalTopbar{

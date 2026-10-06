@@ -15,9 +15,21 @@ export async function masterRequest(path:string,init:RequestInit={},role:MasterR
 export async function masterProducts(role:MasterRole="billing"){
   return masterRequest("/api/v1/products",{method:"GET"},role);
 }
-export async function masterLicenses(role:MasterRole="billing"){
-  return masterRequest("/api/v1/license",{method:"GET",cache:"no-store"},role);
+export async function masterLicenses(role:MasterRole="billing",customerExternalId?:string,licenseIds:string[]=[]){
+  const qs=new URLSearchParams();
+  const customer=String(customerExternalId||"").trim();
+  const ids=[...new Set((licenseIds||[]).map(value=>String(value||"").trim()).filter(Boolean))].slice(0,100);
+  if(customer)qs.set("customer_external_id",customer);
+  if(ids.length)qs.set("license_ids",ids.join(","));
+  const query=qs.toString();
+  return masterRequest("/api/v1/license"+(query?"?"+query:""),{method:"GET",cache:"no-store"},role);
 }
+export async function masterDatabasePackage(id:string,role:MasterRole="deployer"){
+  const value=String(id||"").trim();
+  if(!/^[0-9a-f-]{36}$/i.test(value))throw Object.assign(new Error("Invalid License Manager database package id"),{status:400,code:"DATABASE_PACKAGE_ID_INVALID"});
+  return masterRequest(`/api/v1/database-packages/${encodeURIComponent(value)}`,{method:"GET",cache:"no-store"},role);
+}
+
 export async function masterReleases(product="orbitfs_base",channel="all",releaseType="all",role:MasterRole="billing",fresh=false,includeArchived=false){
   const qs=new URLSearchParams();
   const p=String(product||"").trim().toLowerCase();
@@ -66,5 +78,19 @@ export async function masterExecuteDeployment(input:any):Promise<MasterDeploymen
   return await masterRequest("/api/v1/deployer",{method:"POST",body:JSON.stringify({...input,phase:input.phase||"authorize"})},"deployer") as MasterDeploymentResult;
 }
 export async function masterInstallationDetails(installationId:string,licenseId?:string|null){const qs=new URLSearchParams({installation_id:String(installationId||"").trim()});if(licenseId)qs.set("license_id",String(licenseId).trim());return masterRequest(`/api/v1/deployer?${qs.toString()}`,{method:"GET",cache:"no-store"},"deployer");}
+export async function masterInstallations(limit=250,currentOnly=false){const value=Math.min(500,Math.max(1,Number(limit)||250));const qs=new URLSearchParams({limit:String(value)});if(currentOnly)qs.set("current_only","true");return masterRequest(`/api/v1/installations?${qs.toString()}`,{method:"GET",cache:"no-store"},"deployer");}
+export async function masterInstallationControl(input:any){return masterRequest("/api/v1/installations/control",{method:"POST",body:JSON.stringify(input)},"deployer");}
+export async function masterInstallationPanelDomain(installationId:string,licenseId?:string|null){
+  const qs=new URLSearchParams({installation_id:String(installationId||"").trim()});
+  if(licenseId)qs.set("license_id",String(licenseId).trim());
+  return masterRequest(`/api/v1/installations/domain?${qs.toString()}`,{method:"GET",cache:"no-store"},"deployer");
+}
+export async function masterAuthorizeInstallationPanelDomain(input:any){
+  return masterRequest("/api/v1/installations/domain",{method:"POST",body:JSON.stringify({...input,action:"authorize"})},"deployer");
+}
+export async function masterRecordInstallationPanelDomain(input:any){
+  return masterRequest("/api/v1/installations/domain",{method:"POST",body:JSON.stringify({...input,action:"record"})},"deployer");
+}
+
 export async function masterInstallationLifecycle(input:any){return masterRequest("/api/v1/installations/lifecycle",{method:"POST",body:JSON.stringify(input)},"deployer");}
 export const licensingAuthority="orbitfs-license-master-v2";

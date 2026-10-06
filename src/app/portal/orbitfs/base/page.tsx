@@ -6,16 +6,14 @@ import Link from "next/link";
 import {createClient} from "@/lib/supabase";
 import {trackCustomerActivity} from "@/lib/customer-activity";
 import {errorMessage} from "@/lib/error-message";
+import {isCanonicalLicenseUsable} from "@/lib/license-status";
+import V6ConfirmDialog from "@/components/V6ConfirmDialog";
 
 const hasBase=(b:any)=>b?.license_product_key==="orbitfs_base"||!!b?.components?.orbitfs_base||!!b?.components?.orbitfs_panel;
-const ENGINE_ADDON_KEYS=new Set(["orbitfs_mcp","orbitfs_apex","orbitfs_studio"]);
-const hasEngineAddon=(b:any)=>ENGINE_ADDON_KEYS.has(String(b?.license_product_key||"").toLowerCase())||[...ENGINE_ADDON_KEYS].some((key)=>b?.components?.[key]===true||b?.components?.[key]?.allowed===true||b?.components?.[key]?.state==="enabled");
-const usableLicence=(b:any)=>!["revoked","expired","suspended"].includes(String(b?.authoritative_status||b?.status||"").toLowerCase());
-const pluginLabel=(b:any)=>String(b?.label||b?.license_product_key||"OrbitFS plugin").replaceAll("_"," ");
+const usableLicence=(b:any)=>isCanonicalLicenseUsable(b);
 const label=(state:any)=>String(state||"waiting").replaceAll("_"," ");
-const sectionGap={display:"grid",gap:12} as const;
-const summaryStyle={cursor:"pointer"} as const;
 const workingStates=new Set(["configuring","deploying","updating"]);
+type BaseConfirmState={title:string;description:string;confirmLabel:string;danger?:boolean;reasonRequired?:boolean}|null;
 
 export default function MyOrbitFS(){
   const apiError=(payload:any,fallback:string)=>errorMessage(payload?.error??payload?.message??payload,fallback);
@@ -38,11 +36,38 @@ export default function MyOrbitFS(){
   const [uninstallOptions,setUninstallOptions]=useState({removeDatabase:false,removeStorage:false,releaseLicense:false});
   const [lifecyclePlan,setLifecyclePlan]=useState<any>(null);
   const [liveCheckedAt,setLiveCheckedAt]=useState("");
-  const [domainState,setDomainState]=useState<any>(null);
-  const [domainMode,setDomainMode]=useState<"generated"|"vercel"|"custom">("generated");
-  const [customDomain,setCustomDomain]=useState("");
-  const [vercelAvailability,setVercelAvailability]=useState<any>(null);
-  const [domainBusy,setDomainBusy]=useState("");
+  const [showBaseDomain,setShowBaseDomain]=useState(false);
+  const [baseDomainMode,setBaseDomainMode]=useState<"generated"|"vercel"|"custom">("generated");
+  const [baseDomain,setBaseDomain]=useState("");
+  const [baseDomainState,setBaseDomainState]=useState<any>(null);
+  const [baseDomainAvailability,setBaseDomainAvailability]=useState<any>(null);
+  const [baseDomainDns,setBaseDomainDns]=useState<any>(null);
+  const [confirmState,setConfirmState]=useState<BaseConfirmState>(null);
+  const [confirmReason,setConfirmReason]=useState("");
+  const confirmAction=useRef<null|((reason:string)=>void)>(null);
+
+  function askConfirm(state:NonNullable<BaseConfirmState>,action:(reason:string)=>void){
+    confirmAction.current=action;
+    setConfirmReason("");
+    setConfirmState(state);
+  }
+  function cancelConfirm(){
+    confirmAction.current=null;
+    setConfirmReason("");
+    setConfirmState(null);
+  }
+  function acceptConfirm(){
+    const reason=confirmReason.trim();
+    if(confirmState?.reasonRequired&&!reason){
+      setMsg("Enter a rollback reason before proceeding.");
+      return;
+    }
+    const action=confirmAction.current;
+    confirmAction.current=null;
+    setConfirmState(null);
+    setConfirmReason("");
+    action?.(reason);
+  }
 
   async function authHeaders():Promise<Record<string,string>>{const {data:{session}}=await sb.auth.getSession();return session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{} }
   async function load(background=false,bootstrap=false){
@@ -53,7 +78,7 @@ export default function MyOrbitFS(){
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
       try{
         const r=await fetch("/api/orbitfs/status"+(bootstrap?"?view=bootstrap":""),{headers,cache:"no-store",signal:controller.signal}),j=await r.json().catch(()=>({}));
-        if(r.ok){setD(j);setMsg("");if(bootstrap)void load(true,false)}else setMsg(apiError(j,"Could not load My OrbitFS."));
+        if(r.ok){setD(j);setMsg("")}else setMsg(apiError(j,"Could not load My OrbitFS."));
       }catch(e:any){setMsg(e?.name==="AbortError"?"My OrbitFS status request timed out. Please retry.":e?.message||"Could not load My OrbitFS.")}
       finally{clearTimeout(timer)}
     }finally{if(!background)setLoading(false)}
@@ -64,13 +89,13 @@ export default function MyOrbitFS(){
     if(callbackError)setMsg(callbackError);
     else if(connected==="supabase")setMsg("Supabase account connected. Loading your projects…");
     else if(connected==="vercel")setMsg("Vercel account connected.");
-    void load(false,true).finally(()=>{
+    void load(false,false).finally(()=>{
       if(connected==="supabase"&&!callbackError)setMsg("Supabase account connected. Choose an existing project or create a new one.");
       if(connected||callbackError)window.history.replaceState({},document.title,window.location.pathname);
     });
   },[]);
 
-  const eligibleBindings=(d?.bindings||[]).filter(usableLicence),addonBindings=eligibleBindings.filter(hasEngineAddon),bases=eligibleBindings.filter(hasBase),existingInstallation=(d?.installations||[]).find((x:any)=>addonBindings.some((candidate:any)=>String(candidate.id)===String(x.license_binding_id))),binding=(existingInstallation?addonBindings.find((candidate:any)=>String(candidate.id)===String(existingInstallation.license_binding_id)):null)||addonBindings[0]||null,install=(d?.installations||[]).find((x:any)=>String(x.license_binding_id)===String(binding?.id)),licensedPlugins=addonBindings,supabase=(d?.connections||[]).find((x:any)=>x.provider==="supabase"&&x.status==="connected"),vercelConnection=(d?.connections||[]).find((x:any)=>x.provider==="vercel"&&x.status==="connected"),vercelApiReady=vercelConnection?.metadata?.api_ready===true,vercelTeams=Array.isArray(vercelConnection?.metadata?.teams)?vercelConnection.metadata.teams:[],settings=d?.settings||{},history=(d?.releases||[]).filter((x:any)=>x.installation_id===install?.id),events=(d?.events||[]).filter((x:any)=>x.installation_id===install?.id);
+  const eligibleBindings=(d?.bindings||[]).filter(usableLicence),bases=eligibleBindings.filter(hasBase),existingInstallation=(d?.installations||[]).find((x:any)=>bases.some((candidate:any)=>String(candidate.id)===String(x.license_binding_id)))||((d?.installations||[]).find((x:any)=>String(x?.component_key||"")==="orbitfs_base")),binding=(existingInstallation?bases.find((candidate:any)=>String(candidate.id)===String(existingInstallation.license_binding_id)):null)||bases[0]||null,install=(d?.installations||[]).find((x:any)=>String(x.license_binding_id)===String(binding?.id))||(binding?null:existingInstallation)||null,supabase=(d?.connections||[]).find((x:any)=>x.provider==="supabase"&&x.status==="connected"),vercelConnection=(d?.connections||[]).find((x:any)=>x.provider==="vercel"&&x.status==="connected"),vercelApiReady=vercelConnection?.metadata?.api_ready===true,vercelTeams=Array.isArray(vercelConnection?.metadata?.teams)?vercelConnection.metadata.teams:[],settings=d?.settings||{},history=(d?.releases||[]).filter((x:any)=>x.installation_id===install?.id),events=(d?.events||[]).filter((x:any)=>x.installation_id===install?.id);
   const baseHistory=history.filter((x:any)=>x.action!=="update"&&x.status==="ready").sort((a:any,b:any)=>new Date(b.ready_at||b.created_at||0).getTime()-new Date(a.ready_at||a.created_at||0).getTime());
   const distinctBaseHistory=baseHistory.filter((row:any,index:number,rows:any[])=>rows.findIndex((candidate:any)=>String(candidate.release_id||"")===String(row.release_id||""))===index);
   const visibleBaseHistory=distinctBaseHistory.slice(0,2),olderBaseHistory=distinctBaseHistory.slice(2),previousBaseDeployment=visibleBaseHistory.find((x:any)=>String(x.release_id||"")!==String(install?.release_id||""))||null;
@@ -137,17 +162,10 @@ export default function MyOrbitFS(){
   useEffect(()=>{if(vercelConnection?.team_id!==undefined&&vercelConnection?.team_id!==null&&!vercelTeamId)setVercelTeamId(String(vercelConnection.team_id))},[vercelConnection?.team_id]);
   useEffect(()=>{
     if(!install||(!working&&!deploymentRequestActive)){pollCount.current=0;return}
-    if(pollCount.current>=90)return;
-    const timer=setTimeout(()=>{pollCount.current+=1;void refreshLiveBase()},10000);
+    if(pollCount.current>=30)return;
+    const timer=setTimeout(()=>{pollCount.current+=1;void refreshLiveBase()},60000);
     return()=>clearTimeout(timer);
   },[install?.id,install?.state,install?.vercel_deployment_id,activeOperation?.id,activeOperation?.state,activeOperation?.heartbeat_at,deploymentRequestActive]);
-  useEffect(()=>{
-    if(!panelReady||!install?.id||working||deploymentRequestActive)return;
-    const refresh=()=>{if(document.visibilityState==="visible")void sync(true)};
-    const timer=window.setInterval(refresh,60000);
-    window.addEventListener("focus",refresh);
-    return()=>{window.clearInterval(timer);window.removeEventListener("focus",refresh)};
-  },[panelReady,install?.id,working,deploymentRequestActive]);
   useEffect(()=>{
     if(!install){setCurrentStep(1);setViewedPrimaryStage(null);return}
     if(panelReady)return;
@@ -160,7 +178,7 @@ export default function MyOrbitFS(){
 
   async function start(){if(!binding)return;if(providerSetupUnavailable)return setMsg(settings.maintenance_mode?(settings.maintenance_message||"OrbitFS deployment maintenance is active."):(settings.license_authority_notice||"OrbitFS authority is unavailable."));setBusy("start");try{const r=await fetch("/api/orbitfs/installations/start",{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({bindingId:binding.id})}),j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(apiError(j,"Could not start OrbitFS setup."));const data=j.installation;setMsg("OrbitFS setup started.");setSiteStep(1);await trackCustomerActivity("orbitfs.installation.create",{entityType:"license",entityId:binding.id,detail:{installation_id:data?.installation_id}});await load()}catch(e:any){setMsg(e?.message||"Could not start OrbitFS setup.")}finally{setBusy("")}}
   async function connectSupabase(){if(!install)return;setBusy("supabase");const r=await fetch("/api/orbitfs/oauth/supabase/start",{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({installationId:install.id})}),j=await r.json().catch(()=>({}));setBusy("");if(!r.ok)return setMsg(apiError(j,"Could not connect Supabase."));location.href=j.url}
-  async function resetSupabase(){if(!confirm("Disconnect the current Supabase connector? This removes the saved OAuth tokens. Your Supabase project and its data are not deleted."))return;setBusy("supabase-reset");const r=await fetch("/api/orbitfs/providers/supabase",{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({action:"disconnect"})}),j=await r.json().catch(()=>({}));setBusy("");setResources(undefined);if(!r.ok)return setMsg(apiError(j,"Could not reset Supabase connection."));setMsg("Supabase connector reset. Connect your Supabase account again.");await load()}
+  async function resetSupabase(confirmed=false){if(!confirmed){askConfirm({title:"Disconnect Supabase connector?",description:"This removes the saved Supabase OAuth tokens from OrbitFS. Your Supabase project and customer data are not deleted.",confirmLabel:"Disconnect Supabase",danger:true},()=>void resetSupabase(true));return}setBusy("supabase-reset");const r=await fetch("/api/orbitfs/providers/supabase",{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({action:"disconnect"})}),j=await r.json().catch(()=>({}));setBusy("");setResources(undefined);if(!r.ok)return setMsg(apiError(j,"Could not reset Supabase connection."));setMsg("Supabase connector reset. Connect your Supabase account again.");await load()}
   async function saveReleaseChannel(channel:string){
     setPreferredBaseChannel(channel);setSelectedReleaseId("");setReleaseConfirmed(false);
     if(!install)return;
@@ -183,94 +201,13 @@ export default function MyOrbitFS(){
       setMsg(`Published releases refreshed for ${selectedChannel}.`);
     }finally{setBusy("")}
   }
-  async function loadDomainState(force=false){
-    if(!install?.id||domainBusy==="load"||(!force&&domainState))return;
-    setDomainBusy("load");
-    try{
-      const r=await fetch(`/api/orbitfs/installations/${install.id}/domain`,{headers:await authHeaders(),cache:"no-store"}),j=await r.json().catch(()=>({}));
-      if(!r.ok)throw new Error(apiError(j,"Could not load Base domain settings."));
-      const next=j.domain||null;
-      setDomainState(next);
-      setDomainMode(next?.mode==="custom"?"custom":next?.mode==="vercel"?"vercel":"generated");
-      setCustomDomain(String(next?.vercelDomain||next?.customDomain||""));
-      setVercelAvailability(next?.mode==="vercel"&&next?.vercelDomain?{domain:next.vercelDomain,available:true,attached:true,reserved:true,current:true}:null);
-    }catch(e:any){setMsg(e?.message||"Could not load Base domain settings.")}
-    finally{setDomainBusy("")}
-  }
-  async function checkVercelDomain(){
-    if(!install?.id||domainBusy||!customDomain.trim())return null;
-    setDomainBusy("check");
-    try{
-      const r=await fetch(`/api/orbitfs/installations/${install.id}/domain`,{
-        method:"POST",
-        headers:{...(await authHeaders()),"content-type":"application/json"},
-        body:JSON.stringify({action:"check-vercel",domain:customDomain.trim()})
-      }),j=await r.json().catch(()=>({}));
-      if(!r.ok)throw new Error(apiError(j,"Could not check the Vercel address."));
-      const availability=j.availability||null;
-      setVercelAvailability(availability);
-      if(availability?.domain)setCustomDomain(String(availability.domain));
-      setMsg(availability?.available
-        ?`${availability.domain} ${availability.attached?"is already attached to this Base project.":"is available. It will only be claimed when you save."}`
-        :`${availability?.domain||customDomain} is already in use on Vercel.`);
-      return availability;
-    }catch(e:any){
-      setVercelAvailability(null);
-      setMsg(e?.message||"Could not check the Vercel address.");
-      return null;
-    }finally{setDomainBusy("")}
-  }
-  async function saveDomain(){
-    if(!install?.id||domainBusy)return;
-    if(domainMode==="vercel"){
-      const normalized=customDomain.trim().toLowerCase();
-      const checked=String(vercelAvailability?.domain||"").toLowerCase()===normalized||
-        String(vercelAvailability?.domain||"").toLowerCase()===`${normalized}.vercel.app`;
-      if(!checked||vercelAvailability?.available!==true){
-        const availability=await checkVercelDomain();
-        if(!availability?.available)return;
-      }
-    }
-    setDomainBusy("save");
-    try{
-      const r=await fetch(`/api/orbitfs/installations/${install.id}/domain`,{
-        method:"POST",
-        headers:{...(await authHeaders()),"content-type":"application/json"},
-        body:JSON.stringify({action:"save",mode:domainMode,domain:domainMode==="generated"?null:customDomain.trim()})
-      }),j=await r.json().catch(()=>({}));
-      if(!r.ok)throw new Error(apiError(j,"Could not update the Base domain."));
-      setDomainState(j.domain||null);
-      if(j.installation)setD((current:any)=>current?({...current,installations:(current.installations||[]).map((x:any)=>x.id===install.id?j.installation:x)}):current);
-      setCustomDomain(String(j.domain?.vercelDomain||j.domain?.customDomain||""));
-      setVercelAvailability(j.domain?.mode==="vercel"&&j.domain?.vercelDomain?{domain:j.domain.vercelDomain,available:true,reserved:true,current:true}:null);
-      setMsg(j.domain?.mode==="custom"&&!j.domain?.selectedVerified
-        ?`Custom domain ${j.domain?.customDomain||customDomain} was added to Vercel and is waiting for DNS verification.`
-        :`Base address updated to ${j.domain?.effectiveUrl||"the selected domain"}.`);
-    }catch(e:any){setMsg(e?.message||"Could not update the Base domain.")}
-    finally{setDomainBusy("")}
-  }
-  async function removeCustomDomain(name:string){
-    if(!install?.id||!name||domainBusy)return;
-    setDomainBusy("remove");
-    try{
-      const r=await fetch(`/api/orbitfs/installations/${install.id}/domain`,{
-        method:"POST",
-        headers:{...(await authHeaders()),"content-type":"application/json"},
-        body:JSON.stringify({action:"remove",domain:name})
-      }),j=await r.json().catch(()=>({}));
-      if(!r.ok)throw new Error(apiError(j,"Could not remove the custom domain."));
-      setDomainState(j.domain||null);
-      setMsg(`Removed ${name} from the Base Vercel project.`);
-    }catch(e:any){setMsg(e?.message||"Could not remove the custom domain.")}
-    finally{setDomainBusy("")}
-  }
   async function loadSupabase(){setBusy("resources");const r=await fetch("/api/orbitfs/providers/supabase",{headers:await authHeaders(),cache:"no-store"}),j=await r.json().catch(()=>({}));setBusy("");if(!r.ok)return setMsg(apiError(j,"Could not load your Supabase projects."));setResources(j);const first=j.organizations?.[0];if(!newProject.organizationSlug&&first)setNewProject(current=>({...current,organizationSlug:first.slug||first.id||""}))}
   async function supabaseAction(action:"select"|"create"){if(!install)return;setBusy(action);const body=action==="select"?{action,installationId:install.id,projectRef:selectedProject}:{action,installationId:install.id,...newProject},r=await fetch("/api/orbitfs/providers/supabase",{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify(body)}),j=await r.json().catch(()=>({}));setBusy("");setMsg(r.ok?`Your Supabase project was ${action==="select"?"selected":"created"}.`:apiError(j,"Supabase project action failed."));if(r.ok){setResources(undefined);setSiteStep(null);await load()}}
-  async function initialize(){if(!install||!selectedRelease)return;if(!selectedReleaseMatchesInstalled&&install.release_version&&install.release_id&&!confirm("This will initialize the selected published Base release, replacing the current installation release identity. Continue?"))return;setBusy("init");const r=await fetch(`/api/orbitfs/installations/${install.id}/initialize`,{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({releaseId:String(selectedRelease.id)})}),j=await r.json().catch(()=>({}));setBusy("");setMsg(r.ok?"OrbitFS database initialized. Licence activation happens after deployment in the Base first-time installer.":apiError(j,"Database initialization failed."));if(r.ok){setSiteStep(null);await load()}}
+  async function initialize(confirmed=false){if(!install||!selectedRelease)return;if(!selectedReleaseMatchesInstalled&&install.release_version&&install.release_id&&!confirmed){askConfirm({title:"Initialize a different Base release?",description:"This replaces the current installation release identity with the selected published Base release before deployment continues.",confirmLabel:"Initialize release",danger:true},()=>void initialize(true));return}setBusy("init");const r=await fetch(`/api/orbitfs/installations/${install.id}/initialize`,{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({releaseId:String(selectedRelease.id)})}),j=await r.json().catch(()=>({}));setBusy("");setMsg(r.ok?"OrbitFS database initialized. Licence activation happens after deployment in the Base first-time installer.":apiError(j,"Database initialization failed."));if(r.ok){setSiteStep(null);await load()}}
   async function connectVercelOAuth(){if(!install)return;setBusy("vercel-oauth");try{const r=await fetch("/api/orbitfs/oauth/vercel/start",{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({installationId:install.id})}),j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(apiError(j,"Could not connect Vercel."));location.href=j.url}catch(e:any){setMsg(e?.message||"Could not connect Vercel.");setBusy("")}}
   async function connectVercelToken(){const token=vercelToken.trim();if(!token)return setMsg("Enter your Vercel Full Account Access token.");setBusy("vercel");const r=await fetch("/api/orbitfs/providers/vercel",{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({action:"connect",token})}),j=await r.json().catch(()=>({}));setBusy("");if(!r.ok)return setMsg(apiError(j,"Could not validate Vercel access."));setVercelToken("");setVercelTeamId(String(j.account?.teamId||""));setMsg("Vercel API access connected.");await load()}
-  async function resetVercel(){if(!confirm("Reset the Vercel connector? This removes the saved Vercel token but does not delete your Vercel project. If OrbitFS is currently deployed, undeploy it first."))return;setBusy("vercel-reset");const r=await fetch("/api/orbitfs/providers/vercel",{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({action:"disconnect"})}),j=await r.json().catch(()=>({}));setBusy("");if(!r.ok)return setMsg(apiError(j,"Could not reset Vercel connection."));setVercelTeamId("");setVercelToken("");setMsg("Vercel connector reset. Connect it again when ready.");await load()}
-  async function resetSetupToStage1(){
+  async function resetVercel(confirmed=false){if(!confirmed){askConfirm({title:"Reset Vercel connector?",description:"This removes the saved Vercel token from OrbitFS but does not delete your Vercel project. If OrbitFS is deployed, undeploy it first.",confirmLabel:"Reset Vercel",danger:true},()=>void resetVercel(true));return}setBusy("vercel-reset");const r=await fetch("/api/orbitfs/providers/vercel",{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({action:"disconnect"})}),j=await r.json().catch(()=>({}));setBusy("");if(!r.ok)return setMsg(apiError(j,"Could not reset Vercel connection."));setVercelTeamId("");setVercelToken("");setMsg("Vercel connector reset. Connect it again when ready.");await load()}
+  async function resetSetupToStage1(confirmed=false){
     if(!install)return;
     if(install.vercel_deployment_id||install.production_url){
       setMsg("Undeploy OrbitFS first. Reset to Stage 1 never removes a live Vercel deployment automatically.");
@@ -278,7 +215,7 @@ export default function MyOrbitFS(){
       setCurrentStep(6);
       return;
     }
-    if(!confirm("Reset OrbitFS setup to Stage 1? This disconnects the saved Supabase and Vercel connections and clears installer selections. It does not delete your Supabase/Vercel projects, customer data, installation ID or licence binding."))return;
+    if(!confirmed){askConfirm({title:"Reset setup to Stage 1?",description:"This disconnects the saved Supabase and Vercel connections and clears installer selections. It does not delete provider projects, customer data, the installation ID or the licence binding.",confirmLabel:"Reset setup",danger:true},()=>void resetSetupToStage1(true));return}
     setBusy("reset-setup");
     try{
       const r=await fetch(`/api/orbitfs/installations/${install.id}/reset`,{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:"{}"});
@@ -304,13 +241,25 @@ export default function MyOrbitFS(){
     }
   }
   async function selectVercelTeam(){setBusy("vercel-team");const r=await fetch("/api/orbitfs/providers/vercel",{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({action:"select_team",teamId:vercelTeamId||null})}),j=await r.json().catch(()=>({}));setBusy("");setMsg(r.ok?"Vercel deployment account updated.":apiError(j,"Could not select that Vercel team."));if(r.ok)await load()}
-  async function deploy(action:"deploy"|"base_update"|"rollback"|"redeploy",version?:string,releaseId?:string){
+  async function deploy(action:"deploy"|"base_update"|"rollback"|"redeploy",version?:string,releaseId?:string,confirmed=false,confirmedReason=""){
     if(!install)return;
     if(activeOperation){setMsg(label(activeOperation.action)+" is already "+label(activeOperation.state)+". Deployment status below will update automatically.");return}
-    let reason="";
-    if(action==="rollback"){version=undefined;reason=prompt("Why are you rolling this Base deployment back?","")?.trim()||"";if(!reason)return}
     const actionLabel=action==="base_update"?"Update Base":action==="redeploy"?"Redeploy published Base":action==="rollback"?"Rollback Base":"Install Base";
-    if(!confirm(actionLabel+(version?" to "+version:"")+"?"))return;
+    if(!confirmed){
+      const target=version?" to "+version:"";
+      const description=action==="rollback"
+        ?"Roll back the current Base deployment through the authorised Base recovery flow. Enter a reason so the rollback is recorded in deployment history."
+        :action==="base_update"
+          ?"Apply the selected published Base release in the existing customer Vercel project."
+          :action==="redeploy"
+            ?"Redeploy the current published Base release in the existing customer Vercel project."
+            :"Install the selected published Base release into the configured customer environment.";
+      askConfirm({title:actionLabel+target+"?",description,confirmLabel:actionLabel,danger:action==="rollback",reasonRequired:action==="rollback"},reason=>void deploy(action,action==="rollback"?undefined:version,releaseId,true,reason));
+      return;
+    }
+    const reason=action==="rollback"?confirmedReason.trim():"";
+    if(action==="rollback"&&!reason){setMsg("Enter a rollback reason before proceeding.");return}
+    if(action==="rollback")version=undefined;
     if(action==="deploy")setSiteStep(5);
     const isBase=true;
     const baseAction=action==="deploy"?"install":action==="base_update"?"update":action;
@@ -339,11 +288,11 @@ export default function MyOrbitFS(){
       setBusy("");
     }
   }
-  async function forceReinstallBase(){
+  async function forceReinstallBase(confirmed=false){
     if(!install)return;
     if(activeOperation){setMsg(label(activeOperation.action)+" is already "+label(activeOperation.state)+". Wait for the active Base operation to finish before forcing a reinstall.");return}
     const channel=String(install.release_channel||selectedChannel||"stable");
-    if(!confirm("Force reinstall OrbitFS Base? This deletes ONLY the current Base Vercel project, releases/unlocks its licence activation, preserves Supabase/database/storage/installation ID and the Shared Engine Host, then PAUSES. Rotate the licence key, continue the reinstall here, then enter the new key inside the deployed Base."))return;
+    if(!confirmed){askConfirm({title:"Force reinstall OrbitFS Base?",description:"This deletes only the current Base Vercel project and releases its licence activation. Supabase, database, storage, installation ID and linked runtime services are preserved. The flow then pauses so you can rotate the licence key before continuing.",confirmLabel:"Force reinstall",danger:true},()=>void forceReinstallBase(true));return}
     setBusy("force-base-reinstall");
     try{
       const r=await fetch(`/api/orbitfs/installations/${install.id}/force-reinstall-base`,{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:"{}"});
@@ -376,8 +325,109 @@ export default function MyOrbitFS(){
     }
   }
   async function repairPublicUrl(){if(!install)return;setBusy("public-url-repair");try{const r=await fetch(`/api/orbitfs/installations/${install.id}/status`,{method:"POST",headers:await authHeaders(),cache:"no-store"}),j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(apiError(j,"Could not repair public Panel access."));await load();setMsg(j.installation?.health_status==="healthy"?"Public Panel URL repaired and verified.":"Production domain refreshed, but public health is unverified. Check the Vercel project protection settings and Panel health.")}catch(e:any){setMsg(e?.message||"Public URL repair failed.")}finally{setBusy("")}}
+  async function loadBaseDomain(){
+    if(!install?.id)return null;
+    setBusy("base-domain-refresh");
+    try{
+      const r=await fetch(`/api/orbitfs/installations/${install.id}/domain`,{headers:await authHeaders(),cache:"no-store"}),j=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(apiError(j,"Could not load Base domain settings."));
+      const state=j.domain||null;
+      setBaseDomainState(state);
+      setBaseDomainMode(state?.mode==="custom"?"custom":state?.mode==="vercel"?"vercel":"generated");
+      setBaseDomain(String(state?.domainName||""));
+      setBaseDomainAvailability(null);
+      setBaseDomainDns(j.dns||null);
+      return state;
+    }catch(e:any){setMsg(e?.message||"Could not load Base domain settings.");return null}
+    finally{setBusy("")}
+  }
+  function toggleBaseDomain(){
+    if(showBaseDomain){setShowBaseDomain(false);return}
+    setShowBaseDomain(true);
+    const saved=install?.metadata?.baseDomain;
+    const live=String(install?.production_url||"").replace(/^https?:\/\//,"").replace(/\/$/,"");
+    const generated=`${String(install?.vercel_project_name||"").trim().toLowerCase()}.vercel.app`;
+    const initialMode=saved?.mode==="custom"?"custom":saved?.mode==="vercel"?"vercel":saved?.mode==="generated"?"generated":live&&live!==generated?(live.endsWith(".vercel.app")?"vercel":"custom"):"generated";
+    setBaseDomainMode(initialMode);
+    setBaseDomain(String(saved?.domainName||(initialMode==="generated"?"":live)||""));
+    setBaseDomainAvailability(null);
+    setBaseDomainDns(null);
+    void loadBaseDomain();
+  }
+  async function checkBaseDomainAvailability(){
+    if(!install?.id||!baseDomain.trim())return null;
+    setBusy("base-domain-check");
+    try{
+      const r=await fetch(`/api/orbitfs/installations/${install.id}/domain`,{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({action:"check",domain:baseDomain})}),j=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(apiError(j,"Could not check that Vercel address."));
+      setBaseDomainAvailability(j.availability||null);
+      if(j.availability?.domain)setBaseDomain(String(j.availability.domain));
+      return j.availability||null;
+    }catch(e:any){setBaseDomainAvailability(null);setMsg(e?.message||"Could not check that Vercel address.");return null}
+    finally{setBusy("")}
+  }
+  async function inspectBaseDomainDns(){
+    if(!install?.id||!baseDomain.trim())return null;
+    setBusy("base-domain-dns");
+    try{
+      const r=await fetch(`/api/orbitfs/installations/${install.id}/domain`,{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({action:"dns",domain:baseDomain})}),j=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(apiError(j,"Could not load DNS requirements for this custom domain."));
+      setBaseDomainDns(j.dns||null);
+      return j.dns||null;
+    }catch(e:any){
+      setBaseDomainDns(null);
+      setMsg(e?.message||"Could not load DNS requirements for this custom domain.");
+      return null;
+    }finally{setBusy("")}
+  }
+  async function verifyBaseDomain(){
+    if(!install?.id||!baseDomain.trim())return null;
+    setBusy("base-domain-verify");
+    try{
+      const r=await fetch(`/api/orbitfs/installations/${install.id}/domain`,{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({action:"verify",domain:baseDomain})}),j=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(apiError(j,"Vercel could not verify this custom domain yet."));
+      if(j.installation)setD((current:any)=>current?({...current,installations:(current.installations||[]).map((x:any)=>x.id===j.installation.id?j.installation:x)}):current);
+      const state=j.domain||null;
+      setBaseDomainState(state);
+      setBaseDomain(String(state?.domainName||baseDomain));
+      setBaseDomainDns(j.dns||null);
+      if(state?.verified===true&&j.dns?.configured===true)setMsg(`Custom domain ${state.domainName} is verified by Vercel and is now the active Base Panel address.`);
+      else if(j.verification?.verified===true)setMsg(`Vercel verified ownership of ${state?.domainName||baseDomain}, but DNS routing is still incomplete. Apply the required DNS records, then verify again.`);
+      else setMsg(`Vercel verification for ${state?.domainName||baseDomain} is still pending.`);
+      return state;
+    }catch(e:any){
+      setMsg(e?.message||"Vercel could not verify this custom domain yet.");
+      return null;
+    }finally{setBusy("")}
+  }
+  async function saveBaseDomain(){
+    if(!install?.id)return;
+    if(baseDomainMode!=="generated"&&!baseDomain.trim()){setMsg("Enter the Base domain you want to use.");return}
+    if(baseDomainMode==="vercel"){
+      const normalized=baseDomain.trim().toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,"");
+      const checked=String(baseDomainAvailability?.domain||"").toLowerCase();
+      const matches=checked===normalized||checked===`${normalized}.vercel.app`||normalized===`${checked}.vercel.app`;
+      const availability=matches&&baseDomainAvailability?.available?baseDomainAvailability:await checkBaseDomainAvailability();
+      if(!availability?.available){if(availability)setMsg(`${availability.domain||baseDomain} is already in use on Vercel.`);return}
+    }
+    setBusy("base-domain-save");
+    try{
+      const r=await fetch(`/api/orbitfs/installations/${install.id}/domain`,{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({action:"save",mode:baseDomainMode,domain:baseDomainMode==="generated"?null:baseDomain})}),j=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(apiError(j,"Could not update the Base domain."));
+      if(j.installation)setD((current:any)=>current?({...current,installations:(current.installations||[]).map((x:any)=>x.id===j.installation.id?j.installation:x)}):current);
+      const state=j.domain||null;
+      setBaseDomainState(state);
+      setBaseDomainMode(state?.mode==="custom"?"custom":state?.mode==="vercel"?"vercel":"generated");
+      setBaseDomain(String(state?.domainName||""));
+      setBaseDomainAvailability(j.availability||null);
+      setBaseDomainDns(j.dns||null);
+      setMsg(state?.mode==="custom"&&state?.verified===false?`Custom domain ${state.domainName} is attached. Complete Vercel DNS verification; OrbitFS keeps the generated address active until verification succeeds.`:`Base Panel address updated to ${state?.effectiveUrl||state?.domainName||state?.generatedDomain||"the generated Vercel domain"}.`);
+    }catch(e:any){setMsg(e?.message||"Could not update the Base domain.")}
+    finally{setBusy("")}
+  }
+
   async function lifecyclePlanFor(action:"undeploy"|"uninstall"){if(!install)return;setBusy("lifecycle-plan");try{const options=action==="uninstall"?uninstallOptions:{removeDatabase:false,removeStorage:false,releaseLicense:false};const r=await fetch(`/api/orbitfs/installations/${install.id}/lifecycle`,{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({action:"plan",mode:action,...options})}),j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(apiError(j,"Could not create lifecycle plan."));setLifecyclePlan(j);return j}catch(e:any){setMsg(e?.message||"Could not create lifecycle plan.");return null}finally{setBusy("")}}
-  async function executeLifecycle(action:"undeploy"|"uninstall"){if(!install)return;const planned=await lifecyclePlanFor(action);if(!planned)return;const destructive=action==="uninstall"&&[uninstallOptions.removeDatabase&&"OrbitFS database objects",uninstallOptions.removeStorage&&"OrbitFS storage bucket",uninstallOptions.releaseLicense&&"licence installation binding"].filter(Boolean);const summary=action==="undeploy"?"Undeploy OrbitFS? The Panel and Shared Engine Host will be removed. Your database, storage, licence binding and installation ID will be preserved.":`Uninstall OrbitFS? This removes the running Panel/Engine resources.${destructive&&destructive.length?` It will also permanently remove: ${destructive.join(", ")}.`:" Database, storage and licence binding will be preserved."} The Supabase project itself is never deleted.`;if(!confirm(summary))return;setBusy(action);try{const r=await fetch(`/api/orbitfs/installations/${install.id}/lifecycle`,{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({action,jobId:planned?.job?.id,...(action==="uninstall"?uninstallOptions:{})})}),j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(apiError(j,`${action} failed.`));setLifecyclePlan(j);await trackCustomerActivity(action==="undeploy"?"orbitfs.installation.undeploy":"orbitfs.installation.uninstall",{entityType:"license",entityId:binding?.id,detail:{installation_id:install.installation_id,job_id:j?.job?.id,options:action==="uninstall"?uninstallOptions:{}}});setMsg(action==="undeploy"?"OrbitFS undeployed. Database, storage, licence and installation ID were preserved.":"OrbitFS uninstall completed with the selected cleanup options.");await load()}catch(e:any){setMsg(e?.message||`${action} failed.`)}finally{setBusy("")}}
+  async function executeLifecycle(action:"undeploy"|"uninstall",plannedOverride:any=null,confirmed=false){if(!install)return;const planned=plannedOverride||await lifecyclePlanFor(action);if(!planned)return;const destructive=action==="uninstall"&&[uninstallOptions.removeDatabase&&"OrbitFS database objects",uninstallOptions.removeStorage&&"OrbitFS storage bucket",uninstallOptions.releaseLicense&&"licence installation binding"].filter(Boolean);const summary=action==="undeploy"?"The deployed OrbitFS runtime will be removed. Database, storage, licence binding and installation ID are preserved.":`This removes the running OrbitFS resources.${destructive&&destructive.length?` It will also permanently remove: ${destructive.join(", ")}.`:" Database, storage and licence binding will be preserved."} The Supabase project itself is never deleted.`;if(!confirmed){askConfirm({title:action==="undeploy"?"Undeploy OrbitFS?":"Uninstall OrbitFS?",description:summary,confirmLabel:action==="undeploy"?"Undeploy":"Uninstall",danger:true},()=>void executeLifecycle(action,planned,true));return}setBusy(action);try{const r=await fetch(`/api/orbitfs/installations/${install.id}/lifecycle`,{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({action,jobId:planned?.job?.id,...(action==="uninstall"?uninstallOptions:{})})}),j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(apiError(j,`${action} failed.`));setLifecyclePlan(j);await trackCustomerActivity(action==="undeploy"?"orbitfs.installation.undeploy":"orbitfs.installation.uninstall",{entityType:"license",entityId:binding?.id,detail:{installation_id:install.installation_id,job_id:j?.job?.id,options:action==="uninstall"?uninstallOptions:{}}});setMsg(action==="undeploy"?"OrbitFS undeployed. Database, storage, licence and installation ID were preserved.":"OrbitFS uninstall completed with the selected cleanup options.");await load()}catch(e:any){setMsg(e?.message||`${action} failed.`)}finally{setBusy("")}}
 
   if(loading)return <main className="portalOverviewV2 orbitfsBaseV3"><section className="panel"><b>{msg||"Loading My OrbitFS…"}</b>{msg&&<p className="muted">Loading the rest of your deployment state…</p>}</section></main>;
   if(!d)return <main className="portalOverviewV2 orbitfsBaseV3 orbitZipDeployer"><section className="panel"><h2>My OrbitFS could not load</h2><p className="muted">{msg||"The OrbitFS status service did not return data."}</p><button onClick={()=>void load()}>Retry</button></section></main>;
@@ -445,34 +495,32 @@ export default function MyOrbitFS(){
   const journey=[
     {id:1,title:"Connections",text:"Connect Supabase and Vercel.",done:connectionsReady},
     {id:2,title:"Database",text:"Choose the Supabase project.",done:supabaseReady},
-    {id:3,title:"Inner deployment",text:"Choose the approved runtime release used to create your OrbitFS environment.",done:releaseReady},
-    {id:4,title:"Shared Engine",text:"Initialize the shared runtime and customer database before any plugin is installed.",done:configurationReady},
-    {id:5,title:"Live Progress",text:"Deploy the Inner environment and Shared Engine, then follow the actual installation progress.",done:panelReady},
-    {id:6,title:"Plugins",text:"Open the Inner deployment and install only plugins covered by an active licence.",done:panelReady}
+    {id:3,title:"Base release",text:"Choose the approved Base release for this installation.",done:releaseReady},
+    {id:4,title:"Database setup",text:"Initialize the selected Base schema in the customer database.",done:configurationReady},
+    {id:5,title:"Live Progress",text:"Deploy OrbitFS Base and follow the actual installation progress.",done:panelReady}
   ];
   const journeyCurrent=pendingBaseForceReinstall?4:journey.find(x=>!x.done)?.id||5;
   const activeSiteStep=siteStep??journeyCurrent;
   const websiteState=deploymentNeedsAttention?"orbitSiteAttention":activeOperation?"orbitSiteProgress":panelReady?"orbitSiteControl":activeSiteStep===5?"orbitSiteReview":"orbitSiteDeployer";
   function openSiteStep(n:number){
-    if(n===6){if(panelReady)window.scrollTo({top:0,behavior:"smooth"});return}
     if(n>=1&&n<=5)setSiteStep(n);
   }
 
-  return <main className={"portalOverviewV2 orbitfsBaseV3 orbitZipDeployer "+websiteState+" "+(panelReady?"orbitZipDeployed":"orbitZipInstalling")} aria-label="OrbitFS Inner Deployer">
+  return <main className={"portalOverviewV2 orbitfsBaseV3 orbitZipDeployer "+websiteState+" "+(panelReady?"orbitZipDeployed":"orbitZipInstalling")} aria-label="OrbitFS Base Deployment">
     {!panelReady&&<header className="orbitV5Hero">
       <div><p className="eyebrow">DEPLOYMENT CENTER</p>
-        <h1>{deploymentNeedsAttention?"Deployment needs attention":activeOperation?"Deployment progress":activeSiteStep===5?"Review deployment":"Inner Deployment"}</h1>
-        <p className="orbitV5Lead">{deploymentNeedsAttention?"A deployment step needs attention. Review the recorded error and continue from the relevant stage.":activeOperation?"Your Inner deployment is running. Progress and recent activity below use your actual deployment records.":activeSiteStep===5?"Confirm the selected runtime release and customer infrastructure before deploying.":"Create your OrbitFS Inner environment first, bring up the Shared Engine, then install only the plugins your account is licensed to use."}</p>
-        <p className="orbitV5Note">Required order: Inner Deploy → Shared Engine → licensed plugin. At least one active OrbitFS add-on licence (MCP, APEX or Studio) is required to deploy the Shared Engine.</p>
+        <h1>{deploymentNeedsAttention?"Deployment needs attention":activeOperation?"Deployment progress":activeSiteStep===5?"Review deployment":"Base Deployment"}</h1>
+        <p className="orbitV5Lead">{deploymentNeedsAttention?"A deployment step needs attention. Review the recorded error and continue from the relevant stage.":activeOperation?"Your Base deployment is running. Progress and recent activity below use your actual deployment records.":activeSiteStep===5?"Confirm the selected Base release and customer infrastructure before deploying.":"Connect your customer-owned infrastructure, select an approved Base release and deploy OrbitFS Base."}</p>
+        <p className="orbitV5Note">Required order: connect providers → choose the customer database → select the approved Base release → deploy Base.</p>
       </div>
       <div className="orbitV5HeroState"><span className={"state "+(deploymentNeedsAttention?"waiting":activeOperation?"current":binding?"ready":"waiting")}>{deploymentNeedsAttention?"ATTENTION":activeOperation?"IN PROGRESS":binding?"ENTITLEMENT ATTACHED":"LICENCE REQUIRED"}</span>{install?.installation_id&&<small>Installation {String(install.installation_id).slice(0,13)}…</small>}</div>
     </header>}
     {!panelReady&&!install&&binding&&<section className="orbitV5Start">
       <span className="orbitV5StartGlyph" aria-hidden="true">↗</span>
-      <div><p className="eyebrow">READY TO DEPLOY</p><h2>Start Inner deployment</h2><p>An active MCP, APEX or Studio licence unlocks the Inner deployment. The Shared Engine is created and linked first; licensed plugins are installed into it afterwards.</p></div>
+      <div><p className="eyebrow">READY TO DEPLOY</p><h2>Start Base deployment</h2><p>Prepare the customer-owned Supabase and Vercel infrastructure, then deploy an approved OrbitFS Base release.</p></div>
       <div className="orbitV5StartControls"><button className="orbitHeroAction" disabled={providerSetupUnavailable||busy!==""} onClick={()=>void start()}>{busy==="start"?"Starting…":"Begin Deployment →"}</button><small>Customer-owned infrastructure · Manual deployment</small></div>
     </section>}
-    {deploymentUnavailable&&<section className="panel orbitAuthorityNotice" style={{marginBottom:14,borderColor:"rgba(245,158,11,.55)"}}><div className="panelTitle"><div><p className="eyebrow">{settings.maintenance_mode?"MAINTENANCE":"LICENSE MANAGER CONTROL"}</p><h2>{settings.maintenance_mode?"OrbitFS deployment maintenance is active":"Inner deployment is currently restricted"}</h2><p className="muted">{authorityNotice}</p></div><span className="state waiting">{settings.maintenance_mode?"MAINTENANCE":"BLOCKED"}</span></div></section>}
+    {deploymentUnavailable&&<section className="panel orbitAuthorityNotice orbitBaseAuthorityNotice"><div className="panelTitle"><div><p className="eyebrow">{settings.maintenance_mode?"MAINTENANCE":"LICENSE MANAGER CONTROL"}</p><h2>{settings.maintenance_mode?"OrbitFS deployment maintenance is active":"Base deployment is currently restricted"}</h2><p className="muted">{authorityNotice}</p></div><span className="state waiting">{settings.maintenance_mode?"MAINTENANCE":"BLOCKED"}</span></div></section>}
     {msg&&<p className="inlineStatus orbitInstallerMessage" role="status">{msg}</p>}
     {deploymentNeedsAttention&&!activeOperation&&!panelReady&&<section className="panel orbitV5Failure">
       <div><p className="eyebrow">DEPLOYMENT NEEDS ATTENTION</p><h2>{latestOperation?.error_code?"Deployment error · "+latestOperation.error_code:"Your Base deployment needs attention"}</h2>
@@ -485,27 +533,74 @@ export default function MyOrbitFS(){
         <Link className="buttonlink secondary" href="/portal/support">Contact support ↗</Link>
       </div>
     </section>}
-    {pendingBaseForceReinstall&&<section className="panel orbitAuthorityNotice" style={{marginBottom:14,borderColor:"rgba(245,158,11,.65)"}}>
-      <div className="panelTitle"><div><p className="eyebrow">BASE FORCE REINSTALL</p><h2>{baseReinstallDeploymentFailed?"Base reinstall needs another deployment attempt":"Rotate the licence key, then continue"}</h2><p className="muted">Target: published Base {pendingBaseForceReinstall.targetVersion||"current"} · {pendingBaseForceReinstall.channel||selectedChannel}. The previous Base project has been removed; Supabase, customer data, storage, installation ID and Shared Engine Host are preserved.</p></div><span className="state waiting">{baseReinstallDeploymentFailed?"RETRY REQUIRED":"ROTATION REQUIRED"}</span></div>
-      <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}><Link className="buttonlink" href="/portal/orbitfs/license">Rotate licence key →</Link><button className="secondary" disabled={busy!==""} onClick={()=>void deploy("deploy")}>{busy==="deploy"?"Checking rotation…":"I rotated the key · Continue reinstall"}</button><span className="muted">{baseReinstallDeploymentFailed?(pendingBaseForceReinstall.lastError||"Retry the Base deployment."):"Billing checks rotation state with License Manager. The raw key is entered only inside the deployed Base."}</span></div>
+    {pendingBaseForceReinstall&&<section className="panel orbitAuthorityNotice orbitBaseAuthorityNotice orbitBaseReinstallNotice">
+      <div className="panelTitle"><div><p className="eyebrow">BASE FORCE REINSTALL</p><h2>{baseReinstallDeploymentFailed?"Base reinstall needs another deployment attempt":"Rotate the licence key, then continue"}</h2><p className="muted">Target: published Base {pendingBaseForceReinstall.targetVersion||"current"} · {pendingBaseForceReinstall.channel||selectedChannel}. The previous Base project has been removed; Supabase, customer data, storage, installation ID and linked runtime services are preserved.</p></div><span className="state waiting">{baseReinstallDeploymentFailed?"RETRY REQUIRED":"ROTATION REQUIRED"}</span></div>
+      <div className="orbitBaseRecoveryActions"><Link className="buttonlink" href="/portal/orbitfs/license">Rotate licence key →</Link><button className="secondary" disabled={busy!==""} onClick={()=>void deploy("deploy")}>{busy==="deploy"?"Checking rotation…":"I rotated the key · Continue reinstall"}</button><span className="muted">{baseReinstallDeploymentFailed?(pendingBaseForceReinstall.lastError||"Retry the Base deployment."):"Billing checks rotation state with License Manager. The raw key is entered only inside the deployed Base."}</span></div>
     </section>}
-    {panelReady&&install&&(activeOperation||latestOperation?.state==="failed")&&<section className="panel orbitV5OperationPanel orbitV5InstalledProgress" style={{marginBottom:14}}>
-      <div className="panelTitle"><div><p className="eyebrow">DEPLOYMENT STATUS</p><h2>{activeOperation?label(activeOperation.action)+" · "+label(activeOperation.state):latestOperation?.state==="failed"?"Last deployment attempt failed":"Recent deployment activity"}</h2><p className="muted">{activeOperation?`Live Base operation. Status, events and Vercel readiness refresh automatically every 3 seconds${liveCheckedAt?" · last checked "+new Date(liveCheckedAt).toLocaleTimeString():""}.`:"Latest Base deployment operation recorded by Billing Store."}</p></div><span className={"state "+(activeOperation?"current":latestOperation?.state==="completed"?"ready":"waiting")}>{String(activeOperation?.state||latestOperation?.state||"status").replaceAll("_"," ").toUpperCase()}</span></div>
-      {activeOperation&&<div className="portalOverviewStats" style={{marginTop:10}}>
+    {panelReady&&install&&(activeOperation||latestOperation?.state==="failed")&&<section className="panel orbitV5OperationPanel orbitV5InstalledProgress orbitBaseStatusPanel">
+      <div className="panelTitle"><div><p className="eyebrow">DEPLOYMENT STATUS</p><h2>{activeOperation?label(activeOperation.action)+" · "+label(activeOperation.state):latestOperation?.state==="failed"?"Last deployment attempt failed":"Recent deployment activity"}</h2><p className="muted">{activeOperation?`Live Base operation. Status, events and Vercel readiness refresh automatically every 60 seconds${liveCheckedAt?" · last checked "+new Date(liveCheckedAt).toLocaleTimeString():""}.`:"Latest Base deployment operation recorded by Billing Store."}</p></div><span className={"state "+(activeOperation?"current":latestOperation?.state==="completed"?"ready":"waiting")}>{String(activeOperation?.state||latestOperation?.state||"status").replaceAll("_"," ").toUpperCase()}</span></div>
+      {activeOperation&&<div className="portalOverviewStats orbitBaseStatusStats">
         <div className="portalStatCard"><div><small>ACTION</small><strong>{label(activeOperation.action)}</strong><span>{activeOperation.detail?.version||activeOperation.requested_release_id||"Current release"}</span></div></div>
         <div className="portalStatCard"><div><small>STAGE</small><strong>{label(activeOperation.state)}</strong><span>{activeOperation.heartbeat_at?"Updated "+new Date(activeOperation.heartbeat_at).toLocaleTimeString():"Waiting for progress"}</span></div></div>
         <div className="portalStatCard"><div><small>VERCEL</small><strong>{activeOperation.vercel_deployment_id||"Waiting"}</strong><span>{activeOperation.vercel_project_id||install.vercel_project_name||"Existing project"}</span></div></div>
         <div className="portalStatCard"><div><small>STARTED</small><strong>{activeOperation.created_at?new Date(activeOperation.created_at).toLocaleTimeString():"Now"}</strong><span>{activeOperation.created_at?new Date(activeOperation.created_at).toLocaleDateString():""}</span></div></div>
       </div>}
-      {!activeOperation&&latestOperation?.error_detail&&<p className="inlineStatus" style={{marginTop:10}}><b>{latestOperation.error_code||"Error"}:</b> {latestOperation.error_detail}</p>}
-      <details style={{marginTop:10}}><summary style={summaryStyle}><b>Recent operations</b> · {operations.length}</summary><div style={{marginTop:8}}>{operations.slice(0,6).map((op:any)=><div className="listrow" key={op.id}><div><b>{label(op.action)} · {label(op.state)}</b><span>{op.error_detail||op.detail?.version||op.requested_release_id||"Deployment operation"}</span></div><span>{op.created_at?new Date(op.created_at).toLocaleString():""}</span></div>)}</div></details>
+      {!activeOperation&&latestOperation?.error_detail&&<p className="inlineStatus orbitBaseStatusError"><b>{latestOperation.error_code||"Error"}:</b> {latestOperation.error_detail}</p>}
+      <details className="orbitBaseOperations"><summary className="orbitBaseSummary"><b>Recent operations</b> · {operations.length}</summary><div className="orbitBaseOperationsList">{operations.slice(0,6).map((op:any)=><div className="listrow" key={op.id}><div><b>{label(op.action)} · {label(op.state)}</b><span>{op.error_detail||op.detail?.version||op.requested_release_id||"Deployment operation"}</span></div><span>{op.created_at?new Date(op.created_at).toLocaleString():""}</span></div>)}</div></details>
     </section>}
 
     {binding?<>
       {panelReady&&<section className="panel orbitZipControlPanel">
         <div className="orbitZipControlTop">
-          <div className="orbitZipControlIdentity"><p className="eyebrow">BASE INSTANCE</p><h2>{install.vercel_project_name||"Your OrbitFS Panel"}</h2><div className="orbitZipControlDomain">{install.production_url?<a href={install.production_url} target="_blank" rel="noreferrer">{install.production_url}</a>:<span>Production domain not detected</span>}<small>{liveCheckedAt?`Vercel/domain checked ${new Date(liveCheckedAt).toLocaleTimeString()}`:"Vercel domain is rechecked automatically while this page is open."}</small></div></div>
+          <div className="orbitZipControlIdentity"><p className="eyebrow">BASE INSTANCE</p><h2>{install.vercel_project_name||"Your OrbitFS Panel"}</h2><div className="orbitZipControlDomain">{install.production_url?<a href={install.production_url} target="_blank" rel="noreferrer">{install.production_url}</a>:<span>Production domain not detected</span>}<small>{liveCheckedAt?`Vercel/domain checked ${new Date(liveCheckedAt).toLocaleTimeString()}`:"Use Check status or Refresh domain to recheck Vercel."}</small></div></div>
           <div className="orbitZipControlTopActions"><span className={"state "+(validationReady?"ready":working?"current":"waiting")}>{validationReady?"HEALTHY":working?"IN PROGRESS":String(install.health_status||"UNVERIFIED").toUpperCase()}</span>{install.production_url&&<a className="buttonlink secondary" href={install.production_url} target="_blank" rel="noreferrer">Open Panel ↗</a>}<a className="buttonlink secondary" href={vercelProjectConsoleUrl} target="_blank" rel="noreferrer">Vercel ↗</a><button className="secondary" disabled={busy!==""} onClick={()=>void sync(false)}>Check status</button></div>
+        </div>
+
+        <div className="panel orbitBaseDomainPanel">
+          <div className={"panelTitle orbitBaseDomainHead "+(showBaseDomain?"open":"closed")}>
+            <div>
+              <p className="eyebrow">DOMAIN & ADDRESS</p>
+              <h2 className="orbitBaseDomainTitle">{install.production_url||(`https://${install.vercel_project_name}.vercel.app`)}</h2>
+              <p className="muted">Choose the Base Panel address on the existing Vercel project. Domain checks only run when you request them; this does not add background polling.</p>
+            </div>
+            <div className="orbitBaseDomainActions">
+              <button className="secondary" type="button" disabled={busy!==""} onClick={()=>void loadBaseDomain()}>{busy==="base-domain-refresh"?"Checking…":"Refresh domain"}</button>
+              <button className="secondary" type="button" disabled={busy!==""} onClick={toggleBaseDomain}>{showBaseDomain?"Close":"Configure"}</button>
+            </div>
+          </div>
+          {showBaseDomain&&<div className="form orbitBaseDomainForm">
+            <label>Address type
+              <select value={baseDomainMode} disabled={busy!==""} onChange={e=>{setBaseDomainMode(e.target.value as "generated"|"vercel"|"custom");setBaseDomainAvailability(null);setBaseDomainDns(null);if(e.target.value==="generated")setBaseDomain("");}}>
+                <option value="generated">Default generated Vercel domain</option>
+                <option value="vercel">Custom Vercel address</option>
+                <option value="custom">Custom domain</option>
+              </select>
+            </label>
+            {baseDomainMode==="generated"?<div className="listrow"><div><b>https://{install.vercel_project_name}.vercel.app</b><span>Stable generated address for this Base project.</span></div><span className="state ready">AVAILABLE</span></div>:<label>{baseDomainMode==="vercel"?"Custom Vercel address":"Custom domain"}
+              <input value={baseDomain} autoComplete="off" placeholder={baseDomainMode==="vercel"?"my-orbitfs.vercel.app":"orbitfs.example.com"} onChange={e=>{setBaseDomain(e.target.value);setBaseDomainAvailability(null);setBaseDomainDns(null)}}/>
+              <small className="muted">{baseDomainMode==="vercel"?"Enter any valid .vercel.app name, check whether it is free, then save it.":"OrbitFS attaches this domain to the existing Base project. Vercel may require DNS verification before it becomes the active Panel URL."}</small>
+            </label>}
+            {baseDomainMode==="vercel"&&baseDomainAvailability&&<p className="inlineStatus"><b>{baseDomainAvailability.available?"Available":"Unavailable"}:</b> {baseDomainAvailability.domain}{baseDomainAvailability.available?(baseDomainAvailability.attached?" is already attached to this Base deployment.":" can be claimed by this Base deployment."):" is already in use on Vercel."}</p>}
+            {baseDomainState?.mode==="custom"&&baseDomainState?.verified===false&&<p className="inlineStatus">Custom domain <b>{baseDomainState.domainName}</b> is attached but still needs Vercel verification. Add the DNS records below, then choose <b>Verify with Vercel</b>. The generated Vercel address remains active until verification succeeds.</p>}
+            {baseDomainState?.mode==="custom"&&baseDomainState?.verified===true&&<p className="inlineStatus"><b>Verified:</b> Vercel has accepted {baseDomainState.domainName} and OrbitFS is using it as the active Base Panel address.</p>}
+            {baseDomainMode==="custom"&&<div className="panel orbitBaseDnsPanel">
+              <div className="panelTitle orbitBaseDnsHead">
+                <div><p className="eyebrow">DNS REQUIREMENTS</p><h3 className="orbitBaseDnsTitle">Custom domain DNS</h3><p className="muted">Exact DNS values are requested from Vercel for this hostname. Add them at the DNS provider that currently hosts the domain, then use Verify with Vercel. OrbitFS keeps the generated address active until Vercel confirms both ownership and routing.</p></div>
+                {baseDomainDns&&<span className={"state "+(baseDomainDns.configured?"ready":"waiting")}>{baseDomainDns.configured?"CONFIGURED":"ACTION REQUIRED"}</span>}
+              </div>
+              {baseDomainDns?.records?.length?<div className="orbitBaseDnsRecords">
+                {baseDomainDns.records.map((record:any,index:number)=><div className="listrow" key={String(record.type)+"-"+String(record.name)+"-"+index}><div><b>{String(record.type||"DNS").toUpperCase()} · {record.name}</b><span className="orbitBaseBreakAll">{record.value}</span>{record.reason&&<small className="muted">{record.reason}</small>}</div><span>{record.purpose==="ownership"?"VERIFY":"ROUTE"}</span></div>)}
+                {baseDomainDns.nameservers?.length>0&&<div className="listrow"><div><b>Nameservers</b><span className="orbitBaseBreakAll">{baseDomainDns.nameservers.join(" · ")}</span></div><span>OPTION</span></div>}
+              </div>:<p className="inlineStatus">{baseDomainDns?.configError?"Vercel did not return exact DNS records yet. "+baseDomainDns.configError:"Enter the custom hostname, then choose Check DNS. Once the domain is attached, Vercel ownership-verification TXT records will also appear here when required."}</p>}
+            </div>}
+            <div className="controllerActions">
+              {baseDomainMode==="vercel"&&<button className="secondary" type="button" disabled={busy!==""||!baseDomain.trim()} onClick={()=>void checkBaseDomainAvailability()}>{busy==="base-domain-check"?"Checking…":"Check availability"}</button>}
+              {baseDomainMode==="custom"&&<button className="secondary" type="button" disabled={busy!==""||!baseDomain.trim()} onClick={()=>void inspectBaseDomainDns()}>{busy==="base-domain-dns"?"Checking DNS…":"Check DNS"}</button>}
+              {baseDomainMode==="custom"&&<button type="button" disabled={busy!==""||!baseDomain.trim()||baseDomainState?.mode!=="custom"||String(baseDomainState?.domainName||"").toLowerCase()!==baseDomain.trim().toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,"")} onClick={()=>void verifyBaseDomain()}>{busy==="base-domain-verify"?"Verifying with Vercel…":baseDomainState?.verified===true?"Verified with Vercel":"Verify with Vercel"}</button>}
+              <button type="button" disabled={busy!==""||(baseDomainMode!=="generated"&&!baseDomain.trim())} onClick={()=>void saveBaseDomain()}>{busy==="base-domain-save"?"Saving…":"Save address"}</button>
+              <a className="buttonlink secondary" href={vercelProjectConsoleUrl} target="_blank" rel="noreferrer">Open Vercel ↗</a>
+            </div>
+          </div>}
         </div>
 
         <div className="orbitZipReleaseWorkspace">
@@ -516,45 +611,6 @@ export default function MyOrbitFS(){
           </div>
           <div className="orbitZipReleaseMeta"><span>{baseUpdateCandidates.length?baseUpdateCandidates.length+" newer Base release"+(baseUpdateCandidates.length===1?"":"s")+" in "+selectedChannel:sameVersionBaseRevisionAvailable?"Current published Base "+latestBase+" has a newer package identity — redeploy required":d?.releaseCatalogLoading?"Checking published Base releases…":d?.baseReleaseDiscoveryByChannel?.[selectedChannel]?.available!==true?"Base release lookup unavailable":"No newer Base release in "+selectedChannel}</span><span>{d?.lastCheckedAt?"Checked "+new Date(d.lastCheckedAt).toLocaleString():"Release status not checked yet"}</span></div>
         </div>
-
-        <details className="orbitZipTechnicalDetails orbitZipDomainControl" onToggle={e=>{if(e.currentTarget.open)void loadDomainState(false)}}>
-          <summary><div><p className="eyebrow">DOMAIN & ADDRESS</p><b>Choose how this Base instance is reached</b></div><span>{domainState?.mode==="custom"?"Custom domain":domainState?.mode==="vercel"?"Custom Vercel address":"Generated domain"}</span></summary>
-          <div className="orbitZipControlGrid">
-            <div className="panel orbitZipControlSection">
-              <div className="panelTitle"><div><p className="eyebrow">CURRENT ADDRESS</p><h2>{domainState?.effectiveUrl||install.production_url||"Checking domain…"}</h2><p className="muted">Changing this does not create another Base deployment. It updates the address attached to this existing Vercel project.</p></div><span className={"state "+(domainState?.selectedVerified===false?"waiting":"ready")}>{domainBusy==="load"?"CHECKING":domainState?.selectedVerified===false?"DNS REQUIRED":"ACTIVE"}</span></div>
-              <div className="form">
-                <label>Address type
-                  <select value={domainMode} disabled={!!domainBusy} onChange={e=>{const value=e.target.value;setDomainMode(value==="custom"?"custom":value==="vercel"?"vercel":"generated");setVercelAvailability(null);}}>
-                    <option value="generated">Default Vercel address</option>
-                    <option value="vercel">Custom Vercel address</option>
-                    <option value="custom">My own domain</option>
-                  </select>
-                </label>
-                {domainMode==="vercel"&&<label>Custom Vercel address
-                  <input value={customDomain} disabled={!!domainBusy} onChange={e=>{setCustomDomain(e.target.value);setVercelAvailability(null)}} placeholder="my-orbitfs.vercel.app" autoCapitalize="none" autoCorrect="off"/>
-                  <small>Enter the name you want. Check availability first; nothing is claimed until you save.</small>
-                </label>}
-                {domainMode==="custom"&&<label>Custom domain
-                  <input value={customDomain} disabled={!!domainBusy} onChange={e=>setCustomDomain(e.target.value)} placeholder="panel.example.com" autoCapitalize="none" autoCorrect="off"/>
-                </label>}
-                <div className="inlineActions">
-                  {domainMode==="vercel"&&<button type="button" className="secondary" disabled={!!domainBusy||!customDomain.trim()} onClick={()=>void checkVercelDomain()}>{domainBusy==="check"?"Checking…":"Check availability"}</button>}
-                  <button type="button" disabled={!!domainBusy||(domainMode!=="generated"&&!customDomain.trim())} onClick={()=>void saveDomain()}>{domainBusy==="save"?"Saving…":domainMode==="custom"?"Use custom domain":domainMode==="vercel"?"Use Vercel address":"Use generated domain"}</button>
-                  <button type="button" className="secondary" disabled={!!domainBusy} onClick={()=>void loadDomainState(true)}>{domainBusy==="load"?"Checking…":"Refresh domain status"}</button>
-                </div>
-                {domainMode==="vercel"&&vercelAvailability&&<p className={"inlineStatus "+(vercelAvailability.available?"":"error")}><b>{vercelAvailability.available?"AVAILABLE":"UNAVAILABLE"}</b> · {vercelAvailability.domain}{vercelAvailability.available?(vercelAvailability.attached?" is already attached to this Base project.":" is available and will only be claimed when you save."):" is already in use on Vercel."}</p>}
-              </div>
-            </div>
-            <div className="panel orbitZipControlSection">
-              <div className="panelTitle"><div><p className="eyebrow">VERCEL DOMAINS</p><h2>Attached addresses</h2><p className="muted">All addresses stay on the same Base project. Custom Vercel addresses are claimed when saved; owned domains only become active after Vercel reports them verified.</p></div></div>
-              <div className="orbitZipControlRows">
-                <div><span>Default generated</span><b>{domainState?.generatedDomain||install.vercel_project_name+".vercel.app"}</b></div>
-                {domainState?.vercelDomains?.map((item:any)=><div key={item.name}><span>{domainState?.vercelDomain===item.name?"Active Vercel address":"Attached Vercel address"}</span><b>{item.name}</b>{domainState?.vercelDomain!==item.name&&<button type="button" className="secondary small" disabled={!!domainBusy} onClick={()=>void removeCustomDomain(item.name)}>Remove</button>}</div>)}
-                {domainState?.customDomains?.length?domainState.customDomains.map((item:any)=><div key={item.name}><span>{item.verified&&!item.misconfigured?"Verified custom":"Custom · DNS pending"}</span><b>{item.name}</b>{domainState?.customDomain!==item.name&&<button type="button" className="secondary small" disabled={!!domainBusy} onClick={()=>void removeCustomDomain(item.name)}>Remove</button>}</div>):<div><span>Custom domains</span><b>None attached</b></div>}
-              </div>
-            </div>
-          </div>
-        </details>
 
         <div className="portalOverviewStats orbitZipOverviewStats">
           <div className="portalStatCard"><span className="portalStatIcon">B</span><div><small>BASE</small><strong>{install.release_version}</strong><span>{selectedChannel} channel</span></div></div>
@@ -599,10 +655,10 @@ export default function MyOrbitFS(){
         <details className="panel orbitZipLifecyclePanel">
           <summary><div><p className="eyebrow">LIFECYCLE & RECOVERY</p><b>Deployment controls</b><span>Force reinstall Base, undeploy, reset or uninstall when you need recovery or removal.</span></div><span>Open controls</span></summary>
           <div className="orbitZipLifecycleBody">
-            <p className="muted">Force reinstall is Base-only: it removes the current Base Vercel project and releases/unlocks its licence activation. Supabase, database, storage, installation ID and Shared Engine Host stay in place. You must rotate the licence key and enter the replacement key before the newest approved published Base is deployed again.</p>
+            <p className="muted">Force reinstall is Base-only: it removes the current Base Vercel project and releases/unlocks its licence activation. Supabase, database, storage, installation ID and linked runtime services stay in place. You must rotate the licence key and enter the replacement key before the newest approved published Base is deployed again.</p>
             <div className="orbitZipLifecycleRows">
               <div><div><b>Force reinstall published Base</b><span>Delete only the current Base project, release the licence activation, then require a rotated key before the published Base is deployed again.</span></div><button className="orbitZipDangerButton" disabled={busy!==""||deploymentUnavailable||!infrastructureReady||!!pendingBaseForceReinstall} onClick={()=>void forceReinstallBase()}>{busy==="force-base-reinstall"?"Removing Base…":"Force reinstall Base"}</button></div>
-              <div><div><b>Undeploy OrbitFS</b><span>Remove the Base runtime and Shared Engine Host from Vercel while preserving the customer installation.</span></div><button className="secondary" disabled={busy!==""||!install.vercel_project_id} onClick={()=>void executeLifecycle("undeploy")}>{busy==="undeploy"?"Undeploying…":"Undeploy"}</button></div>
+              <div><div><b>Undeploy OrbitFS</b><span>Remove the deployed OrbitFS runtime from Vercel while preserving the customer installation.</span></div><button className="secondary" disabled={busy!==""||!install.vercel_project_id} onClick={()=>void executeLifecycle("undeploy")}>{busy==="undeploy"?"Undeploying…":"Undeploy"}</button></div>
               <details>
                 <summary><div><b>Uninstall OrbitFS</b><span>Remove the runtime and optionally clean OrbitFS-owned database, storage and licence binding.</span></div><span>Configure →</span></summary>
                 <div className="orbitZipUninstallOptions">
@@ -619,8 +675,8 @@ export default function MyOrbitFS(){
       </section>}
 
       {!panelReady&&<section className="orbitV5Flow">
-        <div className="orbitV5SectionTitle"><div><p className="eyebrow">DEPLOYMENT FLOW</p><h2>Your installation, step by step.</h2><p>Select a step to review or adjust its settings.</p></div><span>{journey.filter(x=>x.done).length} / 6 complete</span></div>
-        <nav className="orbitV5FlowCards" aria-label="Base installation stages">{journey.map(x=><button type="button" key={x.id} disabled={!install||(x.id===6&&!panelReady)} onClick={()=>openSiteStep(x.id)} className={"orbitV5FlowCard "+(x.done?"done":activeSiteStep===x.id?"active":"")} aria-current={(panelReady?x.id===6:activeSiteStep===x.id)?"step":undefined}>
+        <div className="orbitV5SectionTitle"><div><p className="eyebrow">DEPLOYMENT FLOW</p><h2>Your installation, step by step.</h2><p>Select a step to review or adjust its settings.</p></div><span>{journey.filter(x=>x.done).length} / 5 complete</span></div>
+        <nav className="orbitV5FlowCards" aria-label="Base installation stages">{journey.map(x=><button type="button" key={x.id} disabled={!install} onClick={()=>openSiteStep(x.id)} className={"orbitV5FlowCard "+(x.done?"done":activeSiteStep===x.id?"active":"")} aria-current={activeSiteStep===x.id?"step":undefined}>
           <span className="orbitV5FlowIndex">{x.done?"✓":x.id}</span><span><b>{x.title}</b><small>{x.text}</small></span>
         </button>)}</nav>
 
@@ -628,9 +684,9 @@ export default function MyOrbitFS(){
 
       {install&&!panelReady&&<div className="portalOverviewGrid orbitZipWorkspace orbitV5SingleWorkspace">
         <div className="orbitZipCanvasColumn">
-<section hidden={activeSiteStep!==1} className="orbitV5Connections">          <details hidden={activeSiteStep!==1} className="panel orbitInstallerWorkspace" open><summary className="panelTitle" style={summaryStyle}><div><p className="eyebrow">SUPABASE CONNECTION</p><h2>Connect Supabase</h2><p className="muted">Connect your Supabase account, then select or create the project for this installation.</p></div><span className={`state ${supabaseConnectionReady?"ready":"waiting"}`}>{supabaseConnectionReady?"CONNECTED":"CONNECT"}</span></summary>{!supabaseConnectionReady?<button disabled={providerSetupUnavailable||!settings.supabase_oauth_enabled||busy==="supabase"} onClick={()=>void connectSupabase()}>{busy==="supabase"?"Connecting…":"Connect my Supabase"}</button>:<><div className="listrow"><div><b>{supabase.provider_account_name||"Customer Supabase account"}</b><span>OAuth connection is saved and verified by the Billing Store.</span></div><span className="state ready">CONNECTED</span></div>{install.supabase_project_ref&&<p className="muted" style={{marginTop:10}}>A project selection is already recorded: <b>{install.supabase_project_name||install.supabase_project_ref}</b>. Review or change it in Step 2 (Database).</p>}<div className="controllerActions" style={{marginTop:10}}><button className="secondary" disabled={busy!==""} onClick={()=>void resetSupabase()}>Reset / reconnect Supabase</button></div></>}</details>          <details hidden={activeSiteStep!==1} className="panel orbitInstallerWorkspace" open><summary className="panelTitle" style={summaryStyle}><div><p className="eyebrow">VERCEL CONNECTION</p><h2>Connect Vercel</h2><p className="muted">Connect the customer Vercel account. OrbitFS will automate the project and runtime variables it can manage through the Vercel API.</p></div><span className={`state ${vercelApiReady?"ready":"waiting"}`}>{vercelApiReady?"CONNECTED":"CONNECT"}</span></summary>{vercelApiReady?<><div className="listrow"><div><b>{vercelConnection.provider_account_name||"Your Vercel account"}</b><span>Full API access validated. The token is stored encrypted and is never returned to this page.</span></div><span className="state ready">READY</span></div><div className="form" style={{marginTop:10}}><label>Deployment account/team<select value={vercelTeamId} onChange={e=>setVercelTeamId(e.target.value)}><option value="">Personal/default account</option>{vercelTeams.map((t:any)=><option key={t.id} value={t.id}>{t.name||t.slug||t.id}</option>)}</select></label><button className="secondary" disabled={busy==="vercel-team"} onClick={()=>void selectVercelTeam()}>{busy==="vercel-team"?"Saving…":"Use selected account"}</button><div className="controllerActions"><button className="secondary" disabled={busy!==""} onClick={()=>void resetVercel()}>Reset / reconnect Vercel</button></div></div></>:<div className="form"><p className="muted">Vercel connection is independent of database initialization, so you can connect hosting now even if a new Base release has not been published yet.</p><button disabled={providerSetupUnavailable||!settings.vercel_oauth_enabled||busy==="vercel-oauth"} onClick={()=>void connectVercelOAuth()}>{busy==="vercel-oauth"?"Connecting…":"Connect my Vercel"}</button><div className="orbitProviderDivider"><span>or use a Full Account Access token</span></div><a className="buttonlink secondary" href="https://vercel.com/account/tokens" target="_blank" rel="noreferrer">Open Vercel Tokens</a><label>Vercel token<input type="password" autoComplete="off" value={vercelToken} onChange={e=>setVercelToken(e.target.value)} placeholder="Paste token once"/></label><button className="secondary" disabled={providerSetupUnavailable||busy==="vercel"||!vercelToken.trim()} onClick={()=>void connectVercelToken()}>{busy==="vercel"?"Validating…":"Use Vercel access token"}</button></div>}</details><div className="orbitV5StepActions"><button disabled={!connectionsReady} onClick={()=>openSiteStep(2)}>Continue to database →</button></div></section>
+<section hidden={activeSiteStep!==1} className="orbitV5Connections">          <details hidden={activeSiteStep!==1} className="panel orbitInstallerWorkspace" open><summary className="panelTitle orbitBaseSummary"><div><p className="eyebrow">SUPABASE CONNECTION</p><h2>Connect Supabase</h2><p className="muted">Connect your Supabase account, then select or create the project for this installation.</p></div><span className={`state ${supabaseConnectionReady?"ready":"waiting"}`}>{supabaseConnectionReady?"CONNECTED":"CONNECT"}</span></summary>{!supabaseConnectionReady?<button disabled={providerSetupUnavailable||!settings.supabase_oauth_enabled||busy==="supabase"} onClick={()=>void connectSupabase()}>{busy==="supabase"?"Connecting…":"Connect my Supabase"}</button>:<><div className="listrow"><div><b>{supabase.provider_account_name||"Customer Supabase account"}</b><span>OAuth connection is saved and verified by the Billing Store.</span></div><span className="state ready">CONNECTED</span></div>{install.supabase_project_ref&&<p className="muted orbitBaseConnectedNote">A project selection is already recorded: <b>{install.supabase_project_name||install.supabase_project_ref}</b>. Review or change it in Step 2 (Database).</p>}<div className="controllerActions"><button className="secondary" disabled={busy!==""} onClick={()=>void resetSupabase()}>Reset / reconnect Supabase</button></div></>}</details>          <details hidden={activeSiteStep!==1} className="panel orbitInstallerWorkspace" open><summary className="panelTitle orbitBaseSummary"><div><p className="eyebrow">VERCEL CONNECTION</p><h2>Connect Vercel</h2><p className="muted">Connect the customer Vercel account. OrbitFS will automate the project and runtime variables it can manage through the Vercel API.</p></div><span className={`state ${vercelApiReady?"ready":"waiting"}`}>{vercelApiReady?"CONNECTED":"CONNECT"}</span></summary>{vercelApiReady?<><div className="listrow"><div><b>{vercelConnection.provider_account_name||"Your Vercel account"}</b><span>Full API access validated. The token is stored encrypted and is never returned to this page.</span></div><span className="state ready">READY</span></div><div className="form orbitBaseVercelForm"><label>Deployment account/team<select value={vercelTeamId} onChange={e=>setVercelTeamId(e.target.value)}><option value="">Personal/default account</option>{vercelTeams.map((t:any)=><option key={t.id} value={t.id}>{t.name||t.slug||t.id}</option>)}</select></label><button className="secondary" disabled={busy==="vercel-team"} onClick={()=>void selectVercelTeam()}>{busy==="vercel-team"?"Saving…":"Use selected account"}</button><div className="controllerActions"><button className="secondary" disabled={busy!==""} onClick={()=>void resetVercel()}>Reset / reconnect Vercel</button></div></div></>:<div className="form"><p className="muted">Vercel connection is independent of database initialization, so you can connect hosting now even if a new Base release has not been published yet.</p><button disabled={providerSetupUnavailable||!settings.vercel_oauth_enabled||busy==="vercel-oauth"} onClick={()=>void connectVercelOAuth()}>{busy==="vercel-oauth"?"Connecting…":"Connect my Vercel"}</button><div className="orbitProviderDivider"><span>or use a Full Account Access token</span></div><a className="buttonlink secondary" href="https://vercel.com/account/tokens" target="_blank" rel="noreferrer">Open Vercel Tokens</a><label>Vercel token<input type="password" autoComplete="off" value={vercelToken} onChange={e=>setVercelToken(e.target.value)} placeholder="Paste token once"/></label><button className="secondary" disabled={providerSetupUnavailable||busy==="vercel"||!vercelToken.trim()} onClick={()=>void connectVercelToken()}>{busy==="vercel"?"Validating…":"Use Vercel access token"}</button></div>}</details><div className="orbitV5StepActions"><button disabled={!connectionsReady} onClick={()=>openSiteStep(2)}>Continue to database →</button></div></section>
 
-<section hidden={activeSiteStep!==2} className="panel orbitInstallerWorkspace orbitV5DatabaseStep"><div className="panelTitle"><div><p className="eyebrow">STEP 2 · DATABASE</p><h2>Choose your Supabase project</h2><p className="muted">Select or create your database project here. Its Base schema is initialized in Step 4 after release selection.</p></div><span className={"state "+(supabaseReady?"ready":"waiting")}>{supabaseReady?"SELECTED":"REQUIRED"}</span></div>{!supabaseConnectionReady?<button onClick={()=>openSiteStep(1)}>Connect providers in Step 1</button>:<><div className="listrow"><div><b>{supabaseReady?(install.supabase_project_name||install.supabase_project_ref):"No project selected"}</b><span>{supabaseReady?(install.supabase_region||"Supabase")+" · "+install.supabase_project_ref:"Choose your customer-owned project"}</span></div><span className={"state "+(supabaseReady?"ready":"waiting")}>{supabaseReady?"SELECTED":"REQUIRED"}</span></div>{!databaseReady&&<><button className="secondary" style={{marginTop:10}} onClick={()=>void loadSupabase()} disabled={busy==="resources"}>{busy==="resources"?"Loading…":resources?"Refresh projects":supabaseReady?"Review / change project":"Choose project"}</button>{resources&&<div className="form" style={{marginTop:12}}>{settings.allow_create_supabase_project&&<><h3>Create a dedicated OrbitFS project</h3><label>Organization<select value={newProject.organizationSlug} onChange={e=>setNewProject({...newProject,organizationSlug:e.target.value})}><option value="">Choose organization</option>{(resources.organizations||[]).map((o:any)=><option key={o.slug||o.id} value={o.slug||o.id}>{o.name}</option>)}</select></label><label>Project name<input value={newProject.name} onChange={e=>setNewProject({...newProject,name:e.target.value})} placeholder="OrbitFS"/></label><label>Region<input value={newProject.region} onChange={e=>setNewProject({...newProject,region:e.target.value})}/></label><button disabled={!newProject.organizationSlug||busy==="create"} onClick={()=>void supabaseAction("create")}>{busy==="create"?"Creating…":"Create in my Supabase"}</button></>}{settings.allow_existing_supabase_project&&<><h3>Use an existing project</h3><label>Project<select value={selectedProject} onChange={e=>setSelectedProject(e.target.value)}><option value="">Choose project</option>{(resources.projects||[]).map((p:any)=><option key={p.id||p.ref} value={p.id||p.ref}>{p.name} · {p.region||"region"}</option>)}</select></label><button disabled={!selectedProject||busy==="select"} onClick={()=>void supabaseAction("select")}>Use selected project</button></>}</div>}</>}{databaseReady&&<p className="inlineStatus">Already initialized: schema {install?.schema_version||"recorded"}.</p>}<div className="orbitV5StepActions"><button disabled={!supabaseReady} onClick={()=>openSiteStep(3)}>Continue to channel & release →</button></div></>}</section>
+<section hidden={activeSiteStep!==2} className="panel orbitInstallerWorkspace orbitV5DatabaseStep"><div className="panelTitle"><div><p className="eyebrow">STEP 2 · DATABASE</p><h2>Choose your Supabase project</h2><p className="muted">Select or create your database project here. Its Base schema is initialized in Step 4 after release selection.</p></div><span className={"state "+(supabaseReady?"ready":"waiting")}>{supabaseReady?"SELECTED":"REQUIRED"}</span></div>{!supabaseConnectionReady?<button onClick={()=>openSiteStep(1)}>Connect providers in Step 1</button>:<><div className="listrow"><div><b>{supabaseReady?(install.supabase_project_name||install.supabase_project_ref):"No project selected"}</b><span>{supabaseReady?(install.supabase_region||"Supabase")+" · "+install.supabase_project_ref:"Choose your customer-owned project"}</span></div><span className={"state "+(supabaseReady?"ready":"waiting")}>{supabaseReady?"SELECTED":"REQUIRED"}</span></div>{!databaseReady&&<><button className="secondary orbitBaseProjectAction" onClick={()=>void loadSupabase()} disabled={busy==="resources"}>{busy==="resources"?"Loading…":resources?"Refresh projects":supabaseReady?"Review / change project":"Choose project"}</button>{resources&&<div className="form orbitBaseProjectForm">{settings.allow_create_supabase_project&&<><h3>Create a dedicated OrbitFS project</h3><label>Organization<select value={newProject.organizationSlug} onChange={e=>setNewProject({...newProject,organizationSlug:e.target.value})}><option value="">Choose organization</option>{(resources.organizations||[]).map((o:any)=><option key={o.slug||o.id} value={o.slug||o.id}>{o.name}</option>)}</select></label><label>Project name<input value={newProject.name} onChange={e=>setNewProject({...newProject,name:e.target.value})} placeholder="OrbitFS"/></label><label>Region<input value={newProject.region} onChange={e=>setNewProject({...newProject,region:e.target.value})}/></label><button disabled={!newProject.organizationSlug||busy==="create"} onClick={()=>void supabaseAction("create")}>{busy==="create"?"Creating…":"Create in my Supabase"}</button></>}{settings.allow_existing_supabase_project&&<><h3>Use an existing project</h3><label>Project<select value={selectedProject} onChange={e=>setSelectedProject(e.target.value)}><option value="">Choose project</option>{(resources.projects||[]).map((p:any)=><option key={p.id||p.ref} value={p.id||p.ref}>{p.name} · {p.region||"region"}</option>)}</select></label><button disabled={!selectedProject||busy==="select"} onClick={()=>void supabaseAction("select")}>Use selected project</button></>}</div>}</>}{databaseReady&&<p className="inlineStatus">Already initialized: schema {install?.schema_version||"recorded"}.</p>}<div className="orbitV5StepActions"><button disabled={!supabaseReady} onClick={()=>openSiteStep(3)}>Continue to channel & release →</button></div></>}</section>
 
           <section hidden={activeSiteStep!==3} className="panel orbitInstallerWorkspace orbitV5ReleaseStep">
             <div className="panelTitle"><div><p className="eyebrow">STEP 3 · CHANNEL & RELEASE</p><h2>Select your Base release</h2><p className="muted">Choose the channel and published Base version authorized by License Manager. The database is initialized for that exact release.</p></div><span className={"state "+(releaseReady?"ready":selectedRelease?"current":"waiting")}>{releaseReady?"CONFIRMED":selectedRelease?"REVIEW SELECTION":"WAITING"}</span></div>
@@ -639,11 +695,11 @@ export default function MyOrbitFS(){
               <label>Published Base version<select value={selectedRelease?.id||""} disabled={busy!==""||!publishedBaseReleases.length} onChange={e=>{setSelectedReleaseId(e.target.value);setReleaseConfirmed(false);}}><option value="">Choose a published Base release</option>{publishedBaseReleases.map((r:any)=><option key={r.id} value={r.id}>v{r.version} · {r.title||"OrbitFS Base"}</option>)}</select></label>
               <button className="secondary" type="button" disabled={busy!==""} onClick={()=>void refreshReleases()}>{busy==="refresh-releases"?"Refreshing…":"Refresh published releases"}</button>
             </div>
-            {selectedRelease?<div className="orbitV5ReleaseSelected"><div className="listrow"><div><b>Base v{selectedRelease.version}</b><span>{selectedRelease.channel||selectedChannel} · {selectedRelease.title||"OrbitFS Base"}</span></div><span className="state ready">PUBLISHED</span></div><details><summary>View release changelog</summary><p className="muted" style={{whiteSpace:"pre-wrap"}}>{selectedRelease.changelog||selectedRelease.notes||"No customer changelog supplied."}</p></details></div>:<p className="inlineStatus">No published Base release is currently available in this channel. You can prepare your connections while waiting.</p>}
+            {selectedRelease?<div className="orbitV5ReleaseSelected"><div className="listrow"><div><b>Base v{selectedRelease.version}</b><span>{selectedRelease.channel||selectedChannel} · {selectedRelease.title||"OrbitFS Base"}</span></div><span className="state ready">PUBLISHED</span></div><details><summary>View release changelog</summary><p className="muted orbitBaseReleaseNotes">{selectedRelease.changelog||selectedRelease.notes||"No customer changelog supplied."}</p></details></div>:<p className="inlineStatus">No published Base release is currently available in this channel. You can prepare your connections while waiting.</p>}
             <div className="orbitV5StepActions"><button type="button" disabled={!selectedRelease} onClick={()=>{setReleaseConfirmed(true);openSiteStep(4);}}>Confirm release & continue →</button></div>
           </section>
 
-<div hidden={activeSiteStep!==4} className="orbitV5ConfigWorkspace"><p className="orbitV5StepNote">Initialize the selected Base release here. The licence key is not entered in Billing; activation happens after deployment in the Base first-time installer.</p>          <details hidden={activeSiteStep!==4} className="panel orbitInstallerWorkspace" open><summary className="panelTitle" style={summaryStyle}><div><p className="eyebrow">STEP 4 · DATABASE INITIALIZATION</p><h2>Initialize selected Base schema</h2><p className="muted">Initialize the Base release selected in Step 3 using the project you chose in Step 2.</p></div><span className={`state ${configDatabaseReady?"ready":supabaseConnectionReady?"current":"waiting"}`}>{configDatabaseReady?`SCHEMA ${install.schema_version}`:supabaseReady?(releaseReady?"INITIALIZE":"RELEASE REQUIRED"):"CHOOSE PROJECT"}</span></summary>{!supabaseConnectionReady?<div className="form"><p className="muted">Reconnect Supabase before configuring the customer database.</p><button onClick={()=>openSiteStep(1)}>Open Supabase connection</button></div>:<>{!supabaseReady&&<p className="inlineStatus">Select a database in Step 2 first.</p>}{supabaseReady&&(configDatabaseReady?<><div className="listrow" style={{marginTop:10}}><div><b>Database initialized for OrbitFS {install.release_version}</b><span>Channel {install.release_channel||selectedChannel} · License Manager release {install.release_id} · schema {install.schema_version}</span></div><span className="state ready">READY</span></div></>:<><div className="orbitV5ReleaseLocked"><small>SELECTED BASE RELEASE</small><b>{selectedRelease?"v"+selectedRelease.version+" · "+selectedChannel:"No published Base release selected"}</b><button className="secondary" type="button" onClick={()=>openSiteStep(3)}>Change release</button></div>{selectedRelease&&!releaseReady&&<p className="inlineStatus">Confirm the chosen release in Step 3 before initializing.</p>}{selectedRelease?<><button disabled={!supabaseReady||!releaseReady||deploymentUnavailable||!settings.customer_deploy_enabled||busy==="init"} onClick={()=>void initialize()}>{busy==="init"?"Initializing…":`Initialize Base v${selectedRelease.version}`}</button></>:<p className="muted">Select an approved Base release in Step 3 to initialize this database.</p>}</>)}</>}</details>
+<div hidden={activeSiteStep!==4} className="orbitV5ConfigWorkspace"><p className="orbitV5StepNote">Initialize the selected Base release here. The licence key is not entered in Billing; activation happens after deployment in the Base first-time installer.</p>          <details hidden={activeSiteStep!==4} className="panel orbitInstallerWorkspace" open><summary className="panelTitle orbitBaseSummary"><div><p className="eyebrow">STEP 4 · DATABASE INITIALIZATION</p><h2>Initialize selected Base schema</h2><p className="muted">Initialize the Base release selected in Step 3 using the project you chose in Step 2.</p></div><span className={`state ${configDatabaseReady?"ready":supabaseConnectionReady?"current":"waiting"}`}>{configDatabaseReady?`SCHEMA ${install.schema_version}`:supabaseReady?(releaseReady?"INITIALIZE":"RELEASE REQUIRED"):"CHOOSE PROJECT"}</span></summary>{!supabaseConnectionReady?<div className="form"><p className="muted">Reconnect Supabase before configuring the customer database.</p><button onClick={()=>openSiteStep(1)}>Open Supabase connection</button></div>:<>{!supabaseReady&&<p className="inlineStatus">Select a database in Step 2 first.</p>}{supabaseReady&&(configDatabaseReady?<><div className="listrow orbitBaseInitializedRow"><div><b>Database initialized for OrbitFS {install.release_version}</b><span>Channel {install.release_channel||selectedChannel} · License Manager release {install.release_id} · schema {install.schema_version}</span></div><span className="state ready">READY</span></div></>:<><div className="orbitV5ReleaseLocked"><small>SELECTED BASE RELEASE</small><b>{selectedRelease?"v"+selectedRelease.version+" · "+selectedChannel:"No published Base release selected"}</b><button className="secondary" type="button" onClick={()=>openSiteStep(3)}>Change release</button></div>{selectedRelease&&!releaseReady&&<p className="inlineStatus">Confirm the chosen release in Step 3 before initializing.</p>}{selectedRelease?<><button disabled={!supabaseReady||!releaseReady||deploymentUnavailable||!settings.customer_deploy_enabled||busy==="init"} onClick={()=>void initialize()}>{busy==="init"?"Initializing…":`Initialize Base v${selectedRelease.version}`}</button></>:<p className="muted">Select an approved Base release in Step 3 to initialize this database.</p>}</>)}</>}</details>
             {vercelApiReady&&<section className="panel orbitReviewPanel"><div className="panelTitle"><div><p className="eyebrow">VERCEL CONNECTION</p><h2>{install?.vercel_project_name||"Customer Vercel account connected"}</h2><p className="muted">{install?.vercel_project_id?"The Base project is available in Vercel. During deployment this link opens the customer project so build logs and deployment state can be checked directly.":"The Vercel account is connected. The Base project will appear here as soon as deployment creates it."}</p></div><span className="state ready">CONNECTED</span></div><a className="buttonlink secondary" href={vercelProjectConsoleUrl} target="_blank" rel="noreferrer">{install?.vercel_project_id?"Open Vercel project ↗":"Open Vercel dashboard ↗"}</a></section>}
             {pendingBaseForceReinstall&&<section className="panel orbitReviewPanel"><div className="panelTitle"><div><p className="eyebrow">RECOVERY · LICENCE ROTATION</p><h2>Continue after licence rotation</h2><p className="muted">Rotate the key in the licence page, then continue the reinstall. Billing never accepts the raw licence key.</p></div><span className="state current">RECOVERY</span></div><div className="form"><button disabled={busy!==""||authorityLocked} onClick={()=>void deploy("deploy")}>{busy==="deploy"?"Checking rotation & reinstalling…":"I rotated the key · Continue reinstall"}</button></div></section>}
             {configurationReady&&<div className="orbitV5StepActions"><button type="button" onClick={()=>openSiteStep(5)}>Continue to live deployment →</button></div>}
@@ -671,8 +727,8 @@ export default function MyOrbitFS(){
               </ul>
             </div>}
           </section>
-          <details hidden={activeSiteStep!==5} className="panel orbitInstallerWorkspace" open={reviewReady&&!panelReady}><summary className="panelTitle" style={summaryStyle}><div><p className="eyebrow">{"STEP 5 · LIVE DEPLOYMENT PROGRESS"}</p><h2>{"Deploy and monitor Base"}</h2><p className="muted">{"Review the exact Base release and connected providers before starting deployment. OrbitFS configures the customer Vercel project and runtime variables automatically."}</p></div><span className={`state ${panelReady?"ready":working||deploymentRequestActive?"current":"waiting"}`}>{panelReady?"READY":working?label(install.state).toUpperCase():deploymentRequestActive?"STARTING":"DEPLOY"}</span></summary>{vercelApiReady&&(
-            <div className="listrow" style={{marginBottom:10}}>
+          <details hidden={activeSiteStep!==5} className="panel orbitInstallerWorkspace" open={reviewReady&&!panelReady}><summary className="panelTitle orbitBaseSummary"><div><p className="eyebrow">{"STEP 5 · LIVE DEPLOYMENT PROGRESS"}</p><h2>{"Deploy and monitor Base"}</h2><p className="muted">{"Review the exact Base release and connected providers before starting deployment. OrbitFS configures the customer Vercel project and runtime variables automatically."}</p></div><span className={`state ${panelReady?"ready":working||deploymentRequestActive?"current":"waiting"}`}>{panelReady?"READY":working?label(install.state).toUpperCase():deploymentRequestActive?"STARTING":"DEPLOY"}</span></summary>{vercelApiReady&&(
+            <div className="listrow orbitBaseConsoleRow">
               <div>
                 <b>Vercel deployment console</b>
                 <span>
@@ -688,17 +744,17 @@ export default function MyOrbitFS(){
                 {install?.vercel_project_id?"Open project ↗":"Open Vercel ↗"}
               </a>
             </div>
-          )}{!install.vercel_deployment_id?<><div className="listrow"><div><b>Published Base release</b><span>{selectedRelease?`${selectedRelease.version} · ${selectedRelease.channel||selectedChannel}`:"No published Base release available"}</span></div><span className={`state ${selectedRelease?"ready":"waiting"}`}>{selectedRelease?"READY":"WAITING"}</span></div><div className="form" style={{marginTop:10}}><div className="listrow"><div><b>Base release channel</b><span>{install.release_channel||selectedChannel}</span></div><span className="state ready">LOCKED TO DB</span></div><div className="listrow"><div><b>Base version</b><span>{selectedRelease?`v${selectedRelease.version} · ${selectedRelease.title||"OrbitFS Base"}`:"No published Base release available"}</span></div><span className={`state ${selectedRelease?"ready":"waiting"}`}>{selectedRelease?"SELECTED":"WAITING"}</span></div><p className="muted">The release is chosen in Step 3 and initialized in the database during Step 4.</p></div>{selectedRelease&&<div className="panel" style={{marginTop:10}}><div className="listrow"><div><b>OrbitFS Base {selectedRelease.version}</b><span>{selectedRelease.changelog||selectedRelease.notes||"No customer changelog supplied."}</span></div><span className="state ready">PUBLISHED</span></div><div className="listrow"><div><b>Release identity</b><span>ID {selectedRelease.id} · source {selectedRelease.source_sha||selectedRelease.source_commit||selectedRelease.manifest?.sourceCommit||"recorded in release"}</span></div><span>{selectedRelease.artifact_sha256||selectedRelease.sha256?"CHECKSUM":"MASTER"}</span></div>{(selectedRelease.manifest?.minimumBaseVersion||selectedRelease.minimum_base_version||selectedRelease.minimum_version)&&<div className="listrow"><div><b>Compatibility</b><span>Minimum Base {selectedRelease.manifest?.minimumBaseVersion||selectedRelease.minimum_base_version||selectedRelease.minimum_version}</span></div><span>CHECKED</span></div>}<p className="muted">This is the exact published License Master release that will be handed to the deployer. The installation stores its release ID, version, checksum and source commit; the package itself remains in the release system.</p></div>}<button disabled={!!activeOperation||!infrastructureReady||!selectedRelease||!releaseReady||String(install.release_id||"")!==String(selectedRelease.id)||deploymentUnavailable||!settings.customer_deploy_enabled||busy==="deploy"} onClick={()=>void deploy("deploy",String(selectedRelease?.version||""),String(selectedRelease?.id||""))}>{busy==="deploy"?"Deploying…":"Deploy selected Base release"}</button></>:<div className="orbitV5DeployRunning"><p>Deployment has started. Follow the live operation and validation results below.</p><button type="button" className="secondary" disabled={busy!==""} onClick={()=>void sync(false)}>Refresh deployment status</button></div>}{(working||deploymentRequestActive)&&<p className="muted">Live status refreshes automatically every 3 seconds while this operation is active. Vercel project and deployment IDs appear here as soon as they are created.</p>}</details>
-    {(activeOperation||latestOperation)&&<section className="panel orbitV5OperationPanel orbitV5LiveProgress" style={{marginBottom:14}}>
-      <div className="panelTitle"><div><p className="eyebrow">DEPLOYMENT STATUS</p><h2>{activeOperation?label(activeOperation.action)+" · "+label(activeOperation.state):latestOperation?.state==="failed"?"Last deployment attempt failed":"Recent deployment activity"}</h2><p className="muted">{activeOperation?`Live Base operation. Status, events and Vercel readiness refresh automatically every 3 seconds${liveCheckedAt?" · last checked "+new Date(liveCheckedAt).toLocaleTimeString():""}.`:"Latest Base deployment operation recorded by Billing Store."}</p></div><span className={"state "+(activeOperation?"current":latestOperation?.state==="completed"?"ready":"waiting")}>{String(activeOperation?.state||latestOperation?.state||"status").replaceAll("_"," ").toUpperCase()}</span></div>
-      {activeOperation&&<div className="portalOverviewStats" style={{marginTop:10}}>
+          )}{!install.vercel_deployment_id?<><div className="listrow"><div><b>Published Base release</b><span>{selectedRelease?`${selectedRelease.version} · ${selectedRelease.channel||selectedChannel}`:"No published Base release available"}</span></div><span className={`state ${selectedRelease?"ready":"waiting"}`}>{selectedRelease?"READY":"WAITING"}</span></div><div className="form orbitBaseLockedReleaseForm"><div className="listrow"><div><b>Base release channel</b><span>{install.release_channel||selectedChannel}</span></div><span className="state ready">LOCKED TO DB</span></div><div className="listrow"><div><b>Base version</b><span>{selectedRelease?`v${selectedRelease.version} · ${selectedRelease.title||"OrbitFS Base"}`:"No published Base release available"}</span></div><span className={`state ${selectedRelease?"ready":"waiting"}`}>{selectedRelease?"SELECTED":"WAITING"}</span></div><p className="muted">The release is chosen in Step 3 and initialized in the database during Step 4.</p></div>{selectedRelease&&<div className="panel orbitBaseSelectedReleasePanel"><div className="listrow"><div><b>OrbitFS Base {selectedRelease.version}</b><span>{selectedRelease.changelog||selectedRelease.notes||"No customer changelog supplied."}</span></div><span className="state ready">PUBLISHED</span></div><div className="listrow"><div><b>Release identity</b><span>ID {selectedRelease.id} · source {selectedRelease.source_sha||selectedRelease.source_commit||selectedRelease.manifest?.sourceCommit||"recorded in release"}</span></div><span>{selectedRelease.artifact_sha256||selectedRelease.sha256?"CHECKSUM":"MASTER"}</span></div>{(selectedRelease.manifest?.minimumBaseVersion||selectedRelease.minimum_base_version||selectedRelease.minimum_version)&&<div className="listrow"><div><b>Compatibility</b><span>Minimum Base {selectedRelease.manifest?.minimumBaseVersion||selectedRelease.minimum_base_version||selectedRelease.minimum_version}</span></div><span>CHECKED</span></div>}<p className="muted">This is the exact published License Master release that will be handed to the deployer. The installation stores its release ID, version, checksum and source commit; the package itself remains in the release system.</p></div>}<button disabled={!!activeOperation||!infrastructureReady||!selectedRelease||!releaseReady||String(install.release_id||"")!==String(selectedRelease.id)||deploymentUnavailable||!settings.customer_deploy_enabled||busy==="deploy"} onClick={()=>void deploy("deploy",String(selectedRelease?.version||""),String(selectedRelease?.id||""))}>{busy==="deploy"?"Deploying…":"Deploy selected Base release"}</button></>:<div className="orbitV5DeployRunning"><p>Deployment has started. Follow the live operation and validation results below.</p><button type="button" className="secondary" disabled={busy!==""} onClick={()=>void sync(false)}>Refresh deployment status</button></div>}{(working||deploymentRequestActive)&&<p className="muted">Live status refreshes automatically every 60 seconds while this operation is active. Vercel project and deployment IDs appear here as soon as they are created.</p>}</details>
+    {(activeOperation||latestOperation)&&<section className="panel orbitV5OperationPanel orbitV5LiveProgress orbitBaseStatusPanel">
+      <div className="panelTitle"><div><p className="eyebrow">DEPLOYMENT STATUS</p><h2>{activeOperation?label(activeOperation.action)+" · "+label(activeOperation.state):latestOperation?.state==="failed"?"Last deployment attempt failed":"Recent deployment activity"}</h2><p className="muted">{activeOperation?`Live Base operation. Status, events and Vercel readiness refresh automatically every 60 seconds${liveCheckedAt?" · last checked "+new Date(liveCheckedAt).toLocaleTimeString():""}.`:"Latest Base deployment operation recorded by Billing Store."}</p></div><span className={"state "+(activeOperation?"current":latestOperation?.state==="completed"?"ready":"waiting")}>{String(activeOperation?.state||latestOperation?.state||"status").replaceAll("_"," ").toUpperCase()}</span></div>
+      {activeOperation&&<div className="portalOverviewStats orbitBaseStatusStats">
         <div className="portalStatCard"><div><small>ACTION</small><strong>{label(activeOperation.action)}</strong><span>{activeOperation.detail?.version||activeOperation.requested_release_id||"Current release"}</span></div></div>
         <div className="portalStatCard"><div><small>STAGE</small><strong>{label(activeOperation.state)}</strong><span>{activeOperation.heartbeat_at?"Updated "+new Date(activeOperation.heartbeat_at).toLocaleTimeString():"Waiting for progress"}</span></div></div>
         <div className="portalStatCard"><div><small>VERCEL</small><strong>{activeOperation.vercel_deployment_id||"Waiting"}</strong><span>{activeOperation.vercel_project_id||install.vercel_project_name||"Existing project"}</span></div></div>
         <div className="portalStatCard"><div><small>STARTED</small><strong>{activeOperation.created_at?new Date(activeOperation.created_at).toLocaleTimeString():"Now"}</strong><span>{activeOperation.created_at?new Date(activeOperation.created_at).toLocaleDateString():""}</span></div></div>
       </div>}
-      {!activeOperation&&latestOperation?.error_detail&&<p className="inlineStatus" style={{marginTop:10}}><b>{latestOperation.error_code||"Error"}:</b> {latestOperation.error_detail}</p>}
-      <details style={{marginTop:10}}><summary style={summaryStyle}><b>Recent operations</b> · {operations.length}</summary><div style={{marginTop:8}}>{operations.slice(0,6).map((op:any)=><div className="listrow" key={op.id}><div><b>{label(op.action)} · {label(op.state)}</b><span>{op.error_detail||op.detail?.version||op.requested_release_id||"Deployment operation"}</span></div><span>{op.created_at?new Date(op.created_at).toLocaleString():""}</span></div>)}</div></details>
+      {!activeOperation&&latestOperation?.error_detail&&<p className="inlineStatus orbitBaseStatusError"><b>{latestOperation.error_code||"Error"}:</b> {latestOperation.error_detail}</p>}
+      <details className="orbitBaseOperations"><summary className="orbitBaseSummary"><b>Recent operations</b> · {operations.length}</summary><div className="orbitBaseOperationsList">{operations.slice(0,6).map((op:any)=><div className="listrow" key={op.id}><div><b>{label(op.action)} · {label(op.state)}</b><span>{op.error_detail||op.detail?.version||op.requested_release_id||"Deployment operation"}</span></div><span>{op.created_at?new Date(op.created_at).toLocaleString():""}</span></div>)}</div></details>
     </section>}
           </div>
 
@@ -707,13 +763,8 @@ export default function MyOrbitFS(){
 
       </div>}
 
-      {install&&panelReady&&<section className="panel" style={{marginBottom:14}}>
-        <div className="panelTitle"><div><p className="eyebrow">NEXT STEP</p><h2>Install a licensed plugin</h2><p className="muted">Your Inner deployment and Shared Engine are ready. Plugin installation happens inside this deployed environment and is limited to active License Manager entitlements.</p></div><span className="state ready">ENGINE READY</span></div>
-        {licensedPlugins.length?<div style={{display:"grid",gap:8,marginBottom:12}}>{licensedPlugins.map((plugin:any)=><div className="listrow" key={plugin.id}><div><b>{pluginLabel(plugin)}</b><span>{plugin.license_product_key} · active licence</span></div><span className="state ready">LICENSED</span></div>)}</div>:<p className="muted">No active MCP, APEX or Studio licence is attached to this account. The Shared Engine cannot be deployed until at least one add-on licence is available.</p>}
-        {install.production_url?<a className="buttonlink" href={install.production_url} target="_blank" rel="noreferrer">Open Inner Deployment →</a>:<p className="muted">The production URL is not available yet. Refresh deployment status before installing a plugin.</p>}
-      </section>}
 
-      {install&&panelReady&&<div className="portalOverviewBottom"><details className="panel" open><summary className="panelTitle" style={summaryStyle}><div><p className="eyebrow">BASE DEPLOYMENT HISTORY</p><h2>Installed & rollback history</h2></div><span>{visibleBaseHistory.length}</span></summary>{visibleBaseHistory.length?visibleBaseHistory.map((r:any,index:number)=><div className="listrow" key={r.id}><div><b>{r.release_version} · {index===0?"Installed current":"Previous deployment"}</b><span>{r.deployment_url||"deployment record"} · release {String(r.release_id||"").slice(0,8)}…</span></div><span className={"state "+(index===0?"ready":"waiting")}>{index===0?"INSTALLED":"ROLLBACK"}</span></div>):<p className="muted">No successful Base deployments yet.</p>}{olderBaseHistory.length>0&&<details style={{marginTop:10}}><summary style={summaryStyle}>Older Base history · {olderBaseHistory.length}</summary><div style={{marginTop:8}}>{olderBaseHistory.map((r:any)=><div className="listrow" key={r.id}><div><b>{r.release_version}</b><span>{r.action} · retained for audit</span></div><span>{new Date(r.created_at).toLocaleString()}</span></div>)}</div></details>}</details><details className="panel"><summary className="panelTitle" style={summaryStyle}><div><p className="eyebrow">ACTIVITY</p><h2>Setup activity</h2></div><span>{events.length}</span></summary>{events.length?events.slice(0,20).map((e:any)=><div className="listrow" key={e.id}><div><b>{label(e.event_type)}</b><span>{e.message||e.status}</span></div><span>{new Date(e.created_at).toLocaleString()}</span></div>):<p className="muted">No setup activity yet.</p>}</details></div>}
+      {install&&panelReady&&<div className="portalOverviewBottom"><details className="panel" open><summary className="panelTitle orbitBaseSummary"><div><p className="eyebrow">BASE DEPLOYMENT HISTORY</p><h2>Installed & rollback history</h2></div><span>{visibleBaseHistory.length}</span></summary>{visibleBaseHistory.length?visibleBaseHistory.map((r:any,index:number)=><div className="listrow" key={r.id}><div><b>{r.release_version} · {index===0?"Installed current":"Previous deployment"}</b><span>{r.deployment_url||"deployment record"} · release {String(r.release_id||"").slice(0,8)}…</span></div><span className={"state "+(index===0?"ready":"waiting")}>{index===0?"INSTALLED":"ROLLBACK"}</span></div>):<p className="muted">No successful Base deployments yet.</p>}{olderBaseHistory.length>0&&<details className="orbitBaseOperations"><summary className="orbitBaseSummary">Older Base history · {olderBaseHistory.length}</summary><div className="orbitBaseHistoryList">{olderBaseHistory.map((r:any)=><div className="listrow" key={r.id}><div><b>{r.release_version}</b><span>{r.action} · retained for audit</span></div><span>{new Date(r.created_at).toLocaleString()}</span></div>)}</div></details>}</details><details className="panel"><summary className="panelTitle orbitBaseSummary"><div><p className="eyebrow">ACTIVITY</p><h2>Setup activity</h2></div><span>{events.length}</span></summary>{events.length?events.slice(0,20).map((e:any)=><div className="listrow" key={e.id}><div><b>{label(e.event_type)}</b><span>{e.message||e.status}</span></div><span>{new Date(e.created_at).toLocaleString()}</span></div>):<p className="muted">No setup activity yet.</p>}</details></div>}
     </>:<section className="panel"><div className="panelTitle"><div><p className="eyebrow">MY ORBITFS</p><h2>OrbitFS access pending</h2><p className="muted">Licensing and release access are provided by the Master service.</p></div></div></section>}
 
     {binding&&<section className="orbitV5Support" aria-label="Deployment support">
@@ -721,5 +772,17 @@ export default function MyOrbitFS(){
       <Link className="buttonlink secondary" href="/portal/support">Contact support ↗</Link>
     </section>}
 
-  </main>;
+   <V6ConfirmDialog
+    open={Boolean(confirmState)}
+    title={confirmState?.title||""}
+    description={confirmState?.description||""}
+    confirmLabel={confirmState?.confirmLabel||"Confirm"}
+    danger={confirmState?.danger===true}
+    busy={Boolean(busy)}
+    onCancel={cancelConfirm}
+    onConfirm={acceptConfirm}
+  >
+    {confirmState?.reasonRequired&&<label className="v6ConfirmReason"><span>Rollback reason</span><textarea autoFocus maxLength={500} value={confirmReason} onChange={event=>setConfirmReason(event.target.value)} placeholder="Why are you rolling this Base deployment back?"/></label>}
+  </V6ConfirmDialog>
+ </main>;
 }

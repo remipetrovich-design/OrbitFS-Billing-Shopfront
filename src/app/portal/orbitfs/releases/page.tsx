@@ -4,6 +4,7 @@ import {useCallback,useEffect,useMemo,useRef,useState} from "react";
 import Link from "next/link";
 import {createClient} from "@/lib/supabase";
 import {compareOrbitReleaseVersions} from "@/lib/orbitfs-version";
+import V6ConfirmDialog from "@/components/V6ConfirmDialog";
 
 type Release={
   id?:string;releaseId?:string;version?:string;title?:string;description?:string;
@@ -22,6 +23,7 @@ type UpdateProgress={
 };
 type Stage=1|2|3|4|5;
 type UpdateMode="update"|"rollback";
+type ConfirmState={kind:"install"|"repair"|"rollback";title:string;description:string;confirmLabel:string;danger?:boolean}|null;
 const stages:{id:Stage;title:string;description:string}[]=[
   {id:1,title:"Installation",description:"Check your installed Base."},
   {id:2,title:"Channel / Update",description:"Choose an authorized published Update."},
@@ -37,16 +39,6 @@ function phaseStatus(events:UpdateEvent[],started:string,completed:string){
   if(events.some(event=>event.type===completed))return "complete";
   if(events.some(event=>event.type===started))return "running";
   return "waiting";
-}
-function releaseNoteItems(raw:unknown){
-  const text=String(raw||"").trim();
-  if(!text)return [];
-  return text
-    .replace(/(#{2,4}\s+)/g,"\n$1")
-    .split(/\r?\n+/)
-    .map(value=>value.replace(/^[-*•]\s*/,"").replace(/^#{2,4}\s*/,"").trim())
-    .filter(Boolean)
-    .slice(0,12);
 }
 
 export default function OrbitFSUpdateReleaseSystem(){
@@ -66,6 +58,7 @@ export default function OrbitFSUpdateReleaseSystem(){
   const [progressIssue,setProgressIssue]=useState("");
   const [rollbackReason,setRollbackReason]=useState("");
   const [recoveryOpen,setRecoveryOpen]=useState(false);
+  const [confirmState,setConfirmState]=useState<ConfirmState>(null);
   const requestInFlight=useRef(false);
   const completionReported=useRef("");
   const statusInitialised=useRef(false);
@@ -93,8 +86,7 @@ export default function OrbitFSUpdateReleaseSystem(){
     }finally{if(!background)setLoading(false)}
   },[headers]);
 
-  useEffect(()=>{void load(false,true)},[load]);
-  useEffect(()=>{if(data?.releaseCatalogLoading)void load(true,false)},[data?.releaseCatalogLoading,load]);
+  useEffect(()=>{void load(false,false)},[load]);
 
   const baseBindings=(data?.bindings||[]).filter((value:any)=>value.license_product_key==="orbitfs_base"||value.components?.orbitfs_base||value.components?.orbitfs_panel);
   const binding=baseBindings.find((value:any)=>(data?.installations||[]).some((row:any)=>String(row.license_binding_id)===String(value.id)))||baseBindings[0]||null;
@@ -147,9 +139,11 @@ export default function OrbitFSUpdateReleaseSystem(){
   const selectedSourceCommit=String(selected?.source_sha||selected?.sourceSha||"").trim().toLowerCase();
   const appliedSourceCommit=String(applied?.sourceCommit||"").trim().toLowerCase();
   const alreadyInstalled=Boolean(selected&&(
-    (appliedId&&appliedId===idOf(selected))||
-    (!appliedId&&appliedChecksum&&selectedChecksum&&appliedChecksum===selectedChecksum)||
-    (!appliedId&&!appliedChecksum&&appliedSourceCommit&&selectedSourceCommit&&appliedSourceCommit===selectedSourceCommit)
+    (selectedChecksum&&appliedChecksum
+      ?selectedChecksum===appliedChecksum
+      :selectedSourceCommit&&appliedSourceCommit
+        ?selectedSourceCommit===appliedSourceCommit
+        :!selectedChecksum&&!selectedSourceCommit&&appliedId&&appliedId===idOf(selected))
   ));
   const isPrevious=Boolean(selected&&appliedVersion&&selectedComparison!==null&&selectedComparison<0);
   const requiredBase=String(selected?.minimum_version||selected?.minimumVersion||"");
@@ -271,11 +265,19 @@ export default function OrbitFSUpdateReleaseSystem(){
     finally{setBusy("")}
   }
 
-  async function beginInstall(){
+  async function beginInstall(actionConfirmed=false){
     if(!canInstall||!selected||!install)return;
     const version=versionOf(selected),releaseId=idOf(selected);
     if(!confirmed){setMessage("Review and confirm the Update before installing.");setStage(3);return}
-    if(!window.confirm("Install published OrbitFS Update v"+version+" from "+channel+"?"))return;
+    if(!actionConfirmed){
+      setConfirmState({
+        kind:"install",
+        title:"Install Update v"+version+"?",
+        description:"Install the published Update from "+channel+" through the existing verified Update workflow. Actual execution progress will be recorded and shown on this page.",
+        confirmLabel:"Install Update"
+      });
+      return;
+    }
     setProgressTarget(releaseId);setProgressMode("update");setProgress(null);setAttemptStartedAt(Date.now());
     completionReported.current="";setStage(4);setBusy("update");setMessage("");
     requestInFlight.current=true;
@@ -298,9 +300,17 @@ export default function OrbitFSUpdateReleaseSystem(){
     }finally{requestInFlight.current=false;setBusy("")}
   }
 
-  async function repairAppliedUpdate(){
+  async function repairAppliedUpdate(actionConfirmed=false){
     if(!install||!appliedPublishedRelease||!canRepairAppliedUpdate)return;
-    if(!window.confirm("Repair installed Update v"+appliedVersion+"? This re-applies the same verified Update through the standalone Updater and does not invoke the Inner Deployer."))return;
+    if(!actionConfirmed){
+      setConfirmState({
+        kind:"repair",
+        title:"Repair Update v"+appliedVersion+"?",
+        description:"Re-apply the same published and verified Update through the existing Update workflow. This does not create a second release or bypass License Manager authorization.",
+        confirmLabel:"Repair Update"
+      });
+      return;
+    }
     const releaseId=idOf(appliedPublishedRelease);
     setProgressTarget(releaseId);setProgressMode("update");setProgress(null);setAttemptStartedAt(Date.now());
     completionReported.current="";setStage(4);setBusy("repair-update");setMessage("");
@@ -312,23 +322,32 @@ export default function OrbitFSUpdateReleaseSystem(){
         body:JSON.stringify({action:"update",version:"update:"+appliedVersion,releaseId,channel:appliedChannel,reason:"repair_reapply"})
       });
       const response=await res.json().catch(()=>({}));
-      if(!res.ok)throw Error(response.error||"The Engine Update repair request was not completed.");
+      if(!res.ok)throw Error(response.error||"The Update repair request was not completed.");
       await refreshProgress(String(install.id));
-      setMessage("Update v"+appliedVersion+" was re-applied through the standalone Updater.");
+      setMessage("Update v"+appliedVersion+" was re-applied through the verified update workflow.");
       setStage(5);
       await load(true);
     }catch(error:any){
-      setMessage((error?.message||"The Engine Update repair did not return a result.")+
-        " Review the recorded updater events before retrying.");
+      setMessage((error?.message||"The Update repair did not return a result.")+
+        " Review the recorded update events before retrying.");
       await refreshProgress(String(install.id));
     }finally{requestInFlight.current=false;setBusy("")}
   }
 
-  async function rollback(){
+  async function rollback(actionConfirmed=false){
     if(!install||!appliedVersion||rollbackUnavailable||busy)return;
     const reason=rollbackReason.trim();
     if(!reason){setMessage("Enter a rollback reason before proceeding.");return}
-    if(!window.confirm("Roll back installed Update v"+appliedVersion+"? Forward-compatible database migrations will remain applied."))return;
+    if(!actionConfirmed){
+      setConfirmState({
+        kind:"rollback",
+        title:"Roll back Update v"+appliedVersion+"?",
+        description:"The installed Update will be rolled back through the authorised recovery workflow. Forward-compatible database migrations remain applied.",
+        confirmLabel:"Roll back Update",
+        danger:true
+      });
+      return;
+    }
     const releaseId=String(applied?.releaseId||"");
     setProgressTarget(releaseId);setProgressMode("rollback");setProgress(null);setAttemptStartedAt(Date.now());setStage(4);
     setBusy("rollback");setMessage("");completionReported.current="";
@@ -382,14 +401,8 @@ export default function OrbitFSUpdateReleaseSystem(){
 
   return <main className="portalOverviewV2 orbitV5Updater">
     <header className="orbitV5UpdateHero">
-      <div className="orbitV5UpdateHeroCopy"><p className="eyebrow">MY ORBITFS · UPDATE CENTER</p><h1>Update Release System</h1>
-        <p>Choose an authorized Update, review exactly what changes and follow deployment in one place.</p>
-        <div className="orbitV5UpdateHeroMeta" aria-label="Current update state">
-          <span><small>BASE</small><b>{baseVersion?"v"+baseVersion:"Not installed"}</b></span>
-          <span><small>INSTALLED UPDATE</small><b>{appliedVersion?"v"+appliedVersion:"None"}</b></span>
-          <span><small>CHANNEL</small><b>{channel||installedChannel||"stable"}</b></span>
-        </div>
-      </div>
+      <div><p className="eyebrow">MY ORBITFS · UPDATE CENTER</p><h1>Update Release System</h1>
+        <p>Choose an authorized Update, review exactly what changes and follow deployment in one place.</p></div>
       <div className="orbitV5UpdateHeroActions">
         <button type="button" className="secondary" disabled={!!busy} onClick={()=>void load(true)}>Refresh releases</button>
         <button type="button" className="secondary" disabled={!appliedVersion} onClick={()=>{setRecoveryOpen(true);setStage(5)}}>Recovery</button>
@@ -513,25 +526,20 @@ export default function OrbitFSUpdateReleaseSystem(){
         <div><small>COMPONENTS</small><b>{updateComponents.length?updateComponents.join(", "):"See release manifest"}</b></div>
       </div>
       <div className="orbitV5UpdateReview">
-        <section className="orbitV5UpdateReviewCard orbitV5UpdateReviewNotes">
-          <div className="orbitV5UpdateReviewHead">
-            <div><p className="eyebrow">RELEASE NOTES</p><h3>{selected.title||"Update v"+selected.version}</h3></div>
-            <span>v{selected.version}</span>
-          </div>
-          <ul className="orbitV5UpdateNoteList">
-            {(releaseNoteItems(selected.changelog||selected.description).length?releaseNoteItems(selected.changelog||selected.description):["No customer release notes supplied."]).map((item,index)=><li key={index}>{item}</li>)}
-          </ul>
-          {selected.customer_notes&&<details className="orbitV5UpdateCustomerNotes"><summary>Customer notes</summary><p>{selected.customer_notes}</p></details>}
-        </section>
-        <section className="orbitV5UpdateReviewCard orbitV5UpdateChecks">
-          <div className="orbitV5UpdateReviewHead"><div><p className="eyebrow">PRE-DEPLOYMENT CHECK</p><h3>Ready to install?</h3></div><span>{canInstall?"READY":"CHECK"}</span></div>
-          <div className="orbitV5UpdateCheckRow"><span className={baseReady?"ok":"blocked"}>{baseReady?"✓":"!"}</span><div><b>Base deployment</b><p>{!hasBase?"Installed Base required":baseReady?"Installed Base is ready":`Base status is ${String(install?.state||"unknown")}`}</p>{!baseReady&&install?.last_error?<small>{String(install.last_error)}</small>:null}{hasBase&&!baseReady?<button type="button" className="secondary" disabled={!!busy} onClick={()=>void verifyBaseDeployment()}>{busy==="verify-base"?"Verifying…":"Verify Base"}</button>:null}</div></div>
-          <div className="orbitV5UpdateCheckRow"><span className={compatible?"ok":"blocked"}>{compatible?"✓":"!"}</span><div><b>Compatibility</b><p>{requiredBase?"Requires Base v"+requiredBase:"No minimum Base version specified"}{!compatible?" · incompatible":""}</p></div></div>
-          <div className="orbitV5UpdateCheckRow"><span className={!updateUnavailable?"ok":"blocked"}>{!updateUnavailable?"✓":"!"}</span><div><b>Deployment authority</b><p>{updateUnavailable?"Update execution is currently disabled":"Update authority is available"}</p></div></div>
-          <div className="orbitV5UpdateCheckRow"><span className={updateDiscoveryReady?"ok":"blocked"}>{updateDiscoveryReady?"✓":"!"}</span><div><b>Published release</b><p>{updateDiscoveryReady?"Release is available from License Manager":`Release lookup failed: ${updateDiscoveryError}`}</p></div></div>
+        <div><p className="eyebrow">RELEASE NOTES</p><h3>{selected.title||"Update v"+selected.version}</h3>
+          <p className="orbitV5UpdateNotes">{selected.changelog||selected.description||"No customer release notes supplied."}</p>
+          {selected.customer_notes&&<><p className="eyebrow">CUSTOMER NOTES</p><p className="orbitV5UpdateNotes">{selected.customer_notes}</p></>}
+        </div>
+        <div className="orbitV5UpdateChecks"><p className="eyebrow">PRE-DEPLOYMENT CHECK</p>
+          <div><span className={baseReady?"ok":"blocked"}>{baseReady?"✓":"!"}</span><p>{!hasBase?"Installed Base required":baseReady?"Installed Base ready":`Installed Base status is ${String(install?.state||"unknown")}; verify Base deployment is ready before updating`}{!baseReady&&install?.last_error?<small className="muted orbitV5UpdateCheckDetail">{String(install.last_error)}</small>:null}{hasBase&&!baseReady?<button type="button" className="secondary orbitV5UpdateCheckAction" disabled={!!busy} onClick={()=>void verifyBaseDeployment()}>{busy==="verify-base"?"Verifying…":"Verify Base deployment"}</button>:null}</p></div>
+          <div><span className={compatible?"ok":"blocked"}>{compatible?"✓":"!"}</span><p>{requiredBase?"Requires Base v"+requiredBase: "No minimum Base version specified"}{!compatible?" · incompatible":""}</p></div>
+          <div><span className={!updateUnavailable?"ok":"blocked"}>{!updateUnavailable?"✓":"!"}</span><p>{updateUnavailable?"Update execution currently disabled":"Update authority available"}</p></div>
+          <div><span className={updateDiscoveryReady?"ok":"blocked"}>{updateDiscoveryReady?"✓":"!"}</span><p>{updateDiscoveryReady?"Published Update discovery available":`Update discovery failed: ${updateDiscoveryError}`}</p></div>
+          
           {blockingBaseOperation&&<p className="orbitV5UpdateHint">Finish the active Base operation before installing an Update.</p>}
+          {busy&&<p className="orbitV5UpdateHint">Please wait for the current request to finish.</p>}
           {(alreadyInstalled||isPrevious)&&<p className="orbitV5UpdateHint">{alreadyInstalled?"This Update is already installed.":"This version is not newer than your recorded installed Update."}</p>}
-        </section>
+        </div>
       </div>
       <label className="orbitV5UpdateConfirm">
         <input type="checkbox" checked={confirmed} onChange={event=>setConfirmed(event.target.checked)}/>
@@ -549,14 +557,13 @@ export default function OrbitFSUpdateReleaseSystem(){
         <p>{progressMode==="rollback"?"Using the existing authorized rollback workflow. Database migrations remain applied.":"The steps below reflect actual execution events, not estimated percentages."}</p>
         <small className="muted">LIVE · refreshes every 60 seconds{progress?.lastCheckedAt?" · last checked "+dateLabel(progress.lastCheckedAt):""}</small>
         </div><span className={"state "+(failedEvent?"waiting":completedEvent?"ready":"current")}>{failedEvent?"NEEDS ATTENTION":completedEvent?"COMPLETE":"IN PROGRESS"}</span></div>
-      <div className="orbitV5UpdateTimeline" aria-label="Update execution phases">
+      <div className="orbitV5UpdateTimeline">
         {phases.map((phase,index)=>{
           const status=phaseStatus(trackedEvents,phase.start,phase.end);
-          return <article key={phase.label} className={"orbitV5UpdatePhase "+status}>
+          return <div key={phase.label} className={"orbitV5UpdatePhase "+status}>
             <span className="orbitV5UpdatePhaseNumber">{status==="complete"?"✓":index+1}</span>
-            <div><b>{phase.label}</b><small>{status==="complete"?"Completed":status==="running"?"Running now":"Waiting"}</small></div>
-            <em>{status==="complete"?"DONE":status==="running"?"LIVE":"PENDING"}</em>
-          </article>;
+            <div><b>{phase.label}</b><small>{status==="complete"?"Recorded complete":status==="running"?"Running":"Waiting for execution event"}</small></div>
+          </div>;
         })}
       </div>
       {failedEvent&&<div className="orbitV5UpdateWarning"><b>Update operation needs attention</b><p>{failedEvent.message}</p></div>}
@@ -587,13 +594,13 @@ export default function OrbitFSUpdateReleaseSystem(){
         <div><small>APPLIED</small><b>{dateLabel(applied?.appliedAt)||"Not recorded"}</b></div>
       </div>
       {recoveryOpen&&appliedVersion&&<details className="orbitV5UpdateRecovery" open><summary>Repair / reapply installed Update</summary>
-        <p>Use this when an updated deployed component is unhealthy. It re-applies the same published, verified Update through the standalone Updater and does not invoke the Inner Deployer.</p>
-        <button type="button" disabled={!canRepairAppliedUpdate} onClick={()=>void repairAppliedUpdate()}>{busy==="repair-update"?"Repairing Engine Update…":"Repair / reapply Update v"+appliedVersion}</button>
+        <p>Use this when an updated deployed component is unhealthy. It re-applies the same published, verified Update through the existing update workflow.</p>
+        <button type="button" disabled={!canRepairAppliedUpdate} onClick={()=>void repairAppliedUpdate()}>{busy==="repair-update"?"Repairing Update…":"Repair / reapply Update v"+appliedVersion}</button>
         {!appliedPublishedRelease&&<p className="orbitV5UpdateHint">The installed Update release is no longer published in this authorized channel, so it cannot be re-applied. Publish/restore an authorized Update release first.</p>}
         {appliedPublishedRelease&&!canRepairAppliedUpdate&&<p className="orbitV5UpdateHint">Repair is blocked until Base, Update authority and release discovery are ready.</p>}
       </details>}
       {recoveryOpen&&appliedVersion&&<details className="orbitV5UpdateRecovery" open><summary>Rollback installed Update</summary>
-        <p>Rollback requires License Manager authorization and may restore Panel and Engine checkpoints where available. Forward-compatible database migrations remain applied.</p>
+        <p>Rollback requires License Manager authorization and may restore deployment checkpoints where available. Forward-compatible database migrations remain applied.</p>
         <label htmlFor="orbit-update-rollback-reason">Reason for rollback
           <textarea id="orbit-update-rollback-reason" value={rollbackReason} onChange={event=>setRollbackReason(event.target.value)} rows={3} placeholder="Reason for this rollback"/>
         </label>
@@ -610,14 +617,25 @@ export default function OrbitFSUpdateReleaseSystem(){
       </div>
     </section>}
 
-    <aside className="orbitV5UpdateSupport" aria-label="Update support">
-      <div className="orbitV5UpdateSupportIcon" aria-hidden="true">?</div>
-      <div className="orbitV5UpdateSupportCopy">
-        <p className="eyebrow">NEED HELP?</p>
-        <h2>Update support</h2>
-        <p>Failed release, recovery problem or something not matching the expected state? Open a support ticket with the installation details attached.</p>
-      </div>
-      <Link className="orbitV5UpdateSupportAction" href="/portal/support/new">Contact support →</Link>
-    </aside>
+    <section className="orbitV5UpdateSupport">
+      <div><p className="eyebrow">NEED HELP?</p><h2>Update support</h2><p>Need help with a release, update failure or recovery?</p></div>
+      <Link className="buttonlink secondary" href="/portal/support">Contact support ↗</Link>
+    </section>
+  <V6ConfirmDialog
+    open={Boolean(confirmState)}
+    title={confirmState?.title||""}
+    description={confirmState?.description||""}
+    confirmLabel={confirmState?.confirmLabel||"Confirm"}
+    danger={confirmState?.danger===true}
+    busy={Boolean(busy)}
+    onCancel={()=>setConfirmState(null)}
+    onConfirm={()=>{
+      const kind=confirmState?.kind;
+      setConfirmState(null);
+      if(kind==="install")void beginInstall(true);
+      if(kind==="repair")void repairAppliedUpdate(true);
+      if(kind==="rollback")void rollback(true);
+    }}
+  />
   </main>;
 }

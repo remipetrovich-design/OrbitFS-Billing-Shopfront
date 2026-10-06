@@ -3,7 +3,8 @@ import {errorMessage} from "@/lib/error-message";
 import {gunzipSync} from "node:zlib";
 import {licenseDb} from "@/lib/license-api";
 import {serviceRpc,userFromToken,userRpc} from "@/lib/paymentServer";
-import {masterDownloadReleaseArtifact,masterReleases} from "@/lib/master-api";
+import {masterDownloadReleaseArtifact,masterInstallationPanelDomain,masterReleases} from "@/lib/master-api";
+import {releaseHasDatabasePackageContract,resolveReleaseDatabasePackage} from "@/lib/orbitfs-database-packages";
 import {requireLicenseMasterForDeployment,requireLicenseMasterForMutation} from "@/lib/license-master-availability";
 
 const SUPABASE_API="https://api.supabase.com/v1";
@@ -15,6 +16,7 @@ export type DeployAction="deploy"|"base_update"|"update"|"rollback"|"redeploy";
 export function bearer(req:Request){return String(req.headers.get("authorization")||"").replace(/^Bearer\s+/i,"").trim()}
 export async function requireOrbitUser(req:Request){const token=bearer(req);if(!token)throw Object.assign(new Error("Authentication required"),{status:401});const user=await userFromToken(token);return {token,user}}
 export async function requireOrbitAdmin(req:Request){const auth=await requireOrbitUser(req);const ok=await userRpc(auth.token,"has_permission",{p_permission:"licenses.view"});if(ok!==true)throw Object.assign(new Error("Permission denied"),{status:403});return auth}
+export async function requireOrbitAdminManage(req:Request){const auth=await requireOrbitUser(req);const ok=await userRpc(auth.token,"has_permission",{p_permission:"licenses.manage"});if(ok!==true)throw Object.assign(new Error("Permission denied"),{status:403});return auth}
 export function httpError(error:any){const status=Number(error?.status)||500,message=errorMessage(error?.message??error,"Request failed"),code=String(error?.code||(status===401?"UNAUTHENTICATED":status===403?"FORBIDDEN":status===404?"NOT_FOUND":status===409?"CONFLICT":status>=500?"SERVICE_UNAVAILABLE":"REQUEST_FAILED"));return Response.json({error:message,code,operationId:error?.operationId||null,retryable:Boolean(error?.retryable??status>=500)},{status})}
 
 function storeSupabaseRef(){
@@ -415,6 +417,39 @@ async function releaseSchemaText(release:any){
     throw Object.assign(new Error(`Published Base release ${release?.version||""} does not contain the verified customer database snapshot required for automatic deployment. Publish a current Base release before initializing a customer database.`),{status:409});
   }
 
+  if(releaseHasDatabasePackageContract(release)){
+    const resolved=await resolveReleaseDatabasePackage(release,"base");
+    const payload=resolved.payload;
+    const snapshot=payload?.snapshot;
+    const migrations=Array.isArray(payload?.migrations)?payload.migrations:[];
+    if(!snapshot||snapshot.format!=="sql"||snapshot.file!==schemaPath||snapshot.encoding!=="base64"||typeof snapshot.data!=="string"){
+      throw Object.assign(new Error("License Manager Base database package is missing its fresh-install snapshot"),{status:422,code:"BASE_DATABASE_SNAPSHOT_MISSING"});
+    }
+    if(String(payload.databaseSchemaVersion||"")!==expectedSchemaVersion||Number(payload.migrationCount)!==expectedMigrationCount||migrations.length!==expectedMigrationCount){
+      throw Object.assign(new Error("License Manager Base database package metadata does not match the approved release"),{status:422,code:"BASE_DATABASE_PACKAGE_METADATA_MISMATCH"});
+    }
+    const latest=migrations.map((migration:any)=>{
+      const file=String(migration?.file||"").replaceAll("\\","/");
+      return file.match(/^supabase\/migrations\/(\d{14})_[A-Za-z0-9._-]+\.sql$/)?.[1]||"";
+    }).filter(Boolean).sort().at(-1)||"";
+    if(latest!==expectedLatestMigration){
+      throw Object.assign(new Error("License Manager Base database package migration history does not match the approved release"),{status:422,code:"BASE_DATABASE_PACKAGE_HISTORY_MISMATCH"});
+    }
+    const bytes=Buffer.from(snapshot.data,"base64");
+    if(bytes.byteLength<1||bytes.byteLength>SCHEMA_MAX_BYTES)throw Object.assign(new Error("License Manager Base database snapshot size is invalid"),{status:422});
+    const sha256=createHash("sha256").update(bytes).digest("hex");
+    if(sha256!==expectedSchemaHash||String(snapshot.sha256||"").toLowerCase()!==sha256||Number(snapshot.size)!==bytes.byteLength){
+      throw Object.assign(new Error("License Manager Base database snapshot checksum failed"),{status:422,code:"BASE_DATABASE_SNAPSHOT_CHECKSUM_FAILED"});
+    }
+    const sql=bytes.toString("utf8");
+    if(!["orbitfs_users","orbitfs_workspaces","orbitfs_workspace_members","orbitfs_files","orbitfs_settings","orbitfs_license","orbitfs_addons","orbitfs_audit_log"].every(name=>sql.includes(name))){
+      throw Object.assign(new Error("License Manager Base database snapshot is incomplete"),{status:422});
+    }
+    if(/\b(?:begin|commit|rollback)\s*;/i.test(sql))throw Object.assign(new Error("License Manager Base database snapshot contains unsupported explicit transaction control"),{status:422});
+    return {sql,sha256,source:"license-manager-database-package" as const,path:schemaPath,schemaVersion:expectedSchemaVersion,migrationCount:expectedMigrationCount,latestMigration:expectedLatestMigration};
+  }
+
+  // Compatibility only for published releases created before database package references.
   const artifact=await masterDownloadReleaseArtifact(String(release.id));
   if(artifact.bytes.byteLength>75*1024*1024)throw Object.assign(new Error("Base release artifact is too large"),{status:413});
   const artifactHash=createHash("sha256").update(artifact.bytes).digest("hex");
@@ -800,7 +835,7 @@ export async function configureVercel(install:any,releaseVersion?:string,panelUr
     // first deployment because the Base-owned inner deployer reads it at runtime
     // when provisioning the Shared Engine. Updating project env after the Base
     // deployment is already READY does not change that running deployment's env.
-    ORBITFS_PANEL_URL:panelUrl||(`https://${String(install.vercel_project_name||"").trim().toLowerCase()}.vercel.app`),
+    ORBITFS_PANEL_URL:panelUrl||(await selectedBasePanelUrlForDeployment(install))||(`https://${String(install.vercel_project_name||"").trim().toLowerCase()}.vercel.app`),
     ORBITFS_LICENSE_API_URL:ORBITFS_LICENSE_API_URL,
     ORBITFS_APP_VERSION:version||"unknown",
     ORBITFS_ENGINE_RELEASE_PROVIDER:ORBITFS_SHARED_ENGINE_RELEASE_PROVIDER,
@@ -843,189 +878,112 @@ export async function configureVercelUpdateIdentity(install:any,input:{version:s
   for(const [name,value] of Object.entries(vars)){if(value)await upsertVercelEnv(install,name,value)}
 }
 
-function normalizeDomainHost(value:any){
- const raw=String(value||"").trim().toLowerCase();
- if(!raw)return "";
- let parsed:URL;
- try{parsed=new URL(raw.includes("://")?raw:`https://${raw}`)}catch{throw Object.assign(new Error("Enter a valid domain name"),{status:400,code:"INVALID_DOMAIN"})}
- if(parsed.protocol!=="https:"||parsed.username||parsed.password||parsed.port||parsed.pathname!=="/"||parsed.search||parsed.hash)throw Object.assign(new Error("Enter a hostname only, for example panel.example.com"),{status:400,code:"INVALID_DOMAIN"});
- const host=parsed.hostname.toLowerCase().replace(/\.$/,"");
- if(!host.includes(".")||host.length>253||!/^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(host))throw Object.assign(new Error("Enter a valid public domain name"),{status:400,code:"INVALID_DOMAIN"});
- return host;
+// Base Panel domain selection is authoritative in License Manager. Billing keeps
+// only a mirror for display/telemetry; deploy/runtime decisions always refresh
+// the current authority state when an installation binding exists.
+async function authoritativeBaseDomainPreference(install:any){
+ const generatedDomain=`${String(install?.vercel_project_name||"").trim().toLowerCase()}.vercel.app`;
+ const installationId=String(install?.installation_id||"").trim();
+ const bindingId=String(install?.license_binding_id||"").trim();
+ if(!installationId||!bindingId)return {mode:"generated",domainName:"",verified:true,effectiveUrl:generatedDomain!==".vercel.app"?`https://${generatedDomain}`:null,generatedDomain};
+ const binding=await licenseDb().from("license_bindings").select("license_id").eq("id",bindingId).eq("auth_user_id",String(install.auth_user_id||"")).is("archived_at",null).maybeSingle();
+ if(binding.error)throw binding.error;
+ const licenseId=String(binding.data?.license_id||"").trim();
+ if(!licenseId)return {mode:"generated",domainName:"",verified:true,effectiveUrl:generatedDomain!==".vercel.app"?`https://${generatedDomain}`:null,generatedDomain};
+ let authority:any;
+ try{
+  authority=await masterInstallationPanelDomain(installationId,licenseId);
+ }catch(error:any){
+  // Fresh Base installs do not have an activation until first-time licence setup.
+  // Before that point the generated project address is the only valid choice.
+  if(Number(error?.status||0)===404)return {mode:"generated",domainName:"",verified:true,effectiveUrl:generatedDomain!==".vercel.app"?`https://${generatedDomain}`:null,generatedDomain};
+  throw error;
+ }
+ const value=authority?.panel_domain&&typeof authority.panel_domain==="object"?authority.panel_domain:{};
+ const mode=["generated","vercel","custom"].includes(String(value.mode||""))?String(value.mode):"generated";
+ const domainName=String(value.domain_name||"").trim().toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,"");
+ return {
+  mode,
+  domainName,
+  verified:mode==="generated"?true:value.verified===true,
+  effectiveUrl:String(value.effective_url||"").trim()||null,
+  generatedDomain:String(value.generated_domain||generatedDomain).trim().toLowerCase()
+ };
 }
-function normalizeVercelAlias(value:any){
+async function selectedBasePanelUrlForDeployment(install:any){
+ const preference=await authoritativeBaseDomainPreference(install);
+ const generated=preference.generatedDomain||`${String(install?.vercel_project_name||"").trim().toLowerCase()}.vercel.app`;
+ if(preference.mode==="vercel"&&preference.domainName)return `https://${preference.domainName}`;
+ if(preference.mode==="custom"&&preference.domainName&&preference.verified)return `https://${preference.domainName}`;
+ return generated&&generated!==".vercel.app"?`https://${generated}`:null;
+}
+export async function refreshBasePanelUrlEnv(install:any){
+ const panelUrl=await selectedBasePanelUrlForDeployment(install);
+ if(panelUrl&&install?.vercel_project_id)await upsertVercelEnv(install,"ORBITFS_PANEL_URL",panelUrl);
+ return panelUrl;
+}
+function normalizeBaseVercelAlias(value:any){
  const raw=String(value||"").trim().toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,"");
- const candidate=raw.endsWith(".vercel.app")?raw:`${raw}.vercel.app`;
- const host=normalizeDomainHost(candidate);
- if(!host.endsWith(".vercel.app"))throw Object.assign(new Error("Enter a vercel.app address"),{status:400,code:"VERCEL_ALIAS_REQUIRED"});
- const slug=host.slice(0,-".vercel.app".length);
- if(!slug||slug.includes(".")||slug.length>63||!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug))throw Object.assign(new Error("Enter a valid Vercel address such as my-orbitfs.vercel.app"),{status:400,code:"INVALID_VERCEL_ALIAS"});
- return `${slug}.vercel.app`;
+ const domain=raw.endsWith(".vercel.app")?raw:`${raw}.vercel.app`;
+ const slug=domain.slice(0,-".vercel.app".length);
+ if(!slug||slug.includes(".")||slug.length>63||!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug))throw Object.assign(new Error("Enter a valid Vercel address such as my-orbitfs.vercel.app."),{status:400,code:"BASE_VERCEL_ALIAS_INVALID"});
+ return domain;
 }
-function domainPreference(install:any){
- const raw=install?.metadata?.domainPreference&&typeof install.metadata.domainPreference==="object"?install.metadata.domainPreference:{};
- const mode=raw.mode==="custom"?"custom":raw.mode==="vercel"?"vercel":"generated";
- let hostname="";
- if(mode!=="generated"){
-  try{hostname=mode==="vercel"?normalizeVercelAlias(raw.hostname):normalizeDomainHost(raw.hostname)}catch{}
+function baseVercelAliasUnavailable(error:any){
+ const message=String(error?.message||"").toLowerCase();
+ return /alias.*(already|in use)|already.*(used|assigned|exists)|domain.*(in use|assigned)|alias_in_use|forbidden.*alias/.test(message);
+}
+export async function ensureSelectedBaseVercelAliasOnDeployment(install:any,deploymentId:string):Promise<string|null>{
+ const preference=await authoritativeBaseDomainPreference(install);
+ if(preference.mode!=="vercel"||!preference.domainName)return null;
+ const domain=normalizeBaseVercelAlias(preference.domainName);
+ const projectId=String(install?.vercel_project_id||"").trim();
+ if(!projectId||!deploymentId)throw Object.assign(new Error("Base Vercel project/deployment identity is missing while restoring the selected address."),{status:409,code:"BASE_DOMAIN_PROJECT_REQUIRED"});
+ let current:any=null;
+ try{current=await vercelApi(String(install.auth_user_id),`/v4/aliases/${encodeURIComponent(domain)}`,{method:"GET"});}catch(error:any){if(Number(error?.status||0)!==404)throw error}
+ const currentDeploymentId=String(current?.deploymentId||current?.deployment?.id||"").trim();
+ const currentProjectId=String(current?.projectId||current?.project?.id||current?.deployment?.projectId||"").trim();
+ if(currentDeploymentId===deploymentId&&(!currentProjectId||currentProjectId===projectId))return domain;
+ try{
+  await vercelApi(String(install.auth_user_id),`/v2/deployments/${encodeURIComponent(deploymentId)}/aliases`,{method:"POST",body:JSON.stringify({alias:domain,redirect:null})});
+ }catch(error:any){
+  if(Number(error?.status||0)===403||Number(error?.status||0)===409||baseVercelAliasUnavailable(error))throw Object.assign(new Error(`${domain} is already in use on Vercel.`),{status:409,code:"BASE_VERCEL_ALIAS_UNAVAILABLE"});
+  throw error;
  }
- return {mode,hostname};
+ const verified=await vercelApi(String(install.auth_user_id),`/v4/aliases/${encodeURIComponent(domain)}`,{method:"GET"});
+ const verifiedDeploymentId=String(verified?.deploymentId||verified?.deployment?.id||"").trim();
+ const verifiedProjectId=String(verified?.projectId||verified?.project?.id||verified?.deployment?.projectId||"").trim();
+ if(verifiedDeploymentId!==deploymentId||(verifiedProjectId&&verifiedProjectId!==projectId))throw Object.assign(new Error("Vercel did not bind the selected Base address to the current production deployment."),{status:503,code:"BASE_VERCEL_ALIAS_REBIND_FAILED"});
+ return domain;
 }
-async function projectDomains(install:any){
- if(!install?.vercel_project_id)throw Object.assign(new Error("Deploy Base before configuring its domain"),{status:409,code:"BASE_PROJECT_REQUIRED"});
- const result=await vercelApi(String(install.auth_user_id),`/v9/projects/${encodeURIComponent(String(install.vercel_project_id))}/domains`,{method:"GET"});
- return Array.isArray(result?.domains)?result.domains:[];
-}
-async function vercelAliasLookup(userId:string,domain:string){
- const {token,teamId}=await vercelAccessToken(userId);
- const r=await fetch(`${VERCEL_API}${withTeam(`/v4/aliases/${encodeURIComponent(domain)}`,teamId)}`,{
-  headers:{authorization:`Bearer ${token}`,"content-type":"application/json"},
-  cache:"no-store"
- });
- if(r.status===404)return {exists:false,projectId:null,deploymentId:null,uid:null};
- if(r.status===403)return {exists:true,projectId:null,deploymentId:null,uid:null};
- if(!r.ok){
-  const detail=await r.text();
-  throw Object.assign(new Error(`Vercel alias lookup ${r.status}: ${detail}`),{status:r.status>=500?502:r.status});
- }
- const body:any=await r.json().catch(()=>({}));
- return {
-  exists:true,
-  projectId:String(body?.projectId||body?.project?.id||body?.deployment?.projectId||"").trim()||null,
-  deploymentId:String(body?.deploymentId||body?.deployment?.id||"").trim()||null,
-  uid:String(body?.uid||"").trim()||null
- };
-}
-export async function installationDomainStatus(install:any){
- const normalize=(v:any)=>String(v||"").trim().replace(/^https?:\/\//,"").replace(/\/$/,"").toLowerCase();
- const generatedDomain=`${String(install.vercel_project_name||"").trim().toLowerCase()}.vercel.app`;
- const preference=domainPreference(install);
- const domains=await projectDomains(install);
- const selectedDomain=preference.mode==="generated"?generatedDomain:preference.hostname;
- const customSelected=preference.mode==="custom"?domains.find((d:any)=>normalize(d?.name)===selectedDomain):null;
- const alias=preference.mode==="vercel"&&selectedDomain?await vercelAliasLookup(String(install.auth_user_id),selectedDomain):null;
- const aliasOwned=Boolean(alias?.exists&&alias?.projectId===String(install.vercel_project_id));
- const selectedVerified=preference.mode==="generated"
-  ?true
-  :preference.mode==="vercel"
-   ?aliasOwned
-   :Boolean(customSelected&&customSelected?.verified!==false&&customSelected?.misconfigured!==true);
- const customDomains=domains.filter((d:any)=>!normalize(d?.name).endsWith(".vercel.app")).map((d:any)=>({
-   name:normalize(d?.name),verified:d?.verified!==false,redirect:d?.redirect||null,misconfigured:d?.misconfigured===true
- }));
- const vercelDomains=preference.mode==="vercel"&&preference.hostname&&aliasOwned
-  ?[{name:preference.hostname,verified:true,redirect:null,misconfigured:false}]
-  :[];
- const effectiveHost=preference.mode==="generated"?generatedDomain:selectedVerified&&selectedDomain?selectedDomain:generatedDomain;
- return {
-   mode:preference.mode,
-   generatedDomain,
-   vercelDomain:preference.mode==="vercel"?preference.hostname||null:null,
-   customDomain:preference.mode==="custom"?preference.hostname||null:null,
-   selectedDomain:selectedDomain||generatedDomain,
-   selectedVerified,
-   effectiveUrl:effectiveHost?`https://${effectiveHost}`:String(install.production_url||"")||null,
-   vercelDomains,
-   customDomains
- };
-}
-export async function checkInstallationVercelDomainAvailability(install:any,value:any){
- if(!install?.vercel_project_id)throw Object.assign(new Error("Deploy Base before configuring its domain"),{status:409,code:"BASE_PROJECT_REQUIRED"});
- const domain=normalizeVercelAlias(value);
- const generatedDomain=`${String(install.vercel_project_name||"").trim().toLowerCase()}.vercel.app`;
- if(domain===generatedDomain)return {domain,available:true,attached:true,reserved:true,current:true};
- const domains=await projectDomains(install);
- if(domains.some((d:any)=>String(d?.name||"").trim().toLowerCase()===domain))return {domain,available:true,attached:true,reserved:true,current:false};
- const lookup=await vercelAliasLookup(String(install.auth_user_id),domain);
- if(!lookup.exists)return {domain,available:true,attached:false,reserved:false,current:false};
- if(lookup.projectId&&lookup.projectId===String(install.vercel_project_id)){
-  const current=Boolean(install.vercel_deployment_id&&lookup.deploymentId===String(install.vercel_deployment_id));
-  return {domain,available:true,attached:current,reserved:true,current};
- }
- return {domain,available:false,attached:false,reserved:false,current:false,reason:"already_in_use"};
-}
-export async function configureInstallationDomain(install:any,input:any){
- await requireLicenseMasterForMutation();
- if(!install?.vercel_project_id)throw Object.assign(new Error("Deploy Base before configuring its domain"),{status:409,code:"BASE_PROJECT_REQUIRED"});
- const mode=String(input?.mode||"generated").trim().toLowerCase();
- if(mode!=="generated"&&mode!=="vercel"&&mode!=="custom")throw Object.assign(new Error("Unsupported domain mode"),{status:400,code:"INVALID_DOMAIN_MODE"});
- const currentMetadata=install?.metadata&&typeof install.metadata==="object"&&!Array.isArray(install.metadata)?install.metadata:{};
- let hostname="";
- if(mode==="vercel"){
-   const availability=await checkInstallationVercelDomainAvailability(install,input?.domain);
-   if(!availability.available)throw Object.assign(new Error(`${availability.domain} is already in use on Vercel`),{status:409,code:"VERCEL_ALIAS_UNAVAILABLE"});
-   hostname=availability.domain;
-   if(!install.vercel_deployment_id)throw Object.assign(new Error("Base deployment is not ready for a custom Vercel address"),{status:409,code:"BASE_DEPLOYMENT_REQUIRED"});
-   if(!availability.attached){
-    try{
-     await vercelApi(String(install.auth_user_id),`/v2/deployments/${encodeURIComponent(String(install.vercel_deployment_id))}/aliases`,{method:"POST",body:JSON.stringify({alias:hostname,redirect:null})});
-    }catch(error:any){
-     const message=String(error?.message||"").toLowerCase();
-     if(Number(error?.status||0)===403||Number(error?.status||0)===409||/alias.*(already|in use)|already.*(used|assigned|exists)|domain.*(in use|assigned)|alias_in_use/.test(message)){
-      throw Object.assign(new Error(`${hostname} is already in use on Vercel`),{status:409,code:"VERCEL_ALIAS_UNAVAILABLE"});
-     }
-     throw error;
-    }
-   }
- }
- if(mode==="custom"){
-   hostname=normalizeDomainHost(input?.domain);
-   if(hostname.endsWith(".vercel.app"))throw Object.assign(new Error("Choose Custom Vercel address for vercel.app names"),{status:400,code:"CUSTOM_DOMAIN_REQUIRED"});
-   const domains=await projectDomains(install);
-   if(!domains.some((d:any)=>String(d?.name||"").trim().toLowerCase()===hostname)){
-     await vercelApi(String(install.auth_user_id),`/v10/projects/${encodeURIComponent(String(install.vercel_project_id))}/domains`,{method:"POST",body:JSON.stringify({name:hostname})});
-   }
- }
- const preference={mode,hostname:mode==="generated"?null:hostname,updatedAt:new Date().toISOString()};
- const {data,error}=await licenseDb().from("orbitfs_installations").update({
-   metadata:{...currentMetadata,domainPreference:preference},
-   updated_at:new Date().toISOString()
- }).eq("id",install.id).select().single();
- if(error)throw error;
- const status=await installationDomainStatus(data);
- const targetHost=status.mode!=="generated"&&status.selectedVerified&&status.selectedDomain?status.selectedDomain:status.generatedDomain;
- if(targetHost)await upsertVercelEnv(data,"ORBITFS_PANEL_URL",`https://${targetHost}`);
- const synced=data.vercel_deployment_id?await syncDeployment(data):data;
- await event(synced,"panel.domain_preference_updated",status.selectedVerified?"ok":"warning",mode==="custom"?(status.selectedVerified?`Custom Base domain set to ${hostname}`:`Custom Base domain ${hostname} is awaiting Vercel verification`):mode==="vercel"?`Base Vercel address set to ${hostname}`:`Base domain reset to ${status.generatedDomain}`,{mode,hostname:mode==="generated"?null:hostname,verified:status.selectedVerified});
- return {installation:synced,domain:await installationDomainStatus(synced)};
-}
-export async function removeInstallationCustomDomain(install:any,domainValue:any){
- await requireLicenseMasterForMutation();
- const hostname=normalizeDomainHost(domainValue);
- if(!install?.vercel_project_id)throw Object.assign(new Error("Base Vercel project is missing"),{status:409,code:"BASE_PROJECT_REQUIRED"});
- const preference=domainPreference(install);
- if(preference.mode!=="generated"&&preference.hostname===hostname)throw Object.assign(new Error("Switch to another address before removing the active domain"),{status:409,code:"CUSTOM_DOMAIN_ACTIVE"});
- const generatedDomain=`${String(install.vercel_project_name||"").trim().toLowerCase()}.vercel.app`;
- if(hostname===generatedDomain)throw Object.assign(new Error("The default generated Vercel domain cannot be removed"),{status:409,code:"GENERATED_DOMAIN_REQUIRED"});
- await vercelApi(String(install.auth_user_id),`/v9/projects/${encodeURIComponent(String(install.vercel_project_id))}/domains/${encodeURIComponent(hostname)}`,{method:"DELETE"});
- await event(install,"panel.custom_domain_removed","ok",`Removed custom Base domain ${hostname}`,{hostname});
- return installationDomainStatus(install);
-}
-
-// Resolve only a project-level production address; generated deployment URLs can be protected.
 export async function resolveProductionUrl(install:any,deployment?:any):Promise<string|null>{
  const normalize=(v:any)=>String(v||"").trim().replace(/^https?:\/\//,"").replace(/\/$/,"").toLowerCase();
  const projectDomain=`${String(install.vercel_project_name||"").trim().toLowerCase()}.vercel.app`;
  const deploymentHost=normalize(deployment?.url);
  const aliases=Array.isArray(deployment?.alias)?deployment.alias.map(normalize).filter(Boolean):[];
- const domains=await projectDomains(install);
- const candidates=domains.filter((d:any)=>d?.verified!==false&&normalize(d?.name)&&normalize(d?.name)!==deploymentHost);
- const preference=domainPreference(install);
- const preferredSelected=preference.mode==="custom"&&preference.hostname?candidates.find((d:any)=>normalize(d?.name)===preference.hostname):null;
- const preferredVercelAlias=preference.mode==="vercel"&&preference.hostname&&aliases.includes(preference.hostname)?preference.hostname:"";
- const project=candidates.find((d:any)=>normalize(d.name)===projectDomain);
- const vercel=candidates.find((d:any)=>!d.redirect&&normalize(d.name).endsWith(".vercel.app"))
-  ||candidates.find((d:any)=>normalize(d.name).endsWith(".vercel.app"));
+ const result=await vercelApi(String(install.auth_user_id),`/v9/projects/${encodeURIComponent(String(install.vercel_project_id))}/domains`,{method:"GET"});
+ const domains=Array.isArray(result?.domains)?result.domains:[];
+ const candidates=domains.filter((d:any)=>d?.verified!==false&&d?.misconfigured!==true&&normalize(d?.name)&&normalize(d?.name)!==deploymentHost);
+ const preference=await authoritativeBaseDomainPreference(install);
+ const preferred=normalize(preference.domainName);
+ if(preference.mode==="generated"&&projectDomain!==".vercel.app")return `https://${projectDomain}`;
+ if(preference.mode==="custom"&&preferred){
+  const selected=candidates.find((d:any)=>normalize(d?.name)===preferred);
+  if(selected)return `https://${preferred}`;
+  return projectDomain!==".vercel.app"?`https://${projectDomain}`:null;
+ }
+ if(preference.mode==="vercel"&&preferred&&preferred.endsWith(".vercel.app")){
+  if(aliases.includes(preferred)||candidates.some((d:any)=>normalize(d?.name)===preferred))return `https://${preferred}`;
+  return projectDomain!==".vercel.app"?`https://${projectDomain}`:null;
+ }
  const custom=candidates.find((d:any)=>!d.redirect&&!normalize(d.name).endsWith(".vercel.app"))
   ||candidates.find((d:any)=>!normalize(d.name).endsWith(".vercel.app"));
  const customAlias=aliases.find((host:string)=>host!==deploymentHost&&!host.endsWith(".vercel.app"));
- const generated=normalize(project?.name)||(aliases.includes(projectDomain)&&projectDomain!==deploymentHost?projectDomain:"")||normalize(vercel?.name)||projectDomain;
- const name=preference.mode==="vercel"
-  ?(preferredVercelAlias||generated)
-  :preference.mode==="custom"
-   ?(normalize(preferredSelected?.name)||generated)
-   :(generated||normalize(custom?.name)||customAlias||normalize(candidates[0]?.name));
- return name?`https://${name}`:null;
+ const project=candidates.find((d:any)=>normalize(d.name)===projectDomain);
+ const vercel=candidates.find((d:any)=>!d.redirect&&normalize(d.name).endsWith(".vercel.app"))
+  ||candidates.find((d:any)=>normalize(d.name).endsWith(".vercel.app"));
+ const name=normalize(custom?.name)||customAlias||normalize(project?.name)||(aliases.includes(projectDomain)&&projectDomain!==deploymentHost?projectDomain:"")||normalize(vercel?.name)||normalize(candidates[0]?.name);
+ return name?`https://${name}`:projectDomain!==".vercel.app"?`https://${projectDomain}`:null;
 }
 export async function checkPublicPanelHealth(url:string,path:string):Promise<boolean>{
  try{const r=await fetch(new URL(path||"/api/health",url),{redirect:"manual",cache:"no-store",signal:AbortSignal.timeout(15000)});return r.status>=200&&r.status<300&&!r.headers.get("x-vercel-mitigated")}catch{return false}

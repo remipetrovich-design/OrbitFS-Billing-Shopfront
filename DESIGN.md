@@ -148,6 +148,18 @@ Danger actions remain visually separated from normal deployment actions.
 - Use blue as the Base Deployer's primary accent.
 - Hide lifecycle consequences or present failed/partial deployment as success.
 
+## V6C My OrbitFS authority workspaces
+
+License Controller and Release Channels are operational customer workspaces, not legacy portal card stacks.
+
+- Keep the V6C route context header compact; the working area begins immediately below it.
+- Use a bounded selector rail plus one dominant detail workspace on desktop. On phone widths, the selector rail becomes a horizontal snap list above the detail workspace.
+- License Controller shows authoritative licence status, enabled components, installation bindings and shared Base + Update channel access together. Customer actions remain narrower than Admin enforcement actions.
+- Release Channels exposes the single License Manager channel model used by both Base and Update. It manages customer access only; changing channel access must not silently rewrite an installed Base channel.
+- Stable/open access is visually distinct from explicit restricted-channel grants. Pending/approved/denied requests must remain clearly separate from authoritative access.
+- Destructive, security-sensitive or permission-changing customer actions use the shared V6 app dialog, never browser-native confirm/prompt/alert.
+- Empty, loading and error states preserve the workspace footprint and tell the customer what can be done next.
+
 ## V6 Customer and Admin System
 
 V6 is the compact OrbitFS product interface derived from the supplied 12ui ZIP and maintained with the Frontend Design Premium consistency contract.
@@ -272,3 +284,44 @@ V6A exposes a compact circular Admin account menu with identity, role, customer-
 - No duplicate dropdown + tile selectors for the same choice.
 - No browser-native alert/confirm/prompt for product interactions.
 - No Base/Update workflow restructuring without explicit approval.
+
+
+
+### V6C Base and Update customer workflows
+
+The customer-facing Base Deployment and Update Release System retain their existing authoritative workflow and API behavior while using the V6C presentation layer.
+
+Base Deployment:
+- keep the five customer stages: Connections → Database → Base release → Database setup → Live Progress;
+- use the shared License Manager channel list for Base release discovery;
+- keep customer Supabase/Vercel credentials isolated to the deployer execution path;
+- show actual operation state and recorded events rather than invented percentages;
+- once installed, present one compact Base control workspace for domain, releases, runtime state, lifecycle and history.
+
+Update Release System:
+- keep the five-stage Update flow already used by the working customer updater;
+- release cards stay compact and expanded technical notes are bounded/scrollable;
+- review, compatibility and live execution state stay separate;
+- repair and rollback remain recovery actions against the authoritative published release;
+- the support footer is a contained V6C end-cap, not loose legacy text.
+
+Both pages must remain usable below 720px: stage navigation becomes horizontal scroll rather than five tiny columns, action groups stack cleanly and technical identifiers wrap without forcing horizontal page overflow.
+
+## V6 Mail System
+
+OrbitFS Mail is part of the V6 operational product family. Its current functionality is the design authority for scope; the visual redesign must wrap the existing mail system before new mail capabilities are added.
+
+Current Mail surfaces:
+- `/mail` — authorised mailbox launcher plus transactional Mail queue.
+- `/mail/mailbox/[account]` — Inbox, Outbox, Sent, Spam and Trash; search, message threads, compose, reply/reply-all, forward, read state, move, spam/block, restore and delete.
+- `/mail/admin` — runtime Mail settings, customer email subscription categories/event routing, mailbox management, spam protection, lifecycle templates and delivery history.
+
+Visual direction:
+- use the V6 dark navy shell with restrained violet/indigo selection and primary actions;
+- preserve cyan for focus/information and green for healthy/success state;
+- keep panels compact with 7–10px radii and one border rather than stacked decorative cards;
+- desktop mailbox workspaces use three operational regions: folder rail, message list and reader;
+- configuration screens use compact disclosure sections and live counts, not invented KPI data;
+- mobile must retain real folder navigation and message-reader back navigation.
+
+Do not add visual tabs, metrics, folders, campaigns, scheduling or provider controls unless the underlying system supports them. New capabilities should be added after this current-system pass and then inherit this Mail visual system.

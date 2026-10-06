@@ -1,13 +1,15 @@
 import {licenseDb} from "@/lib/license-api";
 import {masterControl,masterIssue,masterLicenses} from "@/lib/master-api";
 import {syncPaidOrderToLicenseMaster} from "@/lib/license-master-sync";
+import {canonicalLicenseStatus} from "@/lib/license-status";
+import {accountEnforcementRemoteSatisfied} from "@/lib/account-enforcement-state";
 
 const CANONICAL=new Set(["orbitfs_base","orbitfs_apex","orbitfs_mcp","orbitfs_studio"]);
 const MAX_BATCH=50;
 function productOf(binding:any){return String(binding?.license_product_key||"").trim().toLowerCase()}
 function masterId(result:any){return String(result?.id||result?.license_id||result?.license?.id||result?.licence?.id||result?.binding?.id||"").trim()}
 function masterKey(result:any){return String(result?.license_key||result?.licenseKey||result?.key||result?.license?.license_key||result?.license?.licenseKey||result?.licence?.license_key||"").trim()}
-function masterState(result:any,fallback:string){return String(result?.status||result?.license?.status||result?.licence?.status||result?.binding?.status||fallback).trim().toLowerCase()}
+function masterState(result:any,fallback:string){return String(result?.storage_status||result?.license?.storage_status||result?.licence?.storage_status||result?.binding?.storage_status||result?.status||result?.license?.status||result?.licence?.status||result?.binding?.status||fallback).trim().toLowerCase()}
 
 export async function reconcileLicenseMaster(limit=MAX_BATCH){
  const db=licenseDb(),cap=Math.min(MAX_BATCH,Math.max(1,Number(limit)||MAX_BATCH));
@@ -22,15 +24,16 @@ export async function reconcileLicenseMaster(limit=MAX_BATCH){
   const remotes=Array.isArray(snapshot?.licenses)?snapshot.licenses:[];
   for(const remoteLicense of remotes){
    const id=masterId(remoteLicense),product=String(remoteLicense?.product_code||remoteLicense?.product||"").toLowerCase();
-   if(!id||product!=="orbitfs_base"||["revoked","expired"].includes(String(remoteLicense?.status||"").toLowerCase()))continue;
+   if(!id||product!=="orbitfs_base"||["terminated","expired"].includes(canonicalLicenseStatus(remoteLicense)))continue;
    const customer:any=byNumber.get(String(remoteLicense?.customer_external_id||"").toLowerCase());
    if(!customer)continue;
    const userId=String(customer.auth_user_id||customer.user_id||"");if(!userId)continue;
    const policy=remoteLicense?.metadata?.license_policy||{},raw=remoteLicense?.components||policy?.components||{};
    const components={orbitfs_base:true,orbitfs_apex:Boolean(raw.orbitfs_apex),orbitfs_mcp:Boolean(raw.orbitfs_mcp),orbitfs_studio:Boolean(raw.orbitfs_studio)};
-   const owner=await db.from("license_bindings").select("id,auth_user_id").eq("license_id",id).is("archived_at",null).limit(1).maybeSingle();
+   const owner=await db.from("license_bindings").select("id,auth_user_id,desired_state,suspension_reason").eq("license_id",id).is("archived_at",null).limit(1).maybeSingle();
    if(owner.error)throw owner.error;
-   const now=new Date().toISOString(),payload:any={auth_user_id:userId,license_id:id,license_product_key:"orbitfs_base",desired_state:String(remoteLicense.status||"active"),remote_state:String(remoteLicense.status||"active"),components,license_key_last4:remoteLicense.license_key_last4||null,expires_at:remoteLicense.expires_at||null,label:remoteLicense.product_name||remoteLicense.product||"OrbitFS Base",api_source:"license_master",admin_override:remoteLicense.customer_override===true,last_synced_at:now,last_sync_error:null,updated_at:now};
+   const storageState=String(remoteLicense.storage_status||remoteLicense.status||"active").toLowerCase();
+   const now=new Date().toISOString(),payload:any={auth_user_id:userId,license_id:id,license_product_key:"orbitfs_base",desired_state:String(owner.data?.desired_state||storageState),remote_state:storageState,components,license_key_last4:remoteLicense.license_key_last4||null,expires_at:remoteLicense.expires_at||null,label:remoteLicense.product_name||remoteLicense.product||"OrbitFS Base",api_source:"license_master",admin_override:remoteLicense.customer_override===true,last_synced_at:now,last_sync_error:null,updated_at:now};
    let bindingId=owner.data?.id||null;
    if(bindingId){
     const write=await db.from("license_bindings").update(payload).eq("id",bindingId);if(write.error)throw write.error;
@@ -60,10 +63,12 @@ export async function reconcileLicenseMaster(limit=MAX_BATCH){
    if(!bindingId)continue;
    const desired=String(binding.desired_state||"").toLowerCase(),remote=String(binding.remote_state||"").toLowerCase(),product=productOf(binding);
    if(!CANONICAL.has(product)){await db.from("license_bindings").update({last_synced_at:new Date().toISOString(),last_sync_error:null}).eq("id",bindingId);continue}
+   if(accountEnforcementRemoteSatisfied(binding)){const now=new Date().toISOString();await db.from("license_bindings").update({last_synced_at:now,last_sync_error:null,updated_at:now}).eq("id",bindingId);results.push({kind:"binding",bindingId,licenseId:binding.license_id||null,desired,remoteState:remote,status:"account_termination_confirmed"});continue}
    if(remote===desired&&!binding.last_sync_error)continue;
    if(remote===desired&&binding.last_sync_error&&binding.license_id){
-    const confirmationAction=desired==="active"?"activate":desired==="suspended"?"suspend":desired==="revoked"?"revoke":"";
-    if(confirmationAction){const confirmation=await masterControl(String(binding.license_id),{action:confirmationAction,actorRef:"billing_store_reconciliation_retry"});const confirmedState=masterState(confirmation,desired);if(confirmedState!==desired)throw new Error("License Master returned state "+confirmedState+" while Billing Store expected "+desired);const now=new Date().toISOString();const {error:confirmWrite}=await db.from("license_bindings").update({remote_state:desired,last_synced_at:now,last_sync_error:null,updated_at:now}).eq("id",bindingId);if(confirmWrite)throw confirmWrite;results.push({kind:"binding",bindingId,licenseId:String(binding.license_id),desired,remoteState:desired,status:"reconfirmed"});continue}
+    const reason=String(binding.suspension_reason||"").trim();
+    const confirmationInput=desired==="active"?{action:"activate",actorRef:"billing_store_reconciliation_retry"}:desired==="suspended"?(reason.toLowerCase().startsWith("account_enforcement:")?{action:"suspend",scope:"account",reason,actorRef:"billing_store_reconciliation_retry"}:{action:"restrict",reason,actorRef:"billing_store_reconciliation_retry"}):desired==="revoked"?{action:"terminate",actorRef:"billing_store_reconciliation_retry"}:null;
+    if(confirmationInput){const confirmation=await masterControl(String(binding.license_id),confirmationInput);const confirmedState=masterState(confirmation,desired);if(confirmedState!==desired)throw new Error("License Manager returned storage state "+confirmedState+" while Billing Store expected "+desired);const now=new Date().toISOString();const {error:confirmWrite}=await db.from("license_bindings").update({remote_state:desired,last_synced_at:now,last_sync_error:null,updated_at:now}).eq("id",bindingId);if(confirmWrite)throw confirmWrite;results.push({kind:"binding",bindingId,licenseId:String(binding.license_id),desired,remoteState:desired,status:"reconfirmed"});continue}
    }
    const orderResult=binding.order_id?await db.from("orders").select("id,order_number,auth_user_id,status,payment_status").eq("id",binding.order_id).maybeSingle():{data:null,error:null};
    if(orderResult.error)throw orderResult.error;
@@ -74,17 +79,32 @@ export async function reconcileLicenseMaster(limit=MAX_BATCH){
    const customer=customerResult.data,customerNumber=String(customer?.customer_number||"").trim();
    if(!customerNumber)throw new Error("Customer number is missing");
    let remoteResult:any=null,newLicenseId=String(binding.license_id||"");
-   if(desired==="active"&&(remote!=="active"||!newLicenseId)){
-    if(!order||!String(order.payment_status||"").toLowerCase().startsWith("paid")||String(order.status||"").toLowerCase()!=="active")throw new Error("Active license reconciliation requires a paid, active order");
-    const ref=String(binding.order_id||order.id)+":"+String(binding.order_item_id||binding.id)+":reconcile";
-    remoteResult=await masterIssue({product,customer_external_id:customerNumber,external_reference:ref,metadata:{billingOrderId:String(order.id),orderNumber:String(order.order_number||""),orderItemId:binding.order_item_id||null,customerId:customer?.id||null,customerNumber,licenseProductKey:product,source:"v2_billing_store_reconciliation"}});
-    newLicenseId=masterId(remoteResult);
-    if(!newLicenseId)throw new Error("License Master did not return a license id");
+   if(desired==="active"){
+    if(newLicenseId&&remote==="revoked")throw new Error("Terminated licence requires explicit recovery before reconciliation can restore it");
+    if(newLicenseId&&remote!=="active"){
+      remoteResult=await masterControl(newLicenseId,{action:"activate",actorRef:"billing_store_reconciliation"});
+    }else if(!newLicenseId){
+      if(!order||!String(order.payment_status||"").toLowerCase().startsWith("paid")||String(order.status||"").toLowerCase()!=="active")throw new Error("Active license reconciliation requires a paid, active order");
+      const ref=String(binding.order_id||order.id)+":"+String(binding.order_item_id||binding.id)+":reconcile";
+      remoteResult=await masterIssue({product,customer_external_id:customerNumber,external_reference:ref,metadata:{billingOrderId:String(order.id),orderNumber:String(order.order_number||""),orderItemId:binding.order_item_id||null,customerId:customer?.id||null,customerNumber,licenseProductKey:product,source:"v2_billing_store_reconciliation"}});
+      newLicenseId=masterId(remoteResult);
+      if(!newLicenseId)throw new Error("License Manager did not return a license id");
+    }
    }else if(desired==="suspended"||desired==="revoked"){
-    if(!newLicenseId)throw new Error("Binding has no License Master license id");
-    remoteResult=await masterControl(newLicenseId,{action:desired==="revoked"?"revoke":"suspend",actorRef:"billing_store_reconciliation"});
+    if(!newLicenseId)throw new Error("Binding has no License Manager licence id");
+    const reason=String(binding.suspension_reason||"").trim();
+    const lowerReason=reason.toLowerCase();
+    const accountTermination=lowerReason.startsWith("account_enforcement:banned:")||lowerReason.startsWith("account_enforcement:terminated:");
+    remoteResult=await masterControl(newLicenseId,desired==="revoked"||accountTermination
+      ?{action:"terminate",reason,actorRef:"billing_store_reconciliation"}
+      :lowerReason.startsWith("account_enforcement:")
+        ?{action:"suspend",scope:"account",reason,actorRef:"billing_store_reconciliation"}
+        :{action:"restrict",reason,actorRef:"billing_store_reconciliation"});
    }else if(desired){throw new Error("Unsupported desired license state: "+desired)}
-   const now=new Date().toISOString(),state=desired==="active"?masterState(remoteResult,"active"):desired==="revoked"?"revoked":"suspended",key=masterKey(remoteResult);
+   const reason=String(binding.suspension_reason||"").trim().toLowerCase();
+   const accountTermination=reason.startsWith("account_enforcement:banned:")||reason.startsWith("account_enforcement:terminated:");
+   const fallbackState=desired==="active"?"active":desired==="revoked"||accountTermination?"revoked":"suspended";
+   const now=new Date().toISOString(),state=masterState(remoteResult,fallbackState),key=masterKey(remoteResult);
    const patch:any={remote_state:state,last_synced_at:now,last_sync_error:null,updated_at:now};
    if(newLicenseId)patch.license_id=newLicenseId;if(key)patch.license_key_last4=key.slice(-4);
    if(desired==="active"){patch.archived_at=null;patch.archive_reason=null;patch.suspension_reason=null}
