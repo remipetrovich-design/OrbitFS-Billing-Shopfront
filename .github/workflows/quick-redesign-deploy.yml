@@ -21,8 +21,8 @@ jobs:
 
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: team_W3fS0X03YCjNkD2BoqRj6Uld
-      VERCEL_PROJECT_ID: prj_3ARdg4cRikU2OiMeZjZDvQ3JuEZd
+      VERCEL_ORG_ID: team_0fWVaLb24pyeeCRqqYu5G47K
+      VERCEL_PROJECT_ID: prj_BZNKPOm5pTcMdD4QrOXPOqpE7Imq
       VERCEL_CLI_VERSION: 59.6.2
       SUPABASE_PROJECT_ID: bealqgenrcytjzjoikmk
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
