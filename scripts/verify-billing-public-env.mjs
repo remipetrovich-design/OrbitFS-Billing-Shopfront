@@ -15,7 +15,7 @@ export function validateBillingPublicEnv(env,projectRef='hdwijbdxmpwlltnfrbsc'){
   return {projectRef,expectedUrl:expected};
 }
 
-if(process.argv[1]&&import.meta.url===new URL('file://'+process.argv[1]).href){
+if(process.argv[1]?.endsWith('/verify-billing-public-env.mjs')){
   const path='.vercel/.env.production.local';
   try{readFileSync(path);}catch{throw new Error('Missing production Vercel env file; run vercel pull before validation');}
   const info=validateBillingPublicEnv(process.env);
