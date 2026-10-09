@@ -1,0 +1,90 @@
+name: Sync shared Billing Supabase connection
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/sync-shared-billing-database.yml
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: fallback-billing-shared-database-sync
+  cancel-in-progress: false
+jobs:
+  synchronize:
+    if: github.repository == 'remipetrovich-design/OrbitFS-Billing-Shopfront' && github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'Sync shared Billing database environment'))
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_SUPABASE_PROJECT: hdwijbdxmpwlltnfrbsc
+      EXPECTED_VERCEL_PROJECT: prj_BZNKPOm5pTcMdD4QrOXPOqpE7Imq
+      EXPECTED_VERCEL_TEAM: team_0fWVaLb24pyeeCRqqYu5G47K
+    steps:
+      - name: Validate shared project identity and securely sync Vercel production keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const env=process.env;
+          if(!env.SUPABASE_ACCESS_TOKEN||!env.VERCEL_TOKEN)throw new Error('Required Supabase or Vercel GitHub Action secret missing');
+          const ref=env.EXPECTED_SUPABASE_PROJECT,projectId=env.EXPECTED_VERCEL_PROJECT,teamId=env.EXPECTED_VERCEL_TEAM;
+          const projectResponse=await fetch('https://api.supabase.com/v1/projects/'+ref,{headers:{authorization:'Bearer '+env.SUPABASE_ACCESS_TOKEN}});
+          if(!projectResponse.ok)throw new Error('Cannot inspect authoritative shared Billing Supabase project (HTTP '+projectResponse.status+')');
+          const sbProject=await projectResponse.json();
+          if(String(sbProject.id||sbProject.ref||'')!==ref)throw new Error('Supabase project identity mismatch');
+          const keyResponse=await fetch('https://api.supabase.com/v1/projects/'+ref+'/api-keys',{headers:{authorization:'Bearer '+env.SUPABASE_ACCESS_TOKEN}});
+          if(!keyResponse.ok)throw new Error('Cannot inspect shared Billing API keys (HTTP '+keyResponse.status+')');
+          const keys=await keyResponse.json();
+          if(!Array.isArray(keys))throw new Error('Unexpected Supabase API keys response');
+          const pub=keys.find(x=>String(x?.name||'').toLowerCase()==='anon')
+            ||keys.find(x=>String(x?.type||'').toLowerCase()==='publishable')
+            ||keys.find(x=>String(x?.name||'').toLowerCase().includes('publishable'));
+          const service=keys.find(x=>String(x?.name||'').toLowerCase()==='service_role');
+          const getKey=x=>String(x?.api_key||x?.key||'').trim();
+          if(!getKey(pub)||!getKey(service)||getKey(pub)===getKey(service))throw new Error('Missing distinct publishable and service-role credentials for shared Billing database');
+          const vapi='https://api.vercel.com/v9/projects/'+projectId;
+          const query='?teamId='+teamId;
+          async function vr(path,opts={}){
+            const r=await fetch(vapi+path+query,{...opts,headers:{authorization:'Bearer '+env.VERCEL_TOKEN,'content-type':'application/json'}});
+            if(!r.ok)throw new Error('Vercel configuration request failed (HTTP '+r.status+')');
+            return r.json();
+          }
+          const vp=await vr('');
+          if(vp.id!==projectId||vp.accountId!==teamId)throw new Error('Incorrect Vercel project or team; refusing to change environment');
+          const listing=await vr('/env');
+          const rows=Array.isArray(listing.envs)?listing.envs:[];
+          const changes={
+            NEXT_PUBLIC_SUPABASE_URL:'https://'+ref+'.supabase.co',
+            NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:getKey(pub),
+            SUPABASE_SERVICE_ROLE_KEY:getKey(service)
+          };
+          const selected=Object.entries(changes).map(([key,value])=>{
+            const matches=rows.filter(x=>x.key===key && Array.isArray(x.target) && x.target.includes('production'));
+            if(matches.length!==1||!matches[0].id)throw new Error('Missing or ambiguous Fallback Billing production variable '+key);
+            return {key,value,id:matches[0].id};
+          });
+          // No values or credentials are printed.
+          for(const item of selected){
+            await vr('/env/'+encodeURIComponent(item.id),{method:'PATCH',body:JSON.stringify({value:item.value})});
+            console.log('Updated verified Fallback Billing variable:',item.key);
+          }
+          console.log('Shared Billing database connection synchronized to',ref,'without modifying database records');
+          NODE
+      - name: Dispatch regular Fallback Billing Quick Deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --output /tmp/dispatch.json --write-out '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/quick-redesign-deploy.yml/dispatches" \
+            -d '{"ref":"main"}')"
+          test "$status" = "204" || { echo "::error::Billing Quick Deploy dispatch failed (HTTP $status)"; exit 1; }
+          echo "Billing Quick Deploy dispatched for Fallback, main branch"
