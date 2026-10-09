@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - .github/workflows/fallback-billing-recovery-deploy.yml
+      - vercel.json
 
 permissions:
   contents: read
