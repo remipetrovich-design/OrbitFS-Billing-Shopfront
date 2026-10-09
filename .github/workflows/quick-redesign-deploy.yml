@@ -26,7 +26,6 @@ jobs:
       VERCEL_PROJECT_ID: prj_BZNKPOm5pTcMdD4QrOXPOqpE7Imq
       VERCEL_CLI_VERSION: 59.6.2
       SUPABASE_PROJECT_ID: hdwijbdxmpwlltnfrbsc
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
     steps:
       # On a source-family switch, the target service must be rebuilt in its own Vercel account.
@@ -139,44 +138,13 @@ jobs:
         if: ${{ steps.profile.outputs.deploy == 'true' && (steps.existing.outputs.reuse != 'true') }}
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN" --scope="$VERCEL_SCOPE"
 
-      - name: Resolve authoritative Supabase public build configuration
+      - name: Verify pulled Billing Supabase public configuration
         if: ${{ steps.profile.outputs.deploy == 'true' && (steps.existing.outputs.reuse != 'true') }}
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "::error::Missing SUPABASE_ACCESS_TOKEN repository secret"; exit 1; }
-          test "$SUPABASE_PROJECT_ID" = "hdwijbdxmpwlltnfrbsc"
-
-          response_file="$(mktemp)"
-          trap 'rm -f "$response_file"' EXIT
-          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
-            --header "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-            --header "Accept: application/json" \
-            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_ID/api-keys")"
-          if [ "$status" != "200" ]; then
-            echo "::error::Could not read API keys for the confirmed Billing Store Supabase project (HTTP $status)."
-            exit 1
-          fi
-
-          public_key="$(node - "$response_file" <<'NODE'
-          const fs=require('fs');
-          const rows=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
-          if(!Array.isArray(rows)) throw new Error('Unexpected Supabase API-key response');
-          const row=rows.find(x=>String(x?.name||'').toLowerCase()==='anon')
-            || rows.find(x=>String(x?.type||'').toLowerCase()==='publishable')
-            || rows.find(x=>String(x?.name||'').toLowerCase().includes('publishable'));
-          const key=String(row?.api_key||row?.key||'').trim();
-          if(!key) throw new Error('No public/anon API key found for Billing Store Supabase project');
-          process.stdout.write(key);
-          NODE
-          )"
-
-          echo "::add-mask::$public_key"
-          echo "NEXT_PUBLIC_SUPABASE_URL=https://$SUPABASE_PROJECT_ID.supabase.co" >> "$GITHUB_ENV"
-          echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$public_key" >> "$GITHUB_ENV"
-
-          node -e 'const u=new URL(process.argv[1]); if(u.protocol!=="https:") process.exit(1)' "https://$SUPABASE_PROJECT_ID.supabase.co"
-          echo "Resolved public build configuration from confirmed Supabase project $SUPABASE_PROJECT_ID."
+          test -f .vercel/.env.production.local
+          node --env-file=.vercel/.env.production.local scripts/verify-billing-public-env.mjs
 
       - name: Verify pulled production project identity
         if: ${{ steps.profile.outputs.deploy == 'true' && (steps.existing.outputs.reuse != 'true') }}
