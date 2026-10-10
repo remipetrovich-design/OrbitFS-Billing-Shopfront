@@ -70,7 +70,7 @@ export default function CheckoutPage(){
       cache:"no-store"
     });
     const result=await response.json().catch(()=>({}));
-    if(!response.ok||result?.ok===false||result?.skipped)
+    if(!response.ok||result?.ok===false||(result?.skipped&&result?.reason!=="already_fulfilled"))
       throw new Error(String(result?.error||result?.reason||"Licence fulfillment has not completed"));
     return result;
   }
