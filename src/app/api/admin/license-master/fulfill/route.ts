@@ -19,11 +19,12 @@ async function authorize(req:Request,orderId:string){
    if(order&&String(order.auth_user_id)===user.id){
     if(String(order.status).toLowerCase()!=="active"||!String(order.payment_status||"").toLowerCase().startsWith("paid"))
      throw Object.assign(new Error("Order has not been approved and paid"),{status:409});
-    return;
+    return false;
    }
   }
  }
  await requireOrbitDeploymentAdmin(req);
+ return true;
 }
 
 export async function POST(req:Request){
@@ -33,8 +34,8 @@ export async function POST(req:Request){
   const body=await req.json().catch(()=>({}));
   const orderId=String(body.orderId||body.order_id||"").trim();
   if(!/^[0-9a-f-]{36}$/i.test(orderId))return Response.json({error:"Valid orderId is required"},{status:400});
-  await authorize(req,orderId);
-  const result=await syncPaidOrderToLicenseMaster(orderId);
+  const isAdmin=await authorize(req,orderId);
+  const result=await syncPaidOrderToLicenseMaster(orderId,{manual:isAdmin});
   return Response.json(result,{status:result?.ok===false?502:200,headers:{"cache-control":"no-store"}});
  }catch(e:any){
   return Response.json({error:String(e?.message||"License fulfilment failed")},{status:Number(e?.status)||502,headers:{"cache-control":"no-store"}});
