@@ -1,7 +1,7 @@
 import {createHash,createHmac} from "node:crypto";
 import {createOAuthState,httpError,requireOrbitUser,requireSetupSystem} from "@/lib/orbitfs-deployment";
 import {serviceRpc} from "@/lib/paymentServer";
-import {orbitfsStoreUrl} from "@/lib/site-origin";
+import {orbitfsProviderOAuthUrl} from "@/lib/site-origin";
 
 function pkceVerifier(state:string,secret:string){return createHmac("sha256",secret).update(`orbitfs-vercel:${state}`).digest("base64url")}
 
@@ -17,7 +17,7 @@ export async function POST(req:Request){
     const requestedReturnPath=String(body.returnPath||"/portal/orbitfs").trim();
     const returnPath=/^\/portal\/orbitfs(?:\/(?:base|releases|license|channels))?$/.test(requestedReturnPath)?requestedReturnPath:"/portal/orbitfs";
     const state=await createOAuthState(user.id,"vercel",body.installationId||null,returnPath);
-    const redirect=await orbitfsStoreUrl("/api/orbitfs/oauth/vercel/callback",req.url);
+    const redirect=await orbitfsProviderOAuthUrl("/api/orbitfs/oauth/vercel/callback",req.url);
     const verifier=pkceVerifier(state,secret);
     const challenge=createHash("sha256").update(verifier).digest("base64url");
     const u=new URL("https://vercel.com/oauth/authorize");
