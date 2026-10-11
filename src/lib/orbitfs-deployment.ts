@@ -46,7 +46,7 @@ export async function billingOrbitfsConfig(){
     .eq("id","primary").single();
   if(error)throw error;
   const fallback=fallbackBillingOAuthMode();
-  const {data:modeSettings,error:modeError}=fallback?await licenseDb().schema("private").from("orbitfs_fallback_oauth_settings").select("*").eq("id","fallback").single():{data:null,error:null};
+  const {data:modeSettings,error:modeError}=fallback?await licenseDb().rpc("service_orbitfs_fallback_oauth_settings"):{data:null,error:null};
   if(modeError)throw new Error("Fallback OAuth settings migration is required: "+modeError.message);
   return {
     ...data,
