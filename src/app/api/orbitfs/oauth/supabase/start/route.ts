@@ -1,5 +1,5 @@
 import {createOAuthState,httpError,requireOrbitUser,requireSetupSystem} from "@/lib/orbitfs-deployment";
-import {orbitfsStoreUrl} from "@/lib/site-origin";
+import {orbitfsProviderOAuthUrl} from "@/lib/site-origin";
 import {serviceRpc} from "@/lib/paymentServer";
 
 export async function POST(req:Request){
@@ -14,7 +14,7 @@ export async function POST(req:Request){
     const requestedReturnPath=String(body.returnPath||"/portal/orbitfs").trim();
     const returnPath=/^\/portal\/orbitfs(?:\/(?:base|releases|license|channels))?$/.test(requestedReturnPath)?requestedReturnPath:"/portal/orbitfs";
     const state=await createOAuthState(user.id,"supabase",body.installationId||null,returnPath);
-    const redirect=await orbitfsStoreUrl("/api/orbitfs/oauth/supabase/callback",req.url);
+    const redirect=await orbitfsProviderOAuthUrl("/api/orbitfs/oauth/supabase/callback",req.url);
     const u=new URL("https://api.supabase.com/v1/oauth/authorize");
     u.searchParams.set("client_id",s.supabase_client_id);
     u.searchParams.set("response_type","code");
