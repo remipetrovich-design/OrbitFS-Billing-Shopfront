@@ -55,3 +55,15 @@ begin
 end $$;
 revoke all on function public.admin_store_orbitfs_release_secret(text,text) from public;
 grant execute on function public.admin_store_orbitfs_release_secret(text,text) to authenticated;
+
+-- Server-side read only: API role used by Billing may read private OAuth settings.
+create or replace function public.service_orbitfs_fallback_oauth_settings()
+returns jsonb language plpgsql security definer set search_path=public,private as $$
+declare s private.orbitfs_fallback_oauth_settings%rowtype;
+begin
+ if auth.role() <> 'service_role' then raise exception 'permission denied'; end if;
+ select * into s from private.orbitfs_fallback_oauth_settings where id='fallback';
+ return to_jsonb(s);
+end $$;
+revoke all on function public.service_orbitfs_fallback_oauth_settings() from public,anon,authenticated;
+grant execute on function public.service_orbitfs_fallback_oauth_settings() to service_role;
