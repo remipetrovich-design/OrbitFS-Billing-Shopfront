@@ -39,3 +39,19 @@ export async function orbitfsStoreUrl(path="",requestUrl?:string){
 }
 
 export const ORBITFS_STORE_ORIGIN=DEFAULT_STORE_ORIGIN;
+
+// OAuth must return to the storefront that started the connection. The shared
+// database's canonical public storefront URL is not an OAuth callback origin.
+// Only the known fallback production host is overridden here: untrusted Host
+// headers and arbitrary preview hosts cannot become OAuth redirect destinations.
+export async function orbitfsProviderOAuthOrigin(requestUrl:string){
+  const request=new URL(requestUrl);
+  if(request.hostname==="orbitfs-billing-fallback.vercel.app"&&request.protocol==="https:")
+    return "https://orbitfs-billing-fallback.vercel.app";
+  return orbitfsStoreOrigin(requestUrl);
+}
+
+export async function orbitfsProviderOAuthUrl(path:string,requestUrl:string){
+  const origin=await orbitfsProviderOAuthOrigin(requestUrl);
+  return new URL(path,origin).toString();
+}
