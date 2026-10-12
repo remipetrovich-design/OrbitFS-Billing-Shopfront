@@ -621,13 +621,24 @@ export default function MyOrbitFS(){
     </section>}
 
     {binding?<>
-      {panelReady&&<section className="panel orbitZipControlPanel">
-        <div className="orbitZipControlTop">
+      {panelReady&&<section className="panel orbitZipControlPanel orbitPremiumConsole">
+        <header className="orbitPremiumControlHeader">
+          <div><p className="eyebrow">ORBITFS / CUSTOMER OPERATIONS</p><h1>Deployment control panel</h1><p className="muted">Manage the real Base installation, release, runtime and recovery controls for this environment.</p></div>
+          <span className={"state "+(validationReady?"ready":working?"current":"waiting")}>{validationReady?"HEALTHY":working?"IN PROGRESS":String(install.health_status||"UNVERIFIED").toUpperCase()}</span>
+        </header>
+        <nav className="orbitPremiumConsoleNav" aria-label="Deployment management sections">
+          <a href="#orbit-control-instance">Instance</a>
+          <a href="#orbit-control-release">Base releases</a>
+          <a href="#orbit-control-domain">Domains</a>
+          <a href="#orbit-control-technical">Technical details</a>
+          <a href="#orbit-control-recovery">Recovery</a>
+        </nav>
+        <div id="orbit-control-instance" className="orbitZipControlTop">
           <div className="orbitZipControlIdentity"><p className="eyebrow">BASE INSTANCE</p><h2>{install.vercel_project_name||"Your OrbitFS Panel"}</h2><div className="orbitZipControlDomain">{install.production_url?<a href={install.production_url} target="_blank" rel="noreferrer">{install.production_url}</a>:<span>Production domain not detected</span>}<small>{liveCheckedAt?`Vercel/domain checked ${new Date(liveCheckedAt).toLocaleTimeString()}`:"Status refreshes every 60 seconds and when you return to this tab."}</small></div></div>
           <div className="orbitZipControlTopActions"><span className={"state "+(validationReady?"ready":working?"current":"waiting")}>{validationReady?"HEALTHY":working?"IN PROGRESS":String(install.health_status||"UNVERIFIED").toUpperCase()}</span>{install.production_url&&<a className="buttonlink secondary" href={install.production_url} target="_blank" rel="noreferrer">Open Panel ↗</a>}<a className="buttonlink secondary" href={vercelProjectConsoleUrl} target="_blank" rel="noreferrer">Vercel ↗</a><button className="secondary" disabled={busy!==""} onClick={()=>void sync(false)}>{busy?"Please wait…":"Refresh status"}</button></div>
         </div>
 
-        <div className="panel orbitBaseDomainPanel">
+        <div id="orbit-control-domain" className="panel orbitBaseDomainPanel">
           <div className={"panelTitle orbitBaseDomainHead "+(showBaseDomain?"open":"closed")}>
             <div>
               <p className="eyebrow">DOMAIN & ADDRESS</p>
@@ -675,7 +686,7 @@ export default function MyOrbitFS(){
         </div>
 
         <div className="orbitZipReleaseWorkspace">
-          <div className="orbitZipReleaseControls">
+          <div id="orbit-control-release" className="orbitZipReleaseControls">
             <label><span>Release channel</span><select value={selectedChannel} disabled={busy!==""||deploymentUnavailable||!infrastructureReady} onChange={e=>void saveReleaseChannel(e.target.value)}>{availableBaseChannels.map((channel:string)=><option key={channel} value={channel}>{channel}</option>)}</select></label>
             <label><span>Available Base release</span><select value={selectedBaseUpdateRelease?.id||""} disabled={busy!==""||!baseUpdateCandidates.length} onChange={e=>setSelectedReleaseId(e.target.value)}><option value="">{d?.releaseCatalogLoading?"Checking published releases…":baseUpdateCandidates.length?"Choose a newer release":sameVersionBaseRevisionAvailable?"Current package revision available":d?.baseReleaseDiscoveryByChannel?.[selectedChannel]?.available!==true?"Release authority unavailable":"No newer Base release"}</option>{baseUpdateCandidates.map((r:any)=><option key={r.id} value={r.id}>v{r.version} · {r.title||"OrbitFS Base"}</option>)}</select></label>
             <button className="secondary orbitZipRefreshButton" disabled={busy!==""} onClick={()=>void refreshReleases()}>{busy==="refresh-releases"?"Refreshing…":"Refresh releases"}</button>
@@ -698,7 +709,7 @@ export default function MyOrbitFS(){
           </div>
         </div>
 
-        <details className="orbitZipTechnicalDetails">
+        <details id="orbit-control-technical" className="orbitZipTechnicalDetails">
           <summary><div><p className="eyebrow">TECHNICAL DETAILS</p><b>Infrastructure & installation identity</b></div><span>View details</span></summary>
           <div className="orbitZipControlGrid">
             <div className="panel orbitZipControlSection">
@@ -723,7 +734,7 @@ export default function MyOrbitFS(){
           <div className="orbitZipReleaseIdentity"><span>Installed release identity</span><b>{install.release_id||"not recorded"}</b><small>Source {install.release_source_commit||"not recorded"} · SHA-256 {install.release_sha256||"not recorded"}</small></div>
         </details>
 
-        <details className="panel orbitZipLifecyclePanel">
+        <details id="orbit-control-recovery" className="panel orbitZipLifecyclePanel">
           <summary><div><p className="eyebrow">LIFECYCLE & RECOVERY</p><b>Deployment controls</b><span>Force reinstall Base, undeploy, reset or uninstall when you need recovery or removal.</span></div><span>Open controls</span></summary>
           <div className="orbitZipLifecycleBody">
             <p className="muted">Force reinstall is Base-only: it removes the current Base Vercel project and releases/unlocks its licence activation. Supabase, database, storage, installation ID and linked runtime services stay in place. You must rotate the licence key and enter the replacement key before the newest approved published Base is deployed again.</p>
