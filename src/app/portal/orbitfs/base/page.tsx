@@ -193,7 +193,7 @@ export default function MyOrbitFS(){
     let requestRunning=false;
     let cancelled=false;
     async function refreshVisible(){
-      if(cancelled||document.visibilityState!=="visible"||requestRunning||busy)return;
+      if(cancelled||document.visibilityState!=="visible"||requestRunning)return;
       requestRunning=true;
       pollCount.current+=1;
       try{await refreshLiveBase()}
@@ -206,7 +206,7 @@ export default function MyOrbitFS(){
     window.addEventListener("focus",onFocus);
     document.addEventListener("visibilitychange",onVisibility);
     return()=>{cancelled=true;clearInterval(timer);window.removeEventListener("focus",onFocus);document.removeEventListener("visibilitychange",onVisibility)};
-  },[install?.id,install?.state,install?.vercel_deployment_id,activeOperation?.id,activeOperation?.state,deploymentRequestActive,panelReady,busy]);
+  },[install?.id,install?.state,install?.vercel_deployment_id,activeOperation?.id,activeOperation?.state,deploymentRequestActive,panelReady]);
   useEffect(()=>{
     if(!install){setCurrentStep(1);setViewedPrimaryStage(null);return}
     if(panelReady)return;
