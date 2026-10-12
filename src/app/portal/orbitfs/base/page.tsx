@@ -567,6 +567,11 @@ export default function MyOrbitFS(){
   }
 
   return <main className={"portalOverviewV2 orbitfsBaseV3 orbitZipDeployer "+websiteState+" "+(panelReady?"orbitZipDeployed":"orbitZipInstalling")} aria-label="OrbitFS Base Deployment">
+    {deploymentRequestActive&&<div className="orbitUpdateBusy" role="status" aria-live="polite">
+      <span className="orbitUpdateBusySpinner" aria-hidden="true"/>
+      <div><strong>{busy==="base_update"?"Applying authorised Base update":busy==="redeploy"?"Redeploying current Base":busy==="rollback"?"Rolling back Base":"Starting Base deployment"}</strong>
+      <p>Request sent to the customer deployer. Keep this page open; current operation status and recorded activity will appear below.</p></div>
+    </div>}
     {!panelReady&&<header className="orbitV5Hero">
       <div><p className="eyebrow">DEPLOYMENT CENTER</p>
         <h1>{deploymentNeedsAttention?"Deployment needs attention":activeOperation?"Deployment progress":activeSiteStep===5?"Review deployment":"Base Deployment"}</h1>
