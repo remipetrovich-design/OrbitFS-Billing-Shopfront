@@ -574,7 +574,7 @@ export default function MyOrbitFS(){
         <small>Last recorded action: {latestOperation?label(latestOperation.action):label(install?.state)}{latestOperation?.created_at?" · "+new Date(latestOperation.created_at).toLocaleString():""}</small>
       </div>
       <div className="orbitV5FailureActions">
-        <button className="secondary" type="button" onClick={()=>openSiteStep(!databaseReady?2:!vercelApiReady?3:5)}>Review required step</button>
+        <button className="secondary" type="button" onClick={()=>openSiteStep(!connectionsReady?1:!databaseReady?2:!releaseReady?3:!configurationReady?4:5)}>Review required step</button>
         <button className="secondary" type="button" disabled={busy!==""} onClick={()=>void load()}>Refresh status</button>
         <Link className="buttonlink secondary" href="/portal/support">Contact support ↗</Link>
       </div>
@@ -599,7 +599,7 @@ export default function MyOrbitFS(){
       {panelReady&&<section className="panel orbitZipControlPanel">
         <div className="orbitZipControlTop">
           <div className="orbitZipControlIdentity"><p className="eyebrow">BASE INSTANCE</p><h2>{install.vercel_project_name||"Your OrbitFS Panel"}</h2><div className="orbitZipControlDomain">{install.production_url?<a href={install.production_url} target="_blank" rel="noreferrer">{install.production_url}</a>:<span>Production domain not detected</span>}<small>{liveCheckedAt?`Vercel/domain checked ${new Date(liveCheckedAt).toLocaleTimeString()}`:"Status refreshes every 60 seconds and when you return to this tab."}</small></div></div>
-          <div className="orbitZipControlTopActions"><span className={"state "+(validationReady?"ready":working?"current":"waiting")}>{validationReady?"HEALTHY":working?"IN PROGRESS":String(install.health_status||"UNVERIFIED").toUpperCase()}</span>{install.production_url&&<a className="buttonlink secondary" href={install.production_url} target="_blank" rel="noreferrer">Open Panel ↗</a>}<a className="buttonlink secondary" href={vercelProjectConsoleUrl} target="_blank" rel="noreferrer">Vercel ↗</a><button className="secondary" disabled={busy!==""} onClick={()=>void sync(false)}>Check status</button></div>
+          <div className="orbitZipControlTopActions"><span className={"state "+(validationReady?"ready":working?"current":"waiting")}>{validationReady?"HEALTHY":working?"IN PROGRESS":String(install.health_status||"UNVERIFIED").toUpperCase()}</span>{install.production_url&&<a className="buttonlink secondary" href={install.production_url} target="_blank" rel="noreferrer">Open Panel ↗</a>}<a className="buttonlink secondary" href={vercelProjectConsoleUrl} target="_blank" rel="noreferrer">Vercel ↗</a><button className="secondary" disabled={busy!==""} onClick={()=>void sync(false)}>{busy?"Please wait…":"Refresh status"}</button></div>
         </div>
 
         <div className="panel orbitBaseDomainPanel">
@@ -677,7 +677,7 @@ export default function MyOrbitFS(){
           <summary><div><p className="eyebrow">TECHNICAL DETAILS</p><b>Infrastructure & installation identity</b></div><span>View details</span></summary>
           <div className="orbitZipControlGrid">
             <div className="panel orbitZipControlSection">
-              <div className="panelTitle"><div><p className="eyebrow">INFRASTRUCTURE</p><h2>Customer-owned services</h2></div><span className="state ready">CONNECTED</span></div>
+              <div className="panelTitle"><div><p className="eyebrow">INFRASTRUCTURE</p><h2>Customer-owned services</h2></div><span className={"state "+(infrastructureReady?"ready":"waiting")}>{infrastructureReady?"CONNECTED":"CHECK CONNECTIONS"}</span></div>
               <div className="orbitZipControlRows">
                 <div><span>Supabase project</span><b>{install.supabase_project_name||install.supabase_project_ref}</b></div>
                 <div><span>Database schema</span><b>{install.schema_version||"ready"}</b></div>
@@ -686,12 +686,12 @@ export default function MyOrbitFS(){
               </div>
             </div>
             <div className="panel orbitZipControlSection">
-              <div className="panelTitle"><div><p className="eyebrow">INSTALLATION</p><h2>Authority & identity</h2></div><span className="state ready">VALIDATED</span></div>
+              <div className="panelTitle"><div><p className="eyebrow">INSTALLATION</p><h2>Authority & identity</h2></div><span className={"state "+(validationReady?"ready":"waiting")}>{validationReady?"HEALTHY":"UNVERIFIED"}</span></div>
               <div className="orbitZipControlRows">
                 <div><span>Installation ID</span><b>{install.installation_id}</b></div>
                 <div><span>Licence activation</span><b>Managed in Base first-time setup</b></div>
                 <div><span>Release ID</span><b>{install.release_id||"Recorded"}</b></div>
-                <div><span>Runtime health</span><b>{install.health_status||"healthy"}</b></div>
+                <div><span>Runtime health</span><b>{install.health_status||"unverified"}</b></div>
               </div>
             </div>
           </div>
