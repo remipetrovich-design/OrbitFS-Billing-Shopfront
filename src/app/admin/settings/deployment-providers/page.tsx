@@ -18,7 +18,7 @@ export default function DeploymentProviderSettings(){
  const [busy,setBusy]=useState("");
  const [message,setMessage]=useState("");
  const [error,setError]=useState("");
- const [origin,setOrigin]=useState("");
+ const [callbackOrigin,setCallbackOrigin]=useState("");
  const [profile,setProfile]=useState<"main"|"fallback">("main");
  const [form,setForm]=useState({supabase_oauth_enabled:true,vercel_oauth_enabled:true,supabase_client_id:"",vercel_client_id:"",vercel_install_url:"",supabase_scopes:"",supabase_client_secret:"",vercel_client_secret:""});
 
@@ -34,6 +34,9 @@ export default function DeploymentProviderSettings(){
    const {data:result,error:rpcError}=await sb.rpc(profile==="fallback"?"admin_orbitfs_fallback_oauth_settings":"admin_orbitfs_release_system_snapshot");
    if(rpcError)throw rpcError;
    hydrate(profile==="fallback"?{settings:result||{},supabase_client_secret_configured:!!result?.supabase_client_secret_configured,vercel_client_secret_configured:!!result?.vercel_client_secret_configured}:(result||{}) as Snapshot);
+   const {data:savedOrigin,error:originError}=await sb.rpc("admin_orbitfs_oauth_callback_origin",{p_mode:profile});
+   if(originError)throw originError;
+   setCallbackOrigin(String(savedOrigin||""));
   }catch(e:any){setError(e?.message||"Could not load deployment provider configuration.")}
   finally{setBusy("")}
  }
@@ -41,9 +44,13 @@ export default function DeploymentProviderSettings(){
  async function save(){
   setBusy("save");setMessage("");setError("");
   try{
+   const normalizedOrigin=callbackOrigin.trim().replace(/\\/+$/,"");
+   if(!/^https:\/\/[a-zA-Z0-9.-]+(?::[0-9]+)?$/.test(normalizedOrigin))throw new Error("Enter an HTTPS callback domain with no path.");
    const patch={supabase_oauth_enabled:form.supabase_oauth_enabled,vercel_oauth_enabled:form.vercel_oauth_enabled,supabase_client_id:form.supabase_client_id.trim(),vercel_client_id:form.vercel_client_id.trim(),vercel_install_url:form.vercel_install_url.trim(),supabase_scopes:form.supabase_scopes.trim()};
    const {error:updateError}=await sb.rpc(profile==="fallback"?"admin_update_orbitfs_fallback_oauth_settings":"admin_update_orbitfs_release_system",{p_patch:patch});
    if(updateError)throw updateError;
+   const {error:callbackError}=await sb.rpc("admin_set_orbitfs_oauth_callback_origin",{p_mode:profile,p_origin:normalizedOrigin});
+   if(callbackError)throw callbackError;
    if(form.supabase_client_secret.trim()){
     const {error:secretError}=await sb.rpc("admin_store_orbitfs_release_secret",{p_key:profile==="fallback"?"fallback_supabase_client_secret":"supabase_client_secret",p_value:form.supabase_client_secret});
     if(secretError)throw secretError;
@@ -71,9 +78,7 @@ export default function DeploymentProviderSettings(){
   finally{setBusy("")}
  }
 
- useEffect(()=>{setOrigin(window.location.origin)},[]);
  useEffect(()=>{void load()},[profile]);
- const callbackOrigin=profile==="fallback"?"https://orbitfs-billing-fallback.vercel.app":origin;
  const supabaseCallback=callbackOrigin?`${callbackOrigin}/api/orbitfs/oauth/supabase/callback`:"/api/orbitfs/oauth/supabase/callback";
  const vercelCallback=callbackOrigin?`${callbackOrigin}/api/orbitfs/oauth/vercel/callback`:"/api/orbitfs/oauth/vercel/callback";
  const supReady=Boolean(form.supabase_client_id.trim()&&data?.supabase_client_secret_configured&&form.supabase_oauth_enabled);
@@ -83,6 +88,7 @@ export default function DeploymentProviderSettings(){
   <header className="adminTop"><div><p className="eyebrow">MY ORBITFS · CUSTOMER DEPLOYER</p><h1>Deployment providers</h1><p className="muted">Configure the Billing-owned OAuth applications used to connect each customer&apos;s Supabase and Vercel accounts. License Manager still owns deployment authorization and release state.</p></div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Link className="buttonlink secondary" href="/admin/settings">System settings</Link><button className="secondary" type="button" onClick={()=>void load()} disabled={!!busy}>{busy==="load"?"Refreshing…":"Refresh"}</button></div></header>
   <section className="panel" style={{marginTop:12,display:"flex",gap:12,alignItems:"center"}}><strong>Saved OAuth profile</strong><button className={profile==="main"?"":"secondary"} type="button" disabled={!!busy} onClick={()=>setProfile("main")}>Main</button><button className={profile==="fallback"?"":"secondary"} type="button" disabled={!!busy} onClick={()=>setProfile("fallback")}>Fallback</button><span>Each profile retains independent client IDs and Vault secrets. The storefront selects its profile automatically.</span></section>
   {message&&<p className="inlineStatus">{message}</p>}{error&&<p className="inlineStatus" style={{borderColor:"crimson"}}>{error}</p>}
+  <section className="panel" style={{marginTop:16}}><div className="panelTitle"><div><h2>OAuth callback domain — {profile==="fallback"?"Fallback":"Main"}</h2><p className="muted">Edit the Billing domain here. Both provider callback URLs below update automatically. Save settings to apply the change to future sign-ins.</p></div></div><div className="form"><label>Billing OAuth domain<input type="url" value={callbackOrigin} onChange={e=>setCallbackOrigin(e.target.value)} placeholder={profile==="fallback"?"https://billing.incendiarynetworks.cc":"https://orbitfsstore.vercel.app"} autoComplete="url"/></label></div></section>
   <section className="settingsRuntimeStrip" aria-label="Provider status">
    <article><small>Supabase OAuth</small><strong>{supReady?"Ready":"Setup"}</strong><span>{Number(data?.connected_supabase||0)} customer connection(s)</span></article>
    <article><small>Vercel OAuth</small><strong>{verReady?"Ready":"Setup"}</strong><span>{Number(data?.connected_vercel||0)} customer connection(s)</span></article>
