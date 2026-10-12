@@ -189,8 +189,9 @@ export default function MyOrbitFS(){
   useEffect(()=>{if(vercelConnection?.team_id!==undefined&&vercelConnection?.team_id!==null&&!vercelTeamId)setVercelTeamId(String(vercelConnection.team_id))},[vercelConnection?.team_id]);
   useEffect(()=>{
     if(!install||(!working&&!deploymentRequestActive))return;
-    const timer=setTimeout(()=>{if(document.visibilityState==="visible"){pollCount.current+=1;void refreshLiveBase().catch(()=>setMsg("Could not refresh live deployment progress. Retrying automatically."))}},15000);
-    return()=>clearTimeout(timer);
+    let requestRunning=false;
+    const timer=setInterval(()=>{if(document.visibilityState!=="visible"||requestRunning)return;requestRunning=true;pollCount.current+=1;void refreshLiveBase().catch(()=>setMsg("Could not refresh live deployment progress. Retrying automatically.")).finally(()=>{requestRunning=false})},15000);
+    return()=>clearInterval(timer);
   },[install?.id,install?.state,install?.vercel_deployment_id,activeOperation?.id,activeOperation?.state,activeOperation?.heartbeat_at,deploymentRequestActive]);
   useEffect(()=>{
     if(!install){setCurrentStep(1);setViewedPrimaryStage(null);return}
