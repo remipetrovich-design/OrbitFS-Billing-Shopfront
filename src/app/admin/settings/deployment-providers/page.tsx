@@ -44,7 +44,7 @@ export default function DeploymentProviderSettings(){
  async function save(){
   setBusy("save");setMessage("");setError("");
   try{
-   const normalizedOrigin=callbackOrigin.trim().replace(/\\/+$/,"");
+   const normalizedOrigin=callbackOrigin.trim().replace(/\/+$/,"");
    if(!/^https:\/\/[a-zA-Z0-9.-]+(?::[0-9]+)?$/.test(normalizedOrigin))throw new Error("Enter an HTTPS callback domain with no path.");
    const patch={supabase_oauth_enabled:form.supabase_oauth_enabled,vercel_oauth_enabled:form.vercel_oauth_enabled,supabase_client_id:form.supabase_client_id.trim(),vercel_client_id:form.vercel_client_id.trim(),vercel_install_url:form.vercel_install_url.trim(),supabase_scopes:form.supabase_scopes.trim()};
    const {error:updateError}=await sb.rpc(profile==="fallback"?"admin_update_orbitfs_fallback_oauth_settings":"admin_update_orbitfs_release_system",{p_patch:patch});
