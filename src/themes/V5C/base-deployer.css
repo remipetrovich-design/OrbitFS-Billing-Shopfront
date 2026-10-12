@@ -429,3 +429,16 @@ html[data-orbitfs-theme="V5C"] .orbitZipDeployed .orbitLiveConsole{margin:0 0 14
  html[data-orbitfs-theme="V5C"] .orbitLiveConsole{padding:14px}
  html[data-orbitfs-theme="V5C"] .orbitLiveActivityRow{grid-template-columns:1fr;gap:2px}
 }
+
+html[data-orbitfs-theme="V5C"] .orbitUpdateBusy{
+  display:flex;align-items:center;gap:14px;padding:16px 20px;
+  background:#0b2a36;border-bottom:1px solid #285667;color:#eaf4fa;
+}
+html[data-orbitfs-theme="V5C"] .orbitUpdateBusy strong{display:block;font-size:14px}
+html[data-orbitfs-theme="V5C"] .orbitUpdateBusy p{font-size:12px;line-height:1.45;color:#a9c8d4;margin:4px 0 0}
+html[data-orbitfs-theme="V5C"] .orbitUpdateBusySpinner{
+  display:block;width:27px;height:27px;flex:none;border:3px solid #30596b;
+  border-top-color:#5edbd6;border-radius:50%;animation:orbitBusySpin .85s linear infinite;
+}
+@keyframes orbitBusySpin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){html[data-orbitfs-theme="V5C"] .orbitUpdateBusySpinner{animation:none;border-color:#5edbd6}}
