@@ -1,5 +1,5 @@
 import {licenseDb} from "@/lib/license-api";
-import {httpError,requireOrbitUser,requireSetupSystem,saveProviderConnection} from "@/lib/orbitfs-deployment";
+import {httpError,requireOrbitUser,saveProviderConnection} from "@/lib/orbitfs-deployment";
 import {serviceRpc} from "@/lib/paymentServer";
 import {disconnectProviderConnection} from "@/lib/orbitfs-deployment";
 
