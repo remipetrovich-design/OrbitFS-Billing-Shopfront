@@ -83,7 +83,7 @@ export default function MyOrbitFS(){
             const savedVercel=(Array.isArray(j?.connections)?j.connections:[]).find((entry:any)=>entry?.provider==="vercel");
             setVercelTeamId(String(savedVercel?.team_id||savedVercel?.metadata?.team_id||""));
           }
-          setD(j);setMsg("");return j
+          setD(j);if(!background&&!bootstrap)setMsg("");return j
         }
         setMsg(apiError(j,"Could not load My OrbitFS."));
         return null;
@@ -188,9 +188,8 @@ export default function MyOrbitFS(){
   useEffect(()=>{if(selectedRelease?.id&&!selectedReleaseId)setSelectedReleaseId(String(selectedRelease.id))},[selectedRelease?.id,selectedReleaseId]);
   useEffect(()=>{if(vercelConnection?.team_id!==undefined&&vercelConnection?.team_id!==null&&!vercelTeamId)setVercelTeamId(String(vercelConnection.team_id))},[vercelConnection?.team_id]);
   useEffect(()=>{
-    if(!install||(!working&&!deploymentRequestActive)){pollCount.current=0;return}
-    if(pollCount.current>=30)return;
-    const timer=setTimeout(()=>{pollCount.current+=1;void refreshLiveBase()},60000);
+    if(!install||(!working&&!deploymentRequestActive))return;
+    const timer=setTimeout(()=>{if(document.visibilityState==="visible"){pollCount.current+=1;void refreshLiveBase().catch(()=>setMsg("Could not refresh live deployment progress. Retrying automatically."))}},15000);
     return()=>clearTimeout(timer);
   },[install?.id,install?.state,install?.vercel_deployment_id,activeOperation?.id,activeOperation?.state,activeOperation?.heartbeat_at,deploymentRequestActive]);
   useEffect(()=>{
@@ -229,8 +228,8 @@ export default function MyOrbitFS(){
     }finally{setBusy("")}
   }
   async function loadSupabase(){setBusy("resources");const r=await fetch("/api/orbitfs/providers/supabase",{headers:await authHeaders(),cache:"no-store"}),j=await r.json().catch(()=>({}));setBusy("");if(!r.ok){setMsg(apiError(j,"Could not load your Supabase projects."));return false}setResources(j);const first=j.organizations?.[0];if(!newProject.organizationSlug&&first)setNewProject(current=>({...current,organizationSlug:first.slug||first.id||""}));return true}
-  async function supabaseAction(action:"select"|"create"){if(!install)return;setBusy(action);const body=action==="select"?{action,installationId:install.id,projectRef:selectedProject}:{action,installationId:install.id,...newProject},r=await fetch("/api/orbitfs/providers/supabase",{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify(body)}),j=await r.json().catch(()=>({}));setBusy("");setMsg(r.ok?`Your Supabase project was ${action==="select"?"selected":"created"}.`:apiError(j,"Supabase project action failed."));if(r.ok){setResources(undefined);setSiteStep(null);await load()}}
-  async function initialize(confirmed=false){if(!install||!selectedRelease)return;if(!selectedReleaseMatchesInstalled&&install.release_version&&install.release_id&&!confirmed){askConfirm({title:"Initialize a different Base release?",description:"This replaces the current installation release identity with the selected published Base release before deployment continues.",confirmLabel:"Initialize release",danger:true},()=>void initialize(true));return}setBusy("init");const r=await fetch(`/api/orbitfs/installations/${install.id}/initialize`,{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({releaseId:String(selectedRelease.id)})}),j=await r.json().catch(()=>({}));setBusy("");setMsg(r.ok?"OrbitFS database initialized. Licence activation happens after deployment in the Base first-time installer.":apiError(j,"Database initialization failed."));if(r.ok){setSiteStep(null);await load()}}
+  async function supabaseAction(action:"select"|"create"){if(!install)return;setBusy(action);const body=action==="select"?{action,installationId:install.id,projectRef:selectedProject}:{action,installationId:install.id,...newProject},r=await fetch("/api/orbitfs/providers/supabase",{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify(body)}),j=await r.json().catch(()=>({}));setBusy("");setMsg(r.ok?`Your Supabase project was ${action==="select"?"selected":"created"}.`:apiError(j,"Supabase project action failed."));if(r.ok){setResources(undefined);await load(true);setSiteStep(3)}}
+  async function initialize(confirmed=false){if(!install||!selectedRelease)return;if(!selectedReleaseMatchesInstalled&&install.release_version&&install.release_id&&!confirmed){askConfirm({title:"Initialize a different Base release?",description:"This replaces the current installation release identity with the selected published Base release before deployment continues.",confirmLabel:"Initialize release",danger:true},()=>void initialize(true));return}setBusy("init");const r=await fetch(`/api/orbitfs/installations/${install.id}/initialize`,{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({releaseId:String(selectedRelease.id)})}),j=await r.json().catch(()=>({}));setBusy("");setMsg(r.ok?"OrbitFS database initialized. Licence activation happens after deployment in the Base first-time installer.":apiError(j,"Database initialization failed."));if(r.ok){await load(true);setSiteStep(5)}}
   async function connectVercelToken(){const token=vercelToken.trim();if(!token)return setMsg("Enter your Vercel Full Account Access token.");setBusy("vercel");const r=await fetch("/api/orbitfs/providers/vercel",{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({action:"connect",token,teamId:vercelTeamId||null})}),j=await r.json().catch(()=>({}));setBusy("");if(!r.ok)return setMsg(apiError(j,"Could not validate Vercel access."));setVercelToken("");setVercelTeamId(String(j.account?.teamId||""));setMsg("Vercel API access connected.");await load()}
   async function resetVercel(confirmed=false){if(!confirmed){askConfirm({title:"Reset Vercel connector?",description:"This removes the saved Vercel token from OrbitFS but does not delete your Vercel project. If OrbitFS is deployed, undeploy it first.",confirmLabel:"Reset Vercel",danger:true},()=>void resetVercel(true));return}setBusy("vercel-reset");const r=await fetch("/api/orbitfs/providers/vercel",{method:"POST",headers:{...(await authHeaders()),"content-type":"application/json"},body:JSON.stringify({action:"disconnect"})}),j=await r.json().catch(()=>({}));setBusy("");if(!r.ok)return setMsg(apiError(j,"Could not reset Vercel connection."));setVercelTeamId("");setVercelToken("");setMsg("Vercel connector reset. Connect it again when ready.");await load()}
   async function resetSetupToStage1(confirmed=false){
@@ -492,7 +491,7 @@ export default function MyOrbitFS(){
   const activePrimarySubstep=activePrimary.substeps.find(step=>!step.ready)?.id||activePrimary.substeps[activePrimary.substeps.length-1]?.id;
 
   function navigatePrimaryStage(stage:number){
-    setSiteStep(stage===1?2:stage===2?!vercelApiReady?3:5:5);
+    setSiteStep(stage===1?(!supabaseConnectionReady?1:!databaseReady?2:3):stage===2?!vercelApiReady?1:!releaseReady?3:!configurationReady?4:5:5);
     setViewedPrimaryStage(stage);
     if(stage===1){setCurrentStep(!supabaseConnectionReady?1:2);return}
     if(stage===2){setCurrentStep(!vercelApiReady?3:4);return}
@@ -500,7 +499,7 @@ export default function MyOrbitFS(){
   }
 
   function navigateSubstep(id:string){
-    setSiteStep(id==="1a"||id==="1b"?2:id==="2a"?3:5);
+    setSiteStep(id==="1a"||id==="2a"?1:id==="1b"?(!supabaseReady?2:4):id==="2d"?(!releaseReady?3:!configurationReady?4:5):5);
     const stage=Number(id.split("")[0]||1);
     setViewedPrimaryStage(stage);
     if(id==="1a"){setCurrentStep(1);return}
