@@ -386,3 +386,46 @@ html[data-orbitfs-theme="V5C"] .orbitZipDeployed .orbitZipControlDomain{
     padding:12px!important;
   }
 }
+
+/* Live Base operations — actual status and events; no simulated percentages */
+html[data-orbitfs-theme="V5C"] .orbitLiveConsole{
+  display:grid;gap:13px;padding:19px 21px;margin:12px 0;
+  border:1px solid #286072;border-radius:13px;
+  background:linear-gradient(145deg,#092430,#0b1c2b);color:#eaf4fa;
+}
+html[data-orbitfs-theme="V5C"] .orbitLiveConsoleHeading{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:18px;
+}
+html[data-orbitfs-theme="V5C"] .orbitLiveConsoleHeading h3{font-size:20px;line-height:1.2;margin:5px 0 6px}
+html[data-orbitfs-theme="V5C"] .orbitLiveConsoleHeading p{font-size:13px;color:#a6c3d1;margin:0;line-height:1.55}
+html[data-orbitfs-theme="V5C"] .orbitLiveTrack{
+  position:relative;height:7px;overflow:hidden;border-radius:999px;
+  background:#234556;border:1px solid #2c5668;
+}
+html[data-orbitfs-theme="V5C"] .orbitLiveTrack>span{
+  display:block;height:100%;width:100%;background:#397285;transform:scaleX(0);transform-origin:left;
+}
+html[data-orbitfs-theme="V5C"] .orbitLiveTrack.complete>span{transform:scaleX(1);background:#53d7b3}
+html[data-orbitfs-theme="V5C"] .orbitLiveTrack.failed>span{transform:scaleX(1);background:#d56a77}
+html[data-orbitfs-theme="V5C"] .orbitLiveTrack.running>span{
+  width:40%;background:linear-gradient(90deg,transparent,#5edbd6,transparent);
+  animation:orbitProgressSweep 1.8s ease-in-out infinite;transform:translateX(-110%);
+}
+@keyframes orbitProgressSweep{to{transform:translateX(360%)}}
+@media(prefers-reduced-motion:reduce){
+  html[data-orbitfs-theme="V5C"] .orbitLiveTrack.running>span{animation:none;transform:none;width:100%;background:#397285}
+}
+html[data-orbitfs-theme="V5C"] .orbitLiveMeta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px;color:#acc6d4}
+html[data-orbitfs-theme="V5C"] .orbitLiveMeta b{color:#edf8ff}
+html[data-orbitfs-theme="V5C"] .orbitLiveActivity{display:grid;gap:0;border-top:1px solid #244658;padding-top:10px;max-height:240px;overflow:auto}
+html[data-orbitfs-theme="V5C"] .orbitLiveActivity>b{font-size:12px;letter-spacing:.04em;margin-bottom:6px}
+html[data-orbitfs-theme="V5C"] .orbitLiveActivity>p{font-size:12px;color:#a6c3d1}
+html[data-orbitfs-theme="V5C"] .orbitLiveActivityRow{display:grid;grid-template-columns:minmax(110px,.6fr) minmax(0,1.4fr);gap:12px;padding:9px 0;border-bottom:1px solid #203f51;font-size:12px}
+html[data-orbitfs-theme="V5C"] .orbitLiveActivityRow small{font-size:12px;color:#aac2d1;overflow-wrap:anywhere}
+html[data-orbitfs-theme="V5C"] .orbitLiveError{padding:10px 12px;border:1px solid #86475b;border-radius:8px;background:#341d2b;color:#ffd7dd;font-size:12px;overflow-wrap:anywhere}
+html[data-orbitfs-theme="V5C"] .orbitLiveConsole>button{justify-self:start}
+html[data-orbitfs-theme="V5C"] .orbitZipDeployed .orbitLiveConsole{margin:0 0 14px}
+@media(max-width:650px){
+ html[data-orbitfs-theme="V5C"] .orbitLiveConsole{padding:14px}
+ html[data-orbitfs-theme="V5C"] .orbitLiveActivityRow{grid-template-columns:1fr;gap:2px}
+}
