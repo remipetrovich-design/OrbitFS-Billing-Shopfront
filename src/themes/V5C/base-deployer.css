@@ -442,3 +442,19 @@ html[data-orbitfs-theme="V5C"] .orbitUpdateBusySpinner{
 }
 @keyframes orbitBusySpin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){html[data-orbitfs-theme="V5C"] .orbitUpdateBusySpinner{animation:none;border-color:#5edbd6}}
+
+/* Approved customer operations layout, reusing the installed OrbitFS V5C theme */
+html[data-orbitfs-theme="V5C"] .orbitPremiumConsole{gap:22px!important;background:var(--o12-bg,#07121b)!important}
+html[data-orbitfs-theme="V5C"] .orbitPremiumControlHeader{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;padding:10px 2px 22px;border-bottom:1px solid var(--o12-line,#25465a)}
+html[data-orbitfs-theme="V5C"] .orbitPremiumControlHeader h1{font-size:clamp(25px,3.4vw,38px);letter-spacing:-.03em;margin:5px 0 8px;line-height:1.12}
+html[data-orbitfs-theme="V5C"] .orbitPremiumControlHeader p{font-size:13px;line-height:1.6;margin:0;max-width:570px}
+html[data-orbitfs-theme="V5C"] .orbitPremiumConsoleNav{display:flex;align-items:center;gap:7px;flex-wrap:wrap;border-bottom:1px solid var(--o12-line,#25465a);padding:0 0 15px}
+html[data-orbitfs-theme="V5C"] .orbitPremiumConsoleNav a{color:var(--o12-muted,#a9c2d1);border:1px solid var(--o12-line,#25465a);text-decoration:none;font-size:12px;font-weight:650;padding:10px 14px;border-radius:8px;background:var(--o12-panel,#0c1f2c);transition:background .15s ease,color .15s ease}
+html[data-orbitfs-theme="V5C"] .orbitPremiumConsoleNav a:hover,
+html[data-orbitfs-theme="V5C"] .orbitPremiumConsoleNav a:focus-visible{background:var(--o12-panel-raised,#112938);color:#fff;outline:2px solid var(--o12-cyan,#51d4d8);outline-offset:2px}
+html[data-orbitfs-theme="V5C"] .orbitPremiumConsole [id^="orbit-control-"]{scroll-margin-top:110px}
+html[data-orbitfs-theme="V5C"] .orbitPremiumConsole .orbitZipControlTop{padding:12px 0!important}
+html[data-orbitfs-theme="V5C"] .orbitPremiumConsole .orbitZipControlTop h2{font-size:clamp(21px,2.5vw,29px)!important}
+html[data-orbitfs-theme="V5C"] .orbitPremiumConsole .orbitZipOverviewStats{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+@media(max-width:950px){html[data-orbitfs-theme="V5C"] .orbitPremiumConsole .orbitZipOverviewStats{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:560px){html[data-orbitfs-theme="V5C"] .orbitPremiumConsole .orbitZipOverviewStats{grid-template-columns:1fr!important}html[data-orbitfs-theme="V5C"] .orbitPremiumConsoleNav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}html[data-orbitfs-theme="V5C"] .orbitPremiumConsoleNav a{text-align:center;padding:10px 8px}}
