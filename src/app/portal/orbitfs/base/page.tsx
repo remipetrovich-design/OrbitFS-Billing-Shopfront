@@ -98,7 +98,7 @@ export default function MyOrbitFS(){
     else if(connected==="supabase")setMsg("Supabase account connected. Loading your projects…");
     else if(connected==="vercel")setMsg("Vercel account connected. Checking deployment setup…");
     void (async()=>{
-      const snapshot=await load(false,false);
+      const snapshot=await load(false,true); if(snapshot)void load(true,false);
       if(callbackError){
         setMsg(callbackError);
         setSiteStep(1);
