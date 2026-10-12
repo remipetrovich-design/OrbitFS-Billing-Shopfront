@@ -188,11 +188,25 @@ export default function MyOrbitFS(){
   useEffect(()=>{if(selectedRelease?.id&&!selectedReleaseId)setSelectedReleaseId(String(selectedRelease.id))},[selectedRelease?.id,selectedReleaseId]);
   useEffect(()=>{if(vercelConnection?.team_id!==undefined&&vercelConnection?.team_id!==null&&!vercelTeamId)setVercelTeamId(String(vercelConnection.team_id))},[vercelConnection?.team_id]);
   useEffect(()=>{
-    if(!install||(!working&&!deploymentRequestActive))return;
+    if(!install?.id)return;
+    const live=working||deploymentRequestActive;
     let requestRunning=false;
-    const timer=setInterval(()=>{if(document.visibilityState!=="visible"||requestRunning)return;requestRunning=true;pollCount.current+=1;void refreshLiveBase().catch(()=>setMsg("Could not refresh live deployment progress. Retrying automatically.")).finally(()=>{requestRunning=false})},15000);
-    return()=>clearInterval(timer);
-  },[install?.id,install?.state,install?.vercel_deployment_id,activeOperation?.id,activeOperation?.state,activeOperation?.heartbeat_at,deploymentRequestActive]);
+    let cancelled=false;
+    async function refreshVisible(){
+      if(cancelled||document.visibilityState!=="visible"||requestRunning||busy)return;
+      requestRunning=true;
+      pollCount.current+=1;
+      try{await refreshLiveBase()}
+      catch{if(!cancelled&&live)setMsg("Could not refresh live deployment progress. Retrying automatically.")}
+      finally{requestRunning=false}
+    }
+    const timer=setInterval(()=>void refreshVisible(),live?15000:60000);
+    const onFocus=()=>void refreshVisible();
+    const onVisibility=()=>{if(document.visibilityState==="visible")void refreshVisible()};
+    window.addEventListener("focus",onFocus);
+    document.addEventListener("visibilitychange",onVisibility);
+    return()=>{cancelled=true;clearInterval(timer);window.removeEventListener("focus",onFocus);document.removeEventListener("visibilitychange",onVisibility)};
+  },[install?.id,install?.state,install?.vercel_deployment_id,activeOperation?.id,activeOperation?.state,deploymentRequestActive,panelReady,busy]);
   useEffect(()=>{
     if(!install){setCurrentStep(1);setViewedPrimaryStage(null);return}
     if(panelReady)return;
@@ -530,7 +544,7 @@ export default function MyOrbitFS(){
   const activeSiteStep=siteStep??journeyCurrent;
   const websiteState=deploymentNeedsAttention?"orbitSiteAttention":activeOperation?"orbitSiteProgress":panelReady?"orbitSiteControl":activeSiteStep===5?"orbitSiteReview":"orbitSiteDeployer";
   function openSiteStep(n:number){
-    if(n>=1&&n<=5)setSiteStep(n);
+    if(n>=1&&n<=5){setSiteStep(n);setMsg("");window.requestAnimationFrame(()=>document.querySelector(".orbitV5FlowCards")?.scrollIntoView({behavior:"smooth",block:"start"}));}
   }
 
   return <main className={"portalOverviewV2 orbitfsBaseV3 orbitZipDeployer "+websiteState+" "+(panelReady?"orbitZipDeployed":"orbitZipInstalling")} aria-label="OrbitFS Base Deployment">
@@ -570,7 +584,7 @@ export default function MyOrbitFS(){
       <div className="orbitBaseRecoveryActions"><Link className="buttonlink" href="/portal/orbitfs/license">Rotate licence key →</Link><button className="secondary" disabled={busy!==""} onClick={()=>void deploy("deploy")}>{busy==="deploy"?"Checking rotation…":"I rotated the key · Continue reinstall"}</button><span className="muted">{baseReinstallDeploymentFailed?(pendingBaseForceReinstall.lastError||"Retry the Base deployment."):"Billing checks rotation state with License Manager. The raw key is entered only inside the deployed Base."}</span></div>
     </section>}
     {panelReady&&install&&(activeOperation||latestOperation?.state==="failed")&&<section className="panel orbitV5OperationPanel orbitV5InstalledProgress orbitBaseStatusPanel">
-      <div className="panelTitle"><div><p className="eyebrow">DEPLOYMENT STATUS</p><h2>{activeOperation?label(activeOperation.action)+" · "+label(activeOperation.state):latestOperation?.state==="failed"?"Last deployment attempt failed":"Recent deployment activity"}</h2><p className="muted">{activeOperation?`Live Base operation. Status, events and Vercel readiness refresh automatically every 60 seconds${liveCheckedAt?" · last checked "+new Date(liveCheckedAt).toLocaleTimeString():""}.`:"Latest Base deployment operation recorded by Billing Store."}</p></div><span className={"state "+(activeOperation?"current":latestOperation?.state==="completed"?"ready":"waiting")}>{String(activeOperation?.state||latestOperation?.state||"status").replaceAll("_"," ").toUpperCase()}</span></div>
+      <div className="panelTitle"><div><p className="eyebrow">DEPLOYMENT STATUS</p><h2>{activeOperation?label(activeOperation.action)+" · "+label(activeOperation.state):latestOperation?.state==="failed"?"Last deployment attempt failed":"Recent deployment activity"}</h2><p className="muted">{activeOperation?`Live Base operation. Status and deployment progress refresh automatically every 15 seconds${liveCheckedAt?" · last checked "+new Date(liveCheckedAt).toLocaleTimeString():""}.`:"Latest Base deployment operation recorded by Billing Store."}</p></div><span className={"state "+(activeOperation?"current":latestOperation?.state==="completed"?"ready":"waiting")}>{String(activeOperation?.state||latestOperation?.state||"status").replaceAll("_"," ").toUpperCase()}</span></div>
       {activeOperation&&<div className="portalOverviewStats orbitBaseStatusStats">
         <div className="portalStatCard"><div><small>ACTION</small><strong>{label(activeOperation.action)}</strong><span>{activeOperation.detail?.version||activeOperation.requested_release_id||"Current release"}</span></div></div>
         <div className="portalStatCard"><div><small>STAGE</small><strong>{label(activeOperation.state)}</strong><span>{activeOperation.heartbeat_at?"Updated "+new Date(activeOperation.heartbeat_at).toLocaleTimeString():"Waiting for progress"}</span></div></div>
@@ -584,7 +598,7 @@ export default function MyOrbitFS(){
     {binding?<>
       {panelReady&&<section className="panel orbitZipControlPanel">
         <div className="orbitZipControlTop">
-          <div className="orbitZipControlIdentity"><p className="eyebrow">BASE INSTANCE</p><h2>{install.vercel_project_name||"Your OrbitFS Panel"}</h2><div className="orbitZipControlDomain">{install.production_url?<a href={install.production_url} target="_blank" rel="noreferrer">{install.production_url}</a>:<span>Production domain not detected</span>}<small>{liveCheckedAt?`Vercel/domain checked ${new Date(liveCheckedAt).toLocaleTimeString()}`:"Use Check status or Refresh domain to recheck Vercel."}</small></div></div>
+          <div className="orbitZipControlIdentity"><p className="eyebrow">BASE INSTANCE</p><h2>{install.vercel_project_name||"Your OrbitFS Panel"}</h2><div className="orbitZipControlDomain">{install.production_url?<a href={install.production_url} target="_blank" rel="noreferrer">{install.production_url}</a>:<span>Production domain not detected</span>}<small>{liveCheckedAt?`Vercel/domain checked ${new Date(liveCheckedAt).toLocaleTimeString()}`:"Status refreshes every 60 seconds and when you return to this tab."}</small></div></div>
           <div className="orbitZipControlTopActions"><span className={"state "+(validationReady?"ready":working?"current":"waiting")}>{validationReady?"HEALTHY":working?"IN PROGRESS":String(install.health_status||"UNVERIFIED").toUpperCase()}</span>{install.production_url&&<a className="buttonlink secondary" href={install.production_url} target="_blank" rel="noreferrer">Open Panel ↗</a>}<a className="buttonlink secondary" href={vercelProjectConsoleUrl} target="_blank" rel="noreferrer">Vercel ↗</a><button className="secondary" disabled={busy!==""} onClick={()=>void sync(false)}>Check status</button></div>
         </div>
 
@@ -593,7 +607,7 @@ export default function MyOrbitFS(){
             <div>
               <p className="eyebrow">DOMAIN & ADDRESS</p>
               <h2 className="orbitBaseDomainTitle">{install.production_url||(`https://${install.vercel_project_name}.vercel.app`)}</h2>
-              <p className="muted">Choose the Base Panel address on the existing Vercel project. Domain checks only run when you request them; this does not add background polling.</p>
+              <p className="muted">Choose the Base Panel address on the existing Vercel project. Configuration checks run when requested; installation status refreshes separately.</p>
             </div>
             <div className="orbitBaseDomainActions">
               <button className="secondary" type="button" disabled={busy!==""} onClick={()=>void loadBaseDomain()}>{busy==="base-domain-refresh"?"Checking…":"Refresh domain"}</button>
