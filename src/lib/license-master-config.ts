@@ -1,5 +1,3 @@
-import { createClient } from "@supabase/supabase-js";
-
 // Fallback Billing never bootstraps a different License Manager authority.
  // The separate Vercel environment variable makes the service URL explicit.
 export const TRUSTED_MASTER_BOOTSTRAP_URL = (() => {
@@ -17,7 +15,7 @@ function validMasterUrl(value: string) {
     const host = u.hostname.toLowerCase();
     if (
       u.protocol !== "https:" ||
-      host!=="lm.incendiarynetworks.cc" ||
+      host!=="incendiarynetworks.cc" ||
       u.pathname.replace(/\/+$/, "") !== "/api/v1" ||
       u.username ||
       u.password ||
@@ -84,41 +82,13 @@ export async function requireOfficialMasterApiUrl(value:string){
   return normalized;
 }
 
-let cachedUrl = TRUSTED_MASTER_BOOTSTRAP_URL;
-let cachedAt = 0;
-
+// The selected family is fixed in this deployed Billing application.
+// The other API is visible as an option in admin settings only, never
+// substituted as a runtime authority from shared database preference.
 export async function getMasterApiUrl() {
-  const now = Date.now();
-  if (now - cachedAt < 5_400_000) return cachedUrl;
-
-  const official=await getOfficialMasterApiConnections();
-  const allowed=new Set(official.map(row=>row.base_url));
-  let resolved=TRUSTED_MASTER_BOOTSTRAP_URL;
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-  if (supabaseUrl && serviceKey) {
-    try {
-      const sb = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-      const { data } = await sb
-        .from("license_master_connection")
-        .select("master_url,enabled,updated_at")
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      const saved=data?.enabled!==false&&data?.master_url?validMasterUrl(String(data.master_url)):null;
-      if(saved&&allowed.has(saved))resolved=saved;
-    } catch {
-      // Use the trusted official registry/default.
-    }
-  }
-
-  cachedUrl=resolved;
-  cachedAt=now;
-  return cachedUrl;
+  return TRUSTED_MASTER_BOOTSTRAP_URL;
 }
 
 export function clearMasterApiCache(){
   registryCache=null;
-  cachedAt=0;
 }
