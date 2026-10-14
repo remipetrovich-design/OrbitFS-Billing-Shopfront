@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 10
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_TOKEN: ${{ secrets.FALLBACK_VERCEL_TOKEN || secrets.VERCEL_TOKEN }}
       GH_TOKEN: ${{ github.token }}
       EXPECTED_SUPABASE_PROJECT: hdwijbdxmpwlltnfrbsc
       EXPECTED_VERCEL_PROJECT: prj_BZNKPOm5pTcMdD4QrOXPOqpE7Imq
