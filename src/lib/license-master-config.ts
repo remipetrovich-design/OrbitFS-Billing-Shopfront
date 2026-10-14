@@ -15,7 +15,7 @@ function validMasterUrl(value: string) {
     const host = u.hostname.toLowerCase();
     if (
       u.protocol !== "https:" ||
-      host!=="incendiarynetworks.cc" ||
+      host!=="lm.incendiarynetworks.cc" ||
       u.pathname.replace(/\/+$/, "") !== "/api/v1" ||
       u.username ||
       u.password ||
