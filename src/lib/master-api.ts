@@ -1,3 +1,4 @@
+import {emitDiagnostic} from "@/lib/incendiary-diagnostic";
 import {getMasterApiUrl} from "@/lib/license-master-config";
 import {errorMessage} from "@/lib/error-message";
 
@@ -13,11 +14,25 @@ async function fetchWithTimeout(url:string,init:RequestInit,role:MasterRole="bil
   const cfg=requireConfig(role),controller=init.signal?null:new AbortController(),timer=controller?setTimeout(()=>controller.abort(),timeoutMs()):null;
   const run=async(value:string)=>{const headers=new Headers(init.headers);headers.set("authorization",`Bearer ${value}`);return fetch(url,{...init,headers,signal:init.signal||controller?.signal});};
   try{
+    const start=Date.now();
+    const request_id=crypto.randomUUID?.()||Math.random().toString(36).slice(2);
     let response=await run(cfg.value);
     if(role==="deployer"&&response.status===401){
       const billing=String(process.env.BILLING_API_TOKEN||"").trim();
       if(billing&&billing!==cfg.value)response=await run(billing);
     }
+    emitDiagnostic({
+      direction:"egress",
+      source_system:"billing",
+      target:"license_manager",
+      account_mode:"fallback",
+      method:(init.method||"GET").toUpperCase(),
+      endpoint:url.replace(/^https?:\/\/[^/]+/, ""),
+      status:response.status,
+      request_id,
+      latency_ms:Date.now()-start,
+      error:null
+    });
     return response;
   }catch(error){
     if(error instanceof Error&&error.name==="AbortError")throw new Error(`License Master request timed out after ${timeoutMs()}ms`);
