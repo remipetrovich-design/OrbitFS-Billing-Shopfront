@@ -19,7 +19,7 @@ jobs:
     environment:
       name: production
     env:
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_TOKEN: ${{ secrets.FALLBACK_VERCEL_TOKEN || secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: team_0fWVaLb24pyeeCRqqYu5G47K
       VERCEL_SCOPE: splashincau-7868s-projects
       VERCEL_PROJECT_ID: prj_BZNKPOm5pTcMdD4QrOXPOqpE7Imq
