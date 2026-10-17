@@ -33,7 +33,7 @@ const request=(path='/store')=>({
 const responseFor=(mode,ok=true)=>({ok,json:async()=>({mode})});
 
 test('Fallback proxy never imports Main-only standby browser routing',()=>{
-  assert.doesNotMatch(source,/standbyStoreUrl|FAMILY\\s*===\\s*['"]main['"]/);
+  assert.doesNotMatch(source,/standbyStoreUrl|FAMILY\s*===\s*['"]main['"]/);
 });
 
 test('Fallback mode is served only when authoritative License Administration agrees',async()=>{
